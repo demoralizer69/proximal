@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseHub</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg:      #fff7ed;
+      --fg:      #1c1917;
+      --muted:   #78716c;
+      --accent:  #ea580c;
+      --card:    #ffedd5;
+      --radius:  16px;
+      --font:    Georgia, 'Times New Roman', serif;
+    }
+
+    html, body {
+      min-height: 100%;
+      background-color: var(--bg);
+      color: var(--fg);
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── Layout wrapper ── */
+    .page {
+      max-width: 800px;
+      min-height: 600px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Navigation ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid rgba(120, 113, 108, 0.18);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-brand-name {
+      font-size: 1.25rem;
+      font-weight: bold;
+      letter-spacing: -0.02em;
+      color: var(--fg);
+    }
+
+    .badge {
+      background-color: var(--accent);
+      color: #fff;
+      font-size: 0.65rem;
+      font-family: Georgia, serif;
+      font-weight: bold;
+      padding: 2px 7px;
+      border-radius: 99px;
+      letter-spacing: 0.04em;
+    }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      gap: 28px;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.15s;
+    }
+
+    .nav-links a:hover {
+      color: var(--accent);
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 72px 32px 60px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: bold;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: var(--fg);
+      margin-bottom: 18px;
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      color: var(--muted);
+      margin-bottom: 40px;
+      font-style: italic;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 13px 30px;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background-color 0.15s, transform 0.1s;
+      display: inline-block;
+    }
+
+    .btn-primary:hover {
+      background-color: #c2410c;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--fg);
+      border: 2px solid rgba(28, 25, 23, 0.25);
+      padding: 11px 28px;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color 0.15s, color 0.15s, transform 0.1s;
+      display: inline-block;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    /* ── Features ── */
+    .features {
+      padding: 8px 32px 64px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .feature-card {
+      background-color: var(--card);
+      border-radius: var(--radius);
+      padding: 28px 26px;
+      border: 1px solid rgba(234, 88, 12, 0.12);
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+
+    .feature-card:hover {
+      box-shadow: 0 6px 24px rgba(234, 88, 12, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .feature-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background-color: var(--accent);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* CSS-only icons via pseudo-elements */
+    .icon-cache::after  { content: '⚡'; font-size: 18px; }
+    .icon-api::after    { content: '⬡'; font-size: 18px; color: #fff; }
+    .icon-deploy::after { content: '↑'; font-size: 20px; font-weight: bold; color: #fff; }
+    .icon-config::after { content: '◎'; font-size: 18px; color: #fff; }
+
+    .feature-title {
+      font-size: 1.05rem;
+      font-weight: bold;
+      color: var(--fg);
+      margin-bottom: 6px;
+    }
+
+    .feature-body {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: auto;
+      padding: 22px 32px;
+      border-top: 1px solid rgba(120, 113, 108, 0.18);
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- Navigation -->
+    <nav>
+      <div class="nav-brand">
+        <span class="nav-brand-name">PulseHub</span>
+        <span class="badge">v2.0</span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#">Blog</a></li>
+        <li><a href="#">Customers</a></li>
+        <li><a href="#">Company</a></li>
+        <li><a href="#">Product</a></li>
+      </ul>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+      <h1>Tools that just get out of your way.</h1>
+      <p>Less yak-shaving. More shipping.</p>
+      <div class="hero-actions">
+        <a href="#" class="btn-primary">Sign up</a>
+        <a href="#" class="btn-secondary">Live demo</a>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+      <div class="features-grid">
+
+        <div class="feature-card">
+          <div class="feature-icon icon-cache"></div>
+          <div class="feature-title">Smart caching</div>
+          <div class="feature-body">Every change recorded. Compliance, made simple.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-api"></div>
+          <div class="feature-title">Type-safe APIs</div>
+          <div class="feature-body">Deploys close to your users automatically.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-deploy"></div>
+          <div class="feature-title">One-click deploy</div>
+          <div class="feature-body">Roles, invites, and SSO out of the box.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon icon-config"></div>
+          <div class="feature-title">Zero config</div>
+          <div class="feature-body">Ship to production with a single command.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      &copy; 2026 PulseHub. All rights reserved.
+    </footer>
+
+  </div>
+</body>
+</html>

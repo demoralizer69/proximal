@@ -1,0 +1,40 @@
+schema_version = "1.2"
+multi_step_reward_strategy = "final"
+
+[task]
+name = "proximal/generate_and_clone"
+description = "Generate a webpage from a random spec, then clone it from a Playwright-rendered screenshot. SSIM-scored."
+authors = []
+keywords = []
+
+[metadata]
+
+[environment]
+build_timeout_sec = 1200.0
+os = "linux"
+cpus = 4
+memory_mb = 4096
+storage_mb = 8192
+gpus = 0
+allow_internet = true
+workdir = "/app"
+mcp_servers = []
+[environment.env]
+
+[[steps]]
+name = "generate"
+artifacts = ["/app/website_details.json", "/app/website.html"]
+[steps.agent]
+timeout_sec = 600.0
+[steps.verifier]
+timeout_sec = 60.0
+[steps.verifier.env]
+
+[[steps]]
+name = "clone"
+artifacts = ["/app/webpage.png", "/app/clone.html", "/app/clone.png"]
+[steps.agent]
+timeout_sec = 600.0
+[steps.verifier]
+timeout_sec = 180.0
+[steps.verifier.env]

@@ -1,0 +1,20 @@
+[
+  {
+    "source": "/logs/artifacts",
+    "destination": "artifacts",
+    "type": "directory",
+    "status": "ok"
+  },
+  {
+    "source": "/app/website_details.json",
+    "destination": "artifacts/website_details.json",
+    "type": "file",
+    "status": "ok"
+  },
+  {
+    "source": "/app/website.html",
+    "destination": "artifacts/website.html",
+    "type": "file",
+    "status": "ok"
+  }
+]

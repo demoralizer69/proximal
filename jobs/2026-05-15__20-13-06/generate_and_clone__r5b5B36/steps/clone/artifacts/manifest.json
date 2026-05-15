@@ -1,0 +1,26 @@
+[
+  {
+    "source": "/logs/artifacts",
+    "destination": "artifacts",
+    "type": "directory",
+    "status": "ok"
+  },
+  {
+    "source": "/app/webpage.png",
+    "destination": "artifacts/webpage.png",
+    "type": "file",
+    "status": "ok"
+  },
+  {
+    "source": "/app/clone.html",
+    "destination": "artifacts/clone.html",
+    "type": "file",
+    "status": "ok"
+  },
+  {
+    "source": "/app/clone.png",
+    "destination": "artifacts/clone.png",
+    "type": "file",
+    "status": "ok"
+  }
+]

@@ -1,0 +1,54 @@
+{
+  "brand": "PulseHub",
+  "tagline_badge": "v2.0",
+  "palette": {
+    "name": "sunrise",
+    "background": "#fff7ed",
+    "foreground": "#1c1917",
+    "muted": "#78716c",
+    "accent": "#ea580c",
+    "card": "#ffedd5"
+  },
+  "font_family": "Georgia, 'Times New Roman', serif",
+  "border_radius_px": 16,
+  "layout": "centered",
+  "viewport": {
+    "width": 800,
+    "height": 600
+  },
+  "navigation": {
+    "show": true,
+    "items": [
+      "Blog",
+      "Customers",
+      "Company",
+      "Product"
+    ]
+  },
+  "hero": {
+    "headline": "Tools that just get out of your way.",
+    "subheadline": "Less yak-shaving. More shipping.",
+    "primary_cta": "Sign up",
+    "secondary_cta": "Live demo"
+  },
+  "features": [
+    {
+      "title": "Smart caching",
+      "body": "Every change recorded. Compliance, made simple."
+    },
+    {
+      "title": "Type-safe APIs",
+      "body": "Deploys close to your users automatically."
+    },
+    {
+      "title": "One-click deploy",
+      "body": "Roles, invites, and SSO out of the box."
+    },
+    {
+      "title": "Zero config",
+      "body": "Ship to production with a single command."
+    }
+  ],
+  "footer_text": "\u00a9 2026 PulseHub. All rights reserved.",
+  "seed": 4436620125915031363
+}
