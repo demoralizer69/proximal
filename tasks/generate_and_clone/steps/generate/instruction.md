@@ -5,6 +5,7 @@ Requirements:
 - Inline all CSS in a `<style>` tag — no external stylesheets.
 - Do not link to or download external images, fonts, or scripts. Use system fonts (the spec's `font_family` is a CSS stack — use it as-is and rely on its fallbacks) and CSS-only visuals.
 - Honor every field in `/app/website_details.json`. Use the colors, font, layout, language, and topic as specified, and let the `temperature` dials bias the page's visual character.
+- Keep the file under **30 KB**. Don't over-deliberate on the dials — make quick proportional judgments and write the HTML.
 
 ## Spec schema
 
