@@ -117,7 +117,6 @@ def main() -> int:
         "font_family": rng.choice(FONT_STACKS)["css"],
         "border_radius_px": rng.choice([4, 8, 12, 16, 20]),
         "layout": rng.choice(LAYOUTS),
-        "viewport": {"width": 800, "height": 600},
         "navigation": {
             "show": True,
             "items": nav,

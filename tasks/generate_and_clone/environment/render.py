@@ -1,4 +1,4 @@
-"""HTML -> PNG via Playwright Chromium at 800x600.
+"""HTML -> PNG via Playwright Chromium.
 
 Single rendering source-of-truth shared by:
     1. steps/clone/workdir/setup.sh   — renders step-1's website.html  -> /app/webpage.png
