@@ -18,6 +18,9 @@ Requirements:
   "topic": "...",
   "fixed": {
     "type":             "ecommerce | social_media | utility | informational | portfolio | news | blog | saas | educational",
+    "brand_name":       "the site's brand / wordmark",
+    "tagline":          "short marketing line",
+    "design_era":       "corporate-2010 | material-2014 | flat-minimal | brutalist | neo-brutalist | glassmorphism | y2k | swiss-editorial",
     "primary_color":    "#rrggbb",
     "secondary_color":  "#rrggbb",
     "accent_color":     "#rrggbb",
@@ -32,7 +35,7 @@ Requirements:
 ```
 
 ### `topic`
-The site's subject (e.g. `"vintage synthesizers"`). Invent plausible copy — headings, body text, product / article / project names — about this topic and shape it to match the site type.
+The site's subject (e.g. `"trail running shoes"`). Invent plausible copy — headings, body text, product / article / project names — about this topic and shape it to match the site type.
 
 ### `fixed`
 Concrete categorical choices. Use each value as-is, no interpolation.
@@ -40,6 +43,9 @@ Concrete categorical choices. Use each value as-is, no interpolation.
 | Field | Use |
 |---|---|
 | `type` | Overall site genre (`ecommerce`, `social_media`, `utility`, `informational`, `portfolio`, `news`, `blog`, `saas`, `educational`). Shape the page content and components to match. |
+| `brand_name` | The site's brand / wordmark. Use it in the header, footer, page titles, and copy. Don't invent a different name. |
+| `tagline` | A short marketing line. Use it in the hero or header. |
+| `design_era` | The era / movement to anchor the visual style to. Reference points: `corporate-2010` (rounded blue buttons, drop shadows), `material-2014` (Google Material: bold flat colors, cards), `flat-minimal` (lots of whitespace, neutral tones), `brutalist` (raw, system fonts, harsh borders), `neo-brutalist` (hard shadows, vivid blocks, thick borders), `glassmorphism` (frosted translucent surfaces, blurred backdrops), `y2k` (chrome, gradients, sparkles, frutiger aero), `swiss-editorial` (grid-driven, serif headlines, generous margins). |
 | `primary_color` | Main brand color. |
 | `secondary_color` | Companion to the primary; surfaces or secondary accents. |
 | `accent_color` | Highlight color for CTAs, tags, links. |
@@ -54,7 +60,7 @@ Each value is a float in `[0, 1]`. **0 means "none / minimal / off"; 1 means "lo
 
 | Key | 0 means | 1 means |
 |---|---|---|
-| `colorfulness` | near-monochrome | many distinct hues |
+| `colorfulness` | near-monochrome, desaturated | many distinct vivid hues |
 | `content_density` | very concise text | long, dense copy |
 | `button_density` | almost no buttons | buttons everywhere |
 | `image_density` | text-only | image-heavy (use CSS shapes/gradients in lieu of real images) |
@@ -65,14 +71,12 @@ Each value is a float in `[0, 1]`. **0 means "none / minimal / off"; 1 means "lo
 | `border_prominence` | borderless | thick visible borders |
 | `whitespace` | cramped | very spacious |
 | `typography_contrast` | uniform sizes | dramatic size hierarchy |
-| `gradient_usage` | solid fills only | gradients throughout |
-| `saturation` | desaturated / muted | vivid / punchy colors |
 | `visual_hierarchy` | flat importance | strong focal points |
 | `animation_hint` | static feel | motion-friendly composition (no JS — just composition cues) |
 | `skeuomorphism` | flat design | tactile / 3D / textured |
 | `noise_texture` | clean flat surfaces | grainy / textured surfaces |
 | `card_density` | few large cards (or none) | many small cards |
-| `gradients` | no gradient backgrounds at all | many distinct gradient backgrounds across the page |
+| `gradients` | solid fills only, no gradients | gradients used heavily across surfaces |
 | `genz_ness` | neutral / corporate tone & styling | maximalist Gen-Z styling and copy (vivid color clashes, internet slang, emoji, playful headlines) |
 
 The spec at `/app/website_details.json` is the source of truth. Do not invent additional pages beyond what is listed in `fixed.pages`.

@@ -4,12 +4,19 @@ Contract (do not break without also updating the agent's instruction.md):
     Input:  none
     Output: writes /app/website_details.json
 
-This file is the iteration point for changing what kind of webpages the
-pipeline generates. Everything downstream (the agent's HTML, the
-Playwright screenshots, etc.) flows from whatever this script writes.
+Realism strategy:
+  - Topics, pages, fonts, layouts, eras, and dial priors are all
+    conditioned on the site type, so e.g. a SaaS site doesn't pair with
+    "Bebas Neue" or a "magazine" layout and a bank doesn't get genz_ness=0.9.
+  - Color palette is sampled as a coordinated HSL scheme keyed to the
+    background tone, not three independent random hex values.
+  - Dials are sampled from Beta(p, 1-p) where p is the type-conditioned
+    prior mean. Both shape params < 1 makes the distribution U-shaped, so
+    designs commit to either-or aesthetics instead of mushing to 0.5.
 """
 from __future__ import annotations
 
+import colorsys
 import json
 import random
 import re
@@ -17,189 +24,264 @@ import secrets
 import sys
 from pathlib import Path
 
-TOPICS = [
-    "medieval cooking",
-    "deep-sea biology",
-    "vintage synthesizers",
-    "space exploration",
-    "urban beekeeping",
-    "minimalist architecture",
-    "competitive speedcubing",
-    "tea ceremonies",
-    "abandoned subway stations",
-    "indie game development",
-    "paper marbling",
-    "Antarctic research stations",
-    "Japanese stationery",
-    "fermented foods",
-    "amateur astronomy",
-    "bouldering routes",
-    "typography history",
-    "lighthouse keeping",
-    "vintage Formula 1",
-    "mushroom foraging",
-    "modular synthesizers",
-    "desert gardening",
-    "ancient cartography",
-    "competitive birdwatching",
-    "lost programming languages",
-    "artisanal coffee roasting",
-    "thrift store fashion",
-    "retro arcade games",
-    "wildlife photography",
-    "sustainable surfing",
-]
+# -----------------------------------------------------------------------------
+# Site types and their plausible pages
+# -----------------------------------------------------------------------------
 
-FONT_FAMILIES = [
-    '"Inter", system-ui, sans-serif',
-    '"Helvetica Neue", Arial, sans-serif',
-    '"Georgia", "Times New Roman", serif',
-    '"Playfair Display", Georgia, serif',
-    '"JetBrains Mono", "Fira Code", monospace',
-    '"IBM Plex Mono", "Courier New", monospace',
-    '"Space Grotesk", "Inter", sans-serif',
-    '"Cormorant Garamond", Georgia, serif',
-    '"DM Sans", system-ui, sans-serif',
-    '"Bebas Neue", Impact, sans-serif',
-]
-
-LAYOUTS = [
-    "single-column",
-    "hero + 3-card grid",
-    "sidebar-left",
-    "sidebar-right",
-    "magazine",
-    "dashboard",
-    "two-column split",
-    "masonry",
-    "centered-narrow",
-    "full-bleed hero",
-]
-
-BACKGROUND_TONES = ["light", "dark"]
-
-# Website types and the pool of plausible page slugs for each.
-# `home` is always included as the first page.
 TYPE_PAGES: dict[str, list[str]] = {
     "ecommerce": [
-        "shop",
-        "product",
-        "category",
-        "cart",
-        "checkout",
-        "account",
-        "orders",
-        "wishlist",
-        "deals",
-        "about",
-        "contact",
-        "faq",
-        "shipping",
+        "shop", "product", "category", "cart", "checkout", "account",
+        "orders", "wishlist", "deals", "about", "contact", "faq", "shipping",
     ],
     "social_media": [
-        "feed",
-        "profile",
-        "explore",
-        "notifications",
-        "messages",
-        "search",
-        "settings",
-        "trending",
-        "groups",
-        "events",
-        "saved",
-        "login",
+        "feed", "profile", "explore", "notifications", "messages", "search",
+        "settings", "trending", "groups", "events", "saved", "login",
     ],
     "utility": [
-        "dashboard",
-        "tools",
-        "history",
-        "settings",
-        "profile",
-        "billing",
-        "integrations",
-        "api",
-        "docs",
-        "support",
-        "login",
-        "signup",
+        "dashboard", "tools", "history", "settings", "profile", "billing",
+        "integrations", "api", "docs", "support", "login", "signup",
     ],
     "informational": [
-        "about",
-        "services",
-        "team",
-        "contact",
-        "faq",
-        "resources",
-        "pricing",
-        "testimonials",
-        "case-studies",
-        "careers",
-        "press",
+        "about", "services", "team", "contact", "faq", "resources", "pricing",
+        "testimonials", "case-studies", "careers", "press",
     ],
     "portfolio": [
-        "projects",
-        "project-detail",
-        "about",
-        "resume",
-        "contact",
-        "blog",
-        "post",
-        "gallery",
-        "services",
-        "testimonials",
+        "projects", "project-detail", "about", "resume", "contact", "blog",
+        "post", "gallery", "services", "testimonials",
     ],
     "news": [
-        "latest",
-        "article",
-        "category",
-        "author",
-        "archive",
-        "opinion",
-        "video",
-        "newsletter",
-        "about",
-        "contact",
+        "latest", "article", "category", "author", "archive", "opinion",
+        "video", "newsletter", "about", "contact",
     ],
     "blog": [
-        "post",
-        "archive",
-        "tag",
-        "category",
-        "about",
-        "contact",
-        "subscribe",
-        "search",
-        "author",
+        "post", "archive", "tag", "category", "about", "contact",
+        "subscribe", "search", "author",
     ],
     "saas": [
-        "features",
-        "pricing",
-        "docs",
-        "blog",
-        "login",
-        "signup",
-        "dashboard",
-        "integrations",
-        "changelog",
-        "contact",
+        "features", "pricing", "docs", "blog", "login", "signup",
+        "dashboard", "integrations", "changelog", "contact",
     ],
     "educational": [
-        "courses",
-        "course-detail",
-        "instructors",
-        "schedule",
-        "enroll",
-        "about",
-        "contact",
-        "resources",
-        "faq",
-        "blog",
+        "courses", "course-detail", "instructors", "schedule", "enroll",
+        "about", "contact", "resources", "faq", "blog",
     ],
 }
 
 TYPES = tuple(TYPE_PAGES.keys())
 
+# Per-type topic pools — chosen to feel like real businesses/products, not
+# whimsical "lorem ipsum" hobbies.
+TYPE_TOPICS: dict[str, list[str]] = {
+    "ecommerce": [
+        "single-origin coffee subscription",
+        "merino wool socks",
+        "natural deodorant",
+        "kitchen knives for home cooks",
+        "pet beds for senior dogs",
+        "trail running shoes",
+        "ceremonial-grade matcha",
+        "men's skincare basics",
+        "ceramic dinnerware",
+        "camping cookware",
+        "sustainable activewear",
+        "houseplants delivered monthly",
+        "natural wine club",
+        "small-batch hot sauce",
+        "wireless earbuds",
+        "leather wallets",
+        "vintage motorcycle parts",
+        "refurbished mechanical keyboards",
+        "kids' bookshop",
+    ],
+    "saas": [
+        "expense tracking for freelancers",
+        "team retrospective tool",
+        "customer feedback collection",
+        "API uptime monitoring",
+        "newsletter publishing platform",
+        "invoicing for solopreneurs",
+        "online booking for hair salons",
+        "inventory management for small retailers",
+        "applicant tracking system",
+        "managed vector database",
+        "feature flag service",
+        "customer support helpdesk",
+        "podcast hosting and analytics",
+        "no-code form builder",
+        "AI meeting notes",
+        "headless CMS",
+    ],
+    "social_media": [
+        "anonymous campus confessions",
+        "amateur film critics network",
+        "running club community",
+        "homebrewing forum",
+        "expat support network",
+        "language exchange community",
+        "indie game devs hub",
+        "minimalist living community",
+        "urban gardeners marketplace",
+        "tabletop RPG group finder",
+        "amateur radio operators",
+    ],
+    "utility": [
+        "tax filing assistant",
+        "expense splitting between roommates",
+        "rent payment portal",
+        "fitness habit tracker",
+        "meal planning app",
+        "calorie counter",
+        "period tracker",
+        "sleep tracker dashboard",
+        "personal budgeting app",
+        "DNS management console",
+        "VPN provider control panel",
+        "password manager",
+    ],
+    "informational": [
+        "private dental practice",
+        "boutique immigration law firm",
+        "physical therapy clinic",
+        "wedding venue in the Hudson Valley",
+        "yoga studio in Brooklyn",
+        "homeschool curriculum cooperative",
+        "city council district office",
+        "community public library",
+        "naturopathic clinic",
+        "neighborhood pediatric office",
+        "small architecture firm",
+    ],
+    "portfolio": [
+        "freelance UX designer",
+        "indie illustrator",
+        "studio architect",
+        "freelance copywriter",
+        "wedding photographer",
+        "ceramicist studio",
+        "two-person indie game studio",
+        "type foundry",
+        "branding studio",
+        "documentary filmmaker",
+        "motion designer",
+    ],
+    "news": [
+        "local restaurant reviews",
+        "AI industry news daily",
+        "crypto markets briefing",
+        "indie game journalism",
+        "city politics beat",
+        "tech worker labor news",
+        "music industry trade publication",
+        "amateur sports league coverage",
+        "hyperlocal neighborhood paper",
+    ],
+    "blog": [
+        "minimalist home cooking",
+        "first-time homebuying",
+        "raising twins",
+        "career switch to software",
+        "long-distance hiking journal",
+        "freelance income reports",
+        "amateur astronomy notes",
+        "indie hacker journey",
+        "parenting a toddler",
+        "weekly book reviews",
+        "running training log",
+    ],
+    "educational": [
+        "online language tutoring",
+        "remote coding bootcamp",
+        "GED prep",
+        "MCAT prep",
+        "online watercolor classes",
+        "yoga teacher training",
+        "private music lessons",
+        "kids' chess club",
+        "private SAT tutoring",
+        "early childhood music classes",
+    ],
+}
+
+# -----------------------------------------------------------------------------
+# Type-conditioned fonts, layouts, design eras
+# -----------------------------------------------------------------------------
+
+_SERIF = [
+    '"Georgia", "Times New Roman", serif',
+    '"Playfair Display", Georgia, serif',
+    '"Cormorant Garamond", Georgia, serif',
+]
+_SANS = [
+    '"Inter", system-ui, sans-serif',
+    '"Helvetica Neue", Arial, sans-serif',
+    '"DM Sans", system-ui, sans-serif',
+    '"Space Grotesk", "Inter", sans-serif',
+]
+_MONO = [
+    '"JetBrains Mono", "Fira Code", monospace',
+    '"IBM Plex Mono", "Courier New", monospace',
+]
+_DISPLAY = [
+    '"Bebas Neue", Impact, sans-serif',
+    '"Playfair Display", Georgia, serif',
+]
+
+TYPE_FONTS: dict[str, list[str]] = {
+    "ecommerce":     _SANS + _SERIF[:1],
+    "saas":          _SANS,
+    "social_media":  _SANS,
+    "utility":       _SANS + _MONO,
+    "informational": _SANS + _SERIF,
+    "portfolio":     _SANS + _SERIF + _DISPLAY + _MONO,
+    "news":          _SERIF + _SANS[:2],
+    "blog":          _SERIF + _SANS[:2],
+    "educational":   _SANS + _SERIF[:1],
+}
+
+TYPE_LAYOUTS: dict[str, list[str]] = {
+    "ecommerce":     ["hero + 3-card grid", "masonry", "magazine", "full-bleed hero"],
+    "saas":          ["hero + 3-card grid", "full-bleed hero", "dashboard", "centered-narrow"],
+    "social_media":  ["single-column", "two-column split", "dashboard"],
+    "utility":       ["dashboard", "sidebar-left", "sidebar-right"],
+    "informational": ["centered-narrow", "magazine", "two-column split", "hero + 3-card grid"],
+    "portfolio":     ["masonry", "magazine", "centered-narrow", "full-bleed hero"],
+    "news":          ["magazine", "sidebar-right", "two-column split"],
+    "blog":          ["centered-narrow", "sidebar-right", "magazine"],
+    "educational":   ["hero + 3-card grid", "sidebar-left", "centered-narrow"],
+}
+
+BACKGROUND_TONES = ["light", "dark"]
+
+DESIGN_ERAS = (
+    "corporate-2010",     # rounded blue buttons, drop shadows, stock photos
+    "material-2014",      # Google Material: bold flat colors, ripple, cards
+    "flat-minimal",       # current SaaS default: lots of whitespace, neutral tones
+    "brutalist",          # raw, system fonts, harsh borders, no-frills
+    "neo-brutalist",      # 2022+ revival: hard shadows, vivid blocks, thick borders
+    "glassmorphism",      # frosted translucent surfaces, blurred backdrops
+    "y2k",                # chrome, gradients, sparkles, frutiger aero
+    "swiss-editorial",    # grid-driven, serif headlines, generous margins
+)
+
+TYPE_ERAS: dict[str, list[str]] = {
+    "ecommerce":     ["flat-minimal", "swiss-editorial", "corporate-2010", "neo-brutalist", "material-2014"],
+    "saas":          ["flat-minimal", "corporate-2010", "material-2014", "glassmorphism"],
+    "social_media":  ["material-2014", "glassmorphism", "y2k", "neo-brutalist"],
+    "utility":       ["flat-minimal", "material-2014", "corporate-2010"],
+    "informational": ["corporate-2010", "swiss-editorial", "flat-minimal"],
+    "portfolio":     ["swiss-editorial", "brutalist", "neo-brutalist", "flat-minimal", "y2k"],
+    "news":          ["swiss-editorial", "corporate-2010", "flat-minimal"],
+    "blog":          ["swiss-editorial", "flat-minimal", "corporate-2010"],
+    "educational":   ["material-2014", "flat-minimal", "corporate-2010"],
+}
+
+# -----------------------------------------------------------------------------
+# Temperature dials
+# -----------------------------------------------------------------------------
+
+# Redundant pairs collapsed from the previous schema:
+#   - `saturation` merged into `colorfulness`
+#   - `gradient_usage` merged into `gradients`
 TEMPERATURE_KEYS = (
     "colorfulness",
     "content_density",
@@ -212,44 +294,166 @@ TEMPERATURE_KEYS = (
     "border_prominence",
     "whitespace",
     "typography_contrast",
-    "gradient_usage",
-    "saturation",
     "visual_hierarchy",
     "animation_hint",
     "skeuomorphism",
     "noise_texture",
     "card_density",
-    "gradients",   # 0 = no gradient backgrounds, 1 = many distinct gradients across the page
-    "genz_ness",   # 0 = neutral / corporate tone, 1 = maximalist Gen-Z styling and copy
+    "gradients",
+    "genz_ness",
 )
+
+# Per-type prior means for each dial. Missing keys default to 0.5.
+# Tune these so each type's "feel" reads as real (calm for SaaS/news, loud
+# for social/y2k territory, etc.).
+TYPE_DIAL_PRIORS: dict[str, dict[str, float]] = {
+    "ecommerce": {
+        "colorfulness": 0.55, "content_density": 0.45, "button_density": 0.65,
+        "image_density": 0.75, "icon_density": 0.5, "corner_roundness": 0.55,
+        "translucency": 0.25, "shadow_intensity": 0.4, "border_prominence": 0.3,
+        "whitespace": 0.55, "typography_contrast": 0.6, "visual_hierarchy": 0.7,
+        "animation_hint": 0.35, "skeuomorphism": 0.25, "noise_texture": 0.2,
+        "card_density": 0.7, "gradients": 0.25, "genz_ness": 0.3,
+    },
+    "saas": {
+        "colorfulness": 0.4, "content_density": 0.45, "button_density": 0.5,
+        "image_density": 0.4, "icon_density": 0.55, "corner_roundness": 0.6,
+        "translucency": 0.35, "shadow_intensity": 0.35, "border_prominence": 0.25,
+        "whitespace": 0.75, "typography_contrast": 0.65, "visual_hierarchy": 0.7,
+        "animation_hint": 0.4, "skeuomorphism": 0.1, "noise_texture": 0.15,
+        "card_density": 0.55, "gradients": 0.3, "genz_ness": 0.15,
+    },
+    "social_media": {
+        "colorfulness": 0.7, "content_density": 0.55, "button_density": 0.55,
+        "image_density": 0.7, "icon_density": 0.75, "corner_roundness": 0.75,
+        "translucency": 0.5, "shadow_intensity": 0.45, "border_prominence": 0.2,
+        "whitespace": 0.4, "typography_contrast": 0.5, "visual_hierarchy": 0.55,
+        "animation_hint": 0.65, "skeuomorphism": 0.2, "noise_texture": 0.2,
+        "card_density": 0.65, "gradients": 0.5, "genz_ness": 0.7,
+    },
+    "utility": {
+        "colorfulness": 0.3, "content_density": 0.6, "button_density": 0.6,
+        "image_density": 0.25, "icon_density": 0.65, "corner_roundness": 0.4,
+        "translucency": 0.25, "shadow_intensity": 0.3, "border_prominence": 0.45,
+        "whitespace": 0.55, "typography_contrast": 0.55, "visual_hierarchy": 0.6,
+        "animation_hint": 0.2, "skeuomorphism": 0.1, "noise_texture": 0.1,
+        "card_density": 0.6, "gradients": 0.15, "genz_ness": 0.1,
+    },
+    "informational": {
+        "colorfulness": 0.35, "content_density": 0.55, "button_density": 0.35,
+        "image_density": 0.45, "icon_density": 0.4, "corner_roundness": 0.4,
+        "translucency": 0.2, "shadow_intensity": 0.3, "border_prominence": 0.35,
+        "whitespace": 0.65, "typography_contrast": 0.65, "visual_hierarchy": 0.65,
+        "animation_hint": 0.2, "skeuomorphism": 0.15, "noise_texture": 0.15,
+        "card_density": 0.4, "gradients": 0.15, "genz_ness": 0.1,
+    },
+    "portfolio": {
+        "colorfulness": 0.45, "content_density": 0.3, "button_density": 0.25,
+        "image_density": 0.75, "icon_density": 0.3, "corner_roundness": 0.4,
+        "translucency": 0.3, "shadow_intensity": 0.35, "border_prominence": 0.4,
+        "whitespace": 0.8, "typography_contrast": 0.8, "visual_hierarchy": 0.8,
+        "animation_hint": 0.5, "skeuomorphism": 0.2, "noise_texture": 0.3,
+        "card_density": 0.4, "gradients": 0.25, "genz_ness": 0.3,
+    },
+    "news": {
+        "colorfulness": 0.4, "content_density": 0.75, "button_density": 0.35,
+        "image_density": 0.65, "icon_density": 0.4, "corner_roundness": 0.25,
+        "translucency": 0.15, "shadow_intensity": 0.2, "border_prominence": 0.5,
+        "whitespace": 0.4, "typography_contrast": 0.75, "visual_hierarchy": 0.7,
+        "animation_hint": 0.15, "skeuomorphism": 0.1, "noise_texture": 0.1,
+        "card_density": 0.5, "gradients": 0.1, "genz_ness": 0.1,
+    },
+    "blog": {
+        "colorfulness": 0.3, "content_density": 0.6, "button_density": 0.3,
+        "image_density": 0.4, "icon_density": 0.25, "corner_roundness": 0.35,
+        "translucency": 0.15, "shadow_intensity": 0.25, "border_prominence": 0.3,
+        "whitespace": 0.7, "typography_contrast": 0.7, "visual_hierarchy": 0.65,
+        "animation_hint": 0.15, "skeuomorphism": 0.1, "noise_texture": 0.15,
+        "card_density": 0.3, "gradients": 0.15, "genz_ness": 0.2,
+    },
+    "educational": {
+        "colorfulness": 0.55, "content_density": 0.5, "button_density": 0.55,
+        "image_density": 0.55, "icon_density": 0.6, "corner_roundness": 0.65,
+        "translucency": 0.25, "shadow_intensity": 0.35, "border_prominence": 0.3,
+        "whitespace": 0.55, "typography_contrast": 0.6, "visual_hierarchy": 0.6,
+        "animation_hint": 0.3, "skeuomorphism": 0.15, "noise_texture": 0.15,
+        "card_density": 0.55, "gradients": 0.25, "genz_ness": 0.3,
+    },
+}
 
 PAGE_MIN = 5
 PAGE_MAX = 7
 
 
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+
 def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "page"
 
 
-def random_hex_color(rng: random.Random) -> str:
-    return "#{:06x}".format(rng.randint(0, 0xFFFFFF))
+def _hsl_to_hex(h: float, s: float, l: float) -> str:
+    """h, s, l all in [0, 1] -> '#rrggbb'."""
+    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    return "#{:02x}{:02x}{:02x}".format(
+        int(round(r * 255)), int(round(g * 255)), int(round(b * 255))
+    )
 
 
-def random_temperature(rng: random.Random) -> float:
-    return round(rng.random(), 2)
+def random_palette(rng: random.Random, background_tone: str) -> tuple[str, str, str]:
+    """Sample a coordinated 3-color palette as (primary, secondary, accent).
+
+    Strategy:
+      - Base hue H.
+      - primary:    H,           mid saturation, lightness contrasting the bg.
+      - secondary:  analogous    (H ± ~30°), softer.
+      - accent:     complementary (H + 180°), high saturation.
+    """
+    base_h = rng.random()
+    if background_tone == "dark":
+        primary = (base_h, rng.uniform(0.55, 0.8), rng.uniform(0.5, 0.65))
+        sec_h = (base_h + rng.choice([-1, 1]) * rng.uniform(0.05, 0.1)) % 1.0
+        secondary = (sec_h, rng.uniform(0.35, 0.6), rng.uniform(0.4, 0.55))
+        acc_h = (base_h + 0.5) % 1.0
+        accent = (acc_h, rng.uniform(0.7, 0.9), rng.uniform(0.55, 0.7))
+    else:
+        primary = (base_h, rng.uniform(0.5, 0.75), rng.uniform(0.35, 0.5))
+        sec_h = (base_h + rng.choice([-1, 1]) * rng.uniform(0.05, 0.1)) % 1.0
+        secondary = (sec_h, rng.uniform(0.3, 0.55), rng.uniform(0.55, 0.75))
+        acc_h = (base_h + 0.5) % 1.0
+        accent = (acc_h, rng.uniform(0.7, 0.95), rng.uniform(0.45, 0.6))
+    return _hsl_to_hex(*primary), _hsl_to_hex(*secondary), _hsl_to_hex(*accent)
+
+
+def _sample_bimodal_beta(rng: random.Random, mean: float) -> float:
+    """Sample Beta(p, 1-p) with the prior clamped into (0.05, 0.95).
+
+    Both shape params are < 1, so the density is U-shaped: most samples
+    land near 0 or 1, with the heavier side decided by the prior mean.
+    This produces designs that commit to an aesthetic instead of always
+    averaging to 0.5.
+    """
+    m = max(0.05, min(0.95, mean))
+    return round(rng.betavariate(m, 1.0 - m), 2)
+
+
+def random_temperatures(rng: random.Random, site_type: str) -> dict[str, float]:
+    priors = TYPE_DIAL_PRIORS.get(site_type, {})
+    return {
+        key: _sample_bimodal_beta(rng, priors.get(key, 0.5))
+        for key in TEMPERATURE_KEYS
+    }
 
 
 def random_pages(rng: random.Random, site_type: str) -> list[str]:
     pool = list(TYPE_PAGES[site_type])
     rng.shuffle(pool)
     n = rng.randint(PAGE_MIN, PAGE_MAX)
-    # Always include home as the first page.
     rest = pool[: max(0, n - 1)]
-    pages = ["home", *rest]
-    # Deduplicate while preserving order, in case home slug collided.
     seen: set[str] = set()
-    unique = []
-    for raw in pages:
+    unique: list[str] = []
+    for raw in ["home", *rest]:
         slug = _slugify(raw)
         if slug in seen:
             continue
@@ -258,24 +462,76 @@ def random_pages(rng: random.Random, site_type: str) -> list[str]:
     return unique[:PAGE_MAX]
 
 
+_BRAND_STEMS = [
+    "North", "Quiet", "Bright", "Slow", "Open", "Plain", "Salt", "Cedar",
+    "Iron", "Ember", "Field", "Loop", "Atlas", "Mason", "Drift", "Wild",
+    "Common", "Forge", "Tide", "Owl", "Anvil", "Birch", "Harbor", "Linden",
+    "Junco", "Marlow", "Pine", "Roam",
+]
+_BRAND_SUFFIXES = [
+    "Co", "Studio", "Labs", "Works", "Club", "House", "& Co", "HQ",
+    "Group", ".io", ".app", "Hub", "Box", "Press", "Collective",
+]
+_TAGLINE_TEMPLATES = [
+    "{topic_cap}, done right.",
+    "Built for {topic}.",
+    "The home of {topic}.",
+    "{topic_cap} for everyone.",
+    "Better {topic}.",
+    "Where {topic} lives.",
+    "Your {topic} HQ.",
+    "Modern {topic}.",
+    "{topic_cap}, simplified.",
+    "Made for {topic}.",
+]
+
+
+def random_brand(rng: random.Random, topic: str) -> tuple[str, str]:
+    stem = rng.choice(_BRAND_STEMS)
+    suffix = rng.choice(_BRAND_SUFFIXES)
+    if suffix.startswith("."):
+        name = f"{stem}{suffix}"
+    else:
+        name = f"{stem} {suffix}"
+    template = rng.choice(_TAGLINE_TEMPLATES)
+    tagline = template.format(topic=topic, topic_cap=topic[:1].upper() + topic[1:])
+    return name, tagline
+
+
+# -----------------------------------------------------------------------------
+# Spec assembly
+# -----------------------------------------------------------------------------
+
 def build_spec(seed: int) -> dict:
     rng = random.Random(seed)
     site_type = rng.choice(TYPES)
+    topic = rng.choice(TYPE_TOPICS[site_type])
     pages = random_pages(rng, site_type)
+    background_tone = rng.choice(BACKGROUND_TONES)
+    primary, secondary, accent = random_palette(rng, background_tone)
+    font_family = rng.choice(TYPE_FONTS[site_type])
+    layout = rng.choice(TYPE_LAYOUTS[site_type])
+    design_era = rng.choice(TYPE_ERAS.get(site_type, list(DESIGN_ERAS)))
+    brand_name, tagline = random_brand(rng, topic)
+    temperatures = random_temperatures(rng, site_type)
+
     return {
-        "topic": rng.choice(TOPICS),
+        "topic": topic,
         "fixed": {
             "type": site_type,
-            "primary_color": random_hex_color(rng),
-            "secondary_color": random_hex_color(rng),
-            "accent_color": random_hex_color(rng),
-            "background_tone": rng.choice(BACKGROUND_TONES),
-            "font_family": rng.choice(FONT_FAMILIES),
-            "layout": rng.choice(LAYOUTS),
+            "brand_name": brand_name,
+            "tagline": tagline,
+            "design_era": design_era,
+            "primary_color": primary,
+            "secondary_color": secondary,
+            "accent_color": accent,
+            "background_tone": background_tone,
+            "font_family": font_family,
+            "layout": layout,
             "language": "en",
             "pages": pages,
         },
-        "temperature": {key: random_temperature(rng) for key in TEMPERATURE_KEYS},
+        "temperature": temperatures,
         "seed": seed,
     }
 
@@ -289,7 +545,9 @@ def main() -> int:
     out = Path("/app/website_details.json")
     out.write_text(json.dumps(spec, indent=2) + "\n")
     print(
-        f"generated: seed={seed} type={spec['fixed']['type']} pages={len(spec['fixed']['pages'])}",
+        f"generated: seed={seed} type={spec['fixed']['type']} "
+        f"brand={spec['fixed']['brand_name']!r} era={spec['fixed']['design_era']} "
+        f"pages={len(spec['fixed']['pages'])}",
         file=sys.stderr,
     )
     return 0
