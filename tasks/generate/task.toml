@@ -1,4 +1,5 @@
 schema_version = "1.2"
+artifacts = ["/app/website_details.json", "/app/pages"]
 
 [task]
 name = "proximal/generate"
@@ -7,6 +8,12 @@ authors = []
 keywords = []
 
 [metadata]
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 1800.0
 
 [environment]
 build_timeout_sec = 1800.0
@@ -19,12 +26,3 @@ allow_internet = true
 workdir = "/app"
 mcp_servers = []
 [environment.env]
-
-[[steps]]
-name = "generate"
-artifacts = ["/app/website_details.json", "/app/pages"]
-[steps.agent]
-timeout_sec = 1800.0
-[steps.verifier]
-timeout_sec = 1800.0
-[steps.verifier.env]

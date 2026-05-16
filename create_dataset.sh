@@ -77,7 +77,7 @@ shopt -s nullglob
 for trial_dir in "$JOB_DIR"/*/; do
   trial_name="$(basename "$trial_dir")"
   # Skip non-trial folders (e.g., logs)
-  artifacts_dir="${trial_dir}steps/generate/artifacts"
+  artifacts_dir="${trial_dir}artifacts"
   if [[ ! -d "$artifacts_dir" ]]; then
     continue
   fi
