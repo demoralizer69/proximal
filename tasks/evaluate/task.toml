@@ -1,0 +1,28 @@
+schema_version = "1.2"
+artifacts = ["/app/metrics.json"]
+
+[task]
+name = "proximal/evaluate-TEMPLATE"
+description = "Run all evaluators (DISTS, LPIPS, MS-SSIM, WebSight composite) on baked-in target vs candidate PNGs. No LLM — verifier-only task."
+authors = []
+keywords = ["evaluate", "metrics", "websight", "lpips", "dists", "ms-ssim"]
+
+[metadata]
+
+[agent]
+timeout_sec = 60.0
+
+[verifier]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 1800.0
+os = "linux"
+cpus = 4
+memory_mb = 8192
+storage_mb = 8192
+gpus = 0
+allow_internet = true
+workdir = "/app"
+mcp_servers = []
+[environment.env]

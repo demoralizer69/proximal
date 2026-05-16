@@ -6,5 +6,7 @@ Requirements:
 - Inline all CSS in a `<style>` tag in each page — no external stylesheets, no shared CSS files.
 - Do not link to or download external images, fonts, or scripts. Use system fonts and CSS-only visuals (gradients, shapes, borders) in place of bitmap images.
 - Try to make an exact clone from the screenshot - the final generated website should have the same content and it should look the same to human eyes.
+- the target is a 1200 width screen
+- pay attention to sizes, proportions, rotations, z-indices of objects, clippings, content exceeding boxes, translucency, gradients, curvy lines, etc -> you have to match all of that exactly along with the colors and text.
 
 Only the screenshots in `/app/screenshots/` are the source of truth. Do not run the verifier.

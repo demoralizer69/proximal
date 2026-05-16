@@ -116,8 +116,8 @@ h1 a:hover{color:var(--fg)}
 .missing{color:var(--muted);font-size:0.75em;font-family:ui-monospace,monospace}
 .meta{padding:0.5em 0.7em;font-family:ui-monospace,monospace;font-size:0.82em;
   display:flex;justify-content:space-between;align-items:center;gap:0.5em}
-.meta .name{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.meta .badge{color:var(--muted);font-size:0.85em;margin-left:0.4em}
+.meta .name{color:var(--fg);word-break:break-all;flex:1;min-width:0}
+.meta .badge{color:var(--muted);font-size:0.85em;margin-left:0.4em;white-space:nowrap}
 .score{font-weight:600;font-family:ui-monospace,monospace}
 .score.good{color:var(--good)}
 .score.mid{color:var(--mid)}
@@ -244,11 +244,8 @@ def render_index() -> str:
                 href = f"/job/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}"
                 target_thumb = _target_thumb(job, task_dir)
                 rendered_thumb = _rendered_thumb(job, task_dir, best_id)
-                badge = (
-                    f' <span class="badge">{len(trials)} trials</span>'
-                    if len(trials) > 1
-                    else ""
-                )
+                n = len(trials)
+                badge = f' <span class="badge">{n} trial{"s" if n != 1 else ""}</span>'
                 parts.append(
                     f'<a class="card" href="{href}">'
                     f'<div class="thumb-pair">'

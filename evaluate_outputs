@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# evaluate_outputs — given an outputs/<job> dir produced by run_tasks, stamp out
+# one harbor "evaluate" task per (task, trial), with target + candidate PNGs baked
+# into the image, then run them all as a single harbor job on modal. Uses the
+# `nop` agent — no LLM, the verifier just runs every evaluator under
+# tasks/evaluate/environment/evaluators/.
+#
+# As each trial finishes, copies artifacts/metrics.json + reward.txt back into
+# outputs/<job>/<task>/<trial>/.
+#
+# Usage:
+#   ./evaluate_outputs <outputs-job-dir> [nickname]
+#
+# Example:
+#   ./evaluate_outputs outputs/opus_max_best20-2026-05-16__15-33-14
+#   ./evaluate_outputs outputs/foo eval-foo
+#
+# Env knobs: CONCURRENCY (default = min(trials, 60)), POLL_SEC (default 10),
+#            HARBOR_BIN (default /Users/ash/.local/bin/harbor),
+#            KEEP_TASKS=1 to skip cleanup of tmp_eval_tasks/.
+
+set -u
+
+if [ $# -lt 1 ]; then
+  echo "usage: $0 <outputs-job-dir> [nickname]" >&2
+  echo "  env: CONCURRENCY POLL_SEC HARBOR_BIN KEEP_TASKS" >&2
+  exit 2
+fi
+
+JOB_OUT="${1%/}"
+NICK="${2:-eval-$(basename "$JOB_OUT")}"
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE="$ROOT_DIR/tasks/evaluate"
+HARBOR_BIN="${HARBOR_BIN:-/Users/ash/.local/bin/harbor}"
+POLL_SEC="${POLL_SEC:-10}"
+
+if [ ! -d "$JOB_OUT" ]; then
+  echo "outputs dir not found: $JOB_OUT" >&2
+  exit 1
+fi
+if [ ! -d "$TEMPLATE" ]; then
+  echo "evaluate template not found: $TEMPLATE" >&2
+  exit 1
+fi
+
+TS="$(date +"%Y-%m-%d__%H-%M-%S")"
+JOB_NAME="${NICK}-${TS}"
+TASK_DIR="$ROOT_DIR/tmp_eval_tasks/${JOB_NAME}"
+JOB_DIR="jobs/$JOB_NAME"
+
+mkdir -p "$TASK_DIR"
+HARBOR_LOG="$JOB_OUT/_evaluate.log"
+INDEX_FILE="$TASK_DIR/_index.tsv"
+: > "$INDEX_FILE"
+
+echo "==> evaluating: $JOB_OUT"
+echo "==> job:        $JOB_NAME"
+echo "==> tmp tasks:  $TASK_DIR"
+
+i=0
+for task_dir in "$JOB_OUT"/*/; do
+  [ -d "$task_dir" ] || continue
+  task_name="$(basename "${task_dir%/}")"
+  screens="$task_dir/screenshots"
+  [ -d "$screens" ] || continue
+  shopt -s nullglob
+  targets=("$screens"/*.png)
+  [ ${#targets[@]} -gt 0 ] || continue
+
+  # Find each candidate dir: multi-trial trial_*/rendered, else legacy rendered/.
+  cand_dirs=()
+  for sub in "$task_dir"trial_*/; do
+    [ -d "$sub" ] && [ -d "$sub/rendered" ] && cand_dirs+=("$sub")
+  done
+  if [ ${#cand_dirs[@]} -eq 0 ] && [ -d "$task_dir/rendered" ]; then
+    cand_dirs+=("$task_dir")
+  fi
+
+  for cand_root in "${cand_dirs[@]}"; do
+    cand_root="${cand_root%/}"
+    rendered="$cand_root/rendered"
+    shopt -s nullglob
+    cands=("$rendered"/*.png)
+    [ ${#cands[@]} -gt 0 ] || continue
+
+    trial_name="$(basename "$cand_root")"
+    if [ "$trial_name" = "$task_name" ]; then
+      # legacy layout — no trial subdir
+      stamp_name="${task_name}"
+      result_subdir="$task_dir"
+    else
+      stamp_name="${task_name}__${trial_name}"
+      result_subdir="$cand_root"
+    fi
+
+    i=$((i + 1))
+    dest="$TASK_DIR/$stamp_name"
+    cp -R "$TEMPLATE" "$dest"
+    rm -f "$dest/environment/target/.gitkeep" "$dest/environment/candidate/.gitkeep"
+    cp "${targets[@]}" "$dest/environment/target/"
+    cp "${cands[@]}" "$dest/environment/candidate/"
+    python3 - "$dest/task.toml" "$stamp_name" <<'PY'
+import sys, pathlib
+path, name = pathlib.Path(sys.argv[1]), sys.argv[2]
+text = path.read_text()
+text = text.replace('name = "proximal/evaluate-TEMPLATE"', f'name = "proximal/evaluate-{name}"')
+path.write_text(text)
+PY
+    printf "%s\t%s\n" "$stamp_name" "$result_subdir" >> "$INDEX_FILE"
+    echo "[$i] $stamp_name -> $result_subdir"
+  done
+done
+
+n=$(find "$TASK_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+if [ "$n" -eq 0 ]; then
+  echo "no (target, candidate) pairs found under $JOB_OUT" >&2
+  rm -rf "$TASK_DIR"
+  exit 1
+fi
+default_conc=$n
+if [ "$default_conc" -gt 60 ]; then default_conc=60; fi
+CONCURRENCY="${CONCURRENCY:-$default_conc}"
+
+echo "==> running $n evaluate tasks on modal | concurrency=$CONCURRENCY"
+echo "==> harbor log: $HARBOR_LOG"
+
+cleanup_tasks() {
+  if [ "${KEEP_TASKS:-0}" = "1" ]; then
+    echo "==> KEEP_TASKS=1, leaving $TASK_DIR"
+    return
+  fi
+  if [ -d "$TASK_DIR" ]; then
+    echo "==> cleaning up $TASK_DIR"
+    rm -rf "$TASK_DIR"
+  fi
+}
+
+"$HARBOR_BIN" run \
+  -p "$TASK_DIR" \
+  -a nop \
+  -k 1 -n "$CONCURRENCY" -y \
+  --env modal \
+  --job-name "$JOB_NAME" \
+  > "$HARBOR_LOG" 2>&1 &
+HARBOR_PID=$!
+
+cleanup_running() {
+  if kill -0 "$HARBOR_PID" 2>/dev/null; then
+    echo "==> interrupted, stopping harbor (pid $HARBOR_PID)"
+    kill "$HARBOR_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup_running INT TERM
+
+seen_file="$(mktemp)"
+trap 'rm -f "$seen_file"; cleanup_tasks' EXIT
+
+collect_new_trials() {
+  [ -d "$JOB_DIR" ] || return 0
+  for tdir in "$JOB_DIR"/*__*/; do
+    [ -d "$tdir" ] || continue
+    [ -f "$tdir/result.json" ] || continue
+    key=$(basename "$tdir")
+    if grep -qx "$key" "$seen_file" 2>/dev/null; then continue; fi
+    echo "$key" >> "$seen_file"
+    python3 - "$tdir" "$INDEX_FILE" <<'PY'
+import json, sys, shutil, pathlib
+trial_dir = pathlib.Path(sys.argv[1])
+index_file = pathlib.Path(sys.argv[2])
+d = json.load(open(trial_dir / "result.json"))
+task_path = pathlib.Path(d["config"]["task"]["path"])
+stamp_name = task_path.name
+mapping = dict(
+    line.rstrip("\n").split("\t", 1)
+    for line in index_file.read_text().splitlines() if "\t" in line
+)
+result_dir = mapping.get(stamp_name)
+if not result_dir:
+    print(f"[!] no mapping for {stamp_name}", flush=True)
+    raise SystemExit(0)
+result_dir = pathlib.Path(result_dir)
+result_dir.mkdir(parents=True, exist_ok=True)
+v = d.get("verifier_result") or {}
+reward = (v.get("rewards") or {}).get("reward")
+exc = d.get("exception_info")
+metrics_src = trial_dir / "artifacts" / "metrics.json"
+if metrics_src.exists():
+    shutil.copy2(metrics_src, result_dir / "metrics.json")
+if reward is not None:
+    (result_dir / "evaluator_reward.txt").write_text(f"{reward:.6f}\n")
+if exc:
+    (result_dir / "evaluator_error.txt").write_text(
+        (exc.get("exception_message") or "")[:2000]
+    )
+status = f"reward={reward:.4f}" if reward is not None else "FAILED"
+print(f"[+] {stamp_name:48s} {status}", flush=True)
+PY
+  done
+}
+
+while kill -0 "$HARBOR_PID" 2>/dev/null; do
+  sleep "$POLL_SEC"
+  collect_new_trials
+done
+
+wait "$HARBOR_PID" 2>/dev/null || true
+collect_new_trials  # final sweep
+
+echo "==> done. metrics.json written under $JOB_OUT/<task>/<trial>/"
