@@ -1,3 +1,6 @@
 .DS_Store
 jobs/
 outputs/
+screenshots/
+create_dataset.log
+__pycache__/

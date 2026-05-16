@@ -1,0 +1,30 @@
+schema_version = "1.2"
+
+[task]
+name = "proximal/generate"
+description = "Generate a 5-10 page website from a random spec. Renders all pages to PNGs; verifier returns a dummy 1.0 score."
+authors = []
+keywords = []
+
+[metadata]
+
+[environment]
+build_timeout_sec = 1800.0
+os = "linux"
+cpus = 64
+memory_mb = 8192
+storage_mb = 16384
+gpus = 0
+allow_internet = true
+workdir = "/app"
+mcp_servers = []
+[environment.env]
+
+[[steps]]
+name = "generate"
+artifacts = ["/app/website_details.json", "/app/pages"]
+[steps.agent]
+timeout_sec = 1800.0
+[steps.verifier]
+timeout_sec = 1800.0
+[steps.verifier.env]
