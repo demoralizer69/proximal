@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """Tiny webserver to browse outputs/<job>/<task>/ side-by-side.
 
-Each task directory is expected to contain:
-    screenshots/<slug>.png   - target screenshots
-    rendered/<slug>.png      - agent's rendered clone (may be missing/empty)
-    reward.txt               - mean SSIM as float, or "FAILED"
+Two storage layouts are supported in outputs/<job>/<task>/:
 
-Index lists jobs and their tasks (sorted by reward desc). Clicking a task
-opens a detail page that shows target | rendered pairs per slug.
+    Multi-trial (current):
+        screenshots/<slug>.png                 - target screenshots (shared)
+        trial_<suffix>/reward.txt              - SSIM for that trial
+        trial_<suffix>/rendered/<slug>.png     - that trial's clone
+        trial_<suffix>/error.txt               - optional
+
+    Legacy single-trial:
+        screenshots/<slug>.png
+        rendered/<slug>.png
+        reward.txt
+
+Index lists jobs and their tasks, ranked by best trial. Click a task to
+see all trials side-by-side, ranked left -> right by reward.
 
 Usage:
     python3 view_outputs.py [port]   # default 8766
@@ -24,9 +32,12 @@ ROOT = Path(__file__).resolve().parent
 OUTPUTS = ROOT / "outputs"
 DEFAULT_PORT = 8766
 
+# Sentinel used in URL paths to mean "no trial subdir" (legacy layout).
+NO_TRIAL = "-"
 
-def _read_reward(task_dir: Path) -> float | None:
-    f = task_dir / "reward.txt"
+
+def _read_reward(d: Path) -> float | None:
+    f = d / "reward.txt"
     if not f.exists():
         return None
     try:
@@ -35,10 +46,34 @@ def _read_reward(task_dir: Path) -> float | None:
         return None
 
 
-def _slugs(task_dir: Path) -> list[str]:
-    targets = {p.stem for p in (task_dir / "screenshots").glob("*.png")}
-    rendered = {p.stem for p in (task_dir / "rendered").glob("*.png")}
-    slugs = sorted(targets | rendered)
+def _collect_trials(task_dir: Path) -> list[tuple[str | None, float | None, bool]]:
+    """Return [(trial_subdir_name_or_None, reward, has_error)] ranked by reward desc."""
+    subdirs = sorted(
+        d for d in task_dir.iterdir() if d.is_dir() and d.name.startswith("trial_")
+    )
+    trials: list[tuple[str | None, float | None, bool]] = []
+    if subdirs:
+        for td in subdirs:
+            trials.append((td.name, _read_reward(td), (td / "error.txt").exists()))
+    elif (task_dir / "reward.txt").exists() or (task_dir / "rendered").is_dir():
+        trials.append((None, _read_reward(task_dir), (task_dir / "error.txt").exists()))
+    else:
+        return []
+    trials.sort(key=lambda t: (-1 if t[1] is None else 0, -(t[1] or 0)))
+    return trials
+
+
+def _best_reward(trials) -> float:
+    vals = [r for _, r, _ in trials if r is not None]
+    return max(vals) if vals else float("-inf")
+
+
+def _slugs_for_task(task_dir: Path, trials) -> list[str]:
+    seen = {p.stem for p in (task_dir / "screenshots").glob("*.png")}
+    for trial_id, _, _ in trials:
+        rdir = task_dir / trial_id / "rendered" if trial_id else task_dir / "rendered"
+        seen |= {p.stem for p in rdir.glob("*.png")}
+    slugs = sorted(seen)
     slugs.sort(key=lambda s: (0 if s == "home" else 1, s))
     return slugs
 
@@ -82,6 +117,7 @@ h1 a:hover{color:var(--fg)}
 .meta{padding:0.5em 0.7em;font-family:ui-monospace,monospace;font-size:0.82em;
   display:flex;justify-content:space-between;align-items:center;gap:0.5em}
 .meta .name{color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta .badge{color:var(--muted);font-size:0.85em;margin-left:0.4em}
 .score{font-weight:600;font-family:ui-monospace,monospace}
 .score.good{color:var(--good)}
 .score.mid{color:var(--mid)}
@@ -93,17 +129,30 @@ h1 a:hover{color:var(--fg)}
 /* detail page */
 .detail-head{display:flex;align-items:baseline;gap:1em;flex-wrap:wrap;margin:0 0 1.2em 0}
 .detail-head h1{margin:0}
-.pair{margin:0 0 2em 0;background:var(--card);border:1px solid var(--border);border-radius:6px;
-  box-shadow:var(--shadow);overflow:hidden}
-.pair-head{padding:0.5em 0.8em;background:#f3f3f3;border-bottom:1px solid var(--border);
-  font-family:ui-monospace,monospace;font-size:0.88em}
-.pair-imgs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
-.pair-imgs > div{background:#fff;padding:0.5em;display:flex;flex-direction:column;gap:0.4em}
-.pair-imgs .lbl{font-family:ui-monospace,monospace;font-size:0.78em;color:var(--muted);
-  text-transform:uppercase;letter-spacing:0.04em}
-.pair-imgs img{max-width:100%;height:auto;display:block;border:1px solid var(--border)}
-.pair-imgs .missing-box{flex:1;display:flex;align-items:center;justify-content:center;
-  border:1px dashed var(--border);min-height:200px}
+
+/* multi-trial comparison grid */
+.compare-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--border);
+  border-radius:6px;box-shadow:var(--shadow);padding:0}
+.compare{display:grid;gap:1px;background:var(--border);min-width:max-content}
+.compare .ch{background:#f3f3f3;padding:0.55em 0.7em;font-family:ui-monospace,monospace;
+  font-size:0.82em;position:sticky;top:0;z-index:1;display:flex;align-items:center;
+  justify-content:space-between;gap:0.6em}
+.compare .ch.lbl{justify-content:flex-start;color:var(--muted);text-transform:uppercase;
+  font-size:0.72em;letter-spacing:0.04em}
+.compare .ch .tname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compare .rl{background:#fafafa;padding:0.55em 0.7em;font-family:ui-monospace,monospace;
+  font-size:0.82em;color:var(--fg);display:flex;align-items:center;
+  border-right:1px solid var(--border)}
+.compare .cell{background:#fff;padding:0.4em;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;min-height:160px}
+.compare .cell img{max-width:100%;max-height:520px;height:auto;display:block;
+  border:1px solid var(--border)}
+.compare .cell .missing-box{flex:1;display:flex;align-items:center;justify-content:center;
+  border:1px dashed var(--border);min-height:140px;width:100%}
+.errors{margin:0 0 1.2em 0}
+.errors pre{background:#fff3f3;border:1px solid #f5caca;padding:0.6em 0.8em;
+  border-radius:6px;white-space:pre-wrap;font-size:0.8em;margin:0.4em 0}
+.errors .ehead{font-family:ui-monospace,monospace;font-size:0.8em;color:#a03030;margin-top:0.6em}
 """
 
 
@@ -121,7 +170,9 @@ def _score_text(r: float | None) -> str:
     return "FAILED" if r is None else f"{r:.3f}"
 
 
-def collect_jobs() -> list[tuple[str, list[tuple[str, float | None]]]]:
+def collect_jobs():
+    """Return [(job_name, [(task_name, trials)])] sorted newest job first,
+    tasks within job sorted by best trial reward desc."""
     if not OUTPUTS.exists():
         return []
     jobs = []
@@ -132,13 +183,49 @@ def collect_jobs() -> list[tuple[str, list[tuple[str, float | None]]]]:
         for task in job.iterdir():
             if not task.is_dir():
                 continue
-            r = _read_reward(task)
-            tasks.append((task.name, r))
-        # Sort: best reward first; failed tasks last.
-        tasks.sort(key=lambda t: (-1 if t[1] is None else 0, -(t[1] or 0), t[0]))
+            trials = _collect_trials(task)
+            if trials:
+                tasks.append((task.name, trials))
+        tasks.sort(key=lambda t: (-_best_reward(t[1]), t[0]))
         if tasks:
             jobs.append((job.name, tasks))
     return jobs
+
+
+def _img_url(job: str, task: str, trial_id: str | None, kind: str, name: str) -> str:
+    seg = urllib.parse.quote(trial_id) if trial_id else NO_TRIAL
+    return (
+        f"/img/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}/"
+        f"{seg}/{urllib.parse.quote(kind)}/{urllib.parse.quote(name)}"
+    )
+
+
+def _first_png(d: Path) -> str | None:
+    if not d.is_dir():
+        return None
+    pngs = sorted(d.glob("*.png"), key=lambda p: (0 if p.stem == "home" else 1, p.name))
+    return pngs[0].name if pngs else None
+
+
+def _target_thumb(job: str, task_dir: Path) -> str | None:
+    name = _first_png(task_dir / "screenshots")
+    if not name:
+        return None
+    return _img_url(job, task_dir.name, None, "screenshots", name)
+
+
+def _rendered_thumb(job: str, task_dir: Path, trial_id: str | None) -> str | None:
+    rdir = task_dir / trial_id / "rendered" if trial_id else task_dir / "rendered"
+    name = _first_png(rdir)
+    if not name:
+        return None
+    return _img_url(job, task_dir.name, trial_id, "rendered", name)
+
+
+def _img_or_missing(url: str | None, label: str) -> str:
+    if url:
+        return f'<img src="{url}" loading="lazy" alt="">'
+    return f'<span class="missing">{label}</span>'
 
 
 def render_index() -> str:
@@ -148,11 +235,20 @@ def render_index() -> str:
     else:
         parts: list[str] = []
         for job, tasks in jobs:
-            parts.append(f'<div class="job"><div class="job-head">{job}</div><div class="grid">')
-            for task, reward in tasks:
+            parts.append(
+                f'<div class="job"><div class="job-head">{_escape(job)}</div><div class="grid">'
+            )
+            for task, trials in tasks:
+                task_dir = OUTPUTS / job / task
+                best_id, best_r, _ = trials[0]
                 href = f"/job/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}"
-                target_thumb = _first_png_url(job, task, "screenshots")
-                rendered_thumb = _first_png_url(job, task, "rendered")
+                target_thumb = _target_thumb(job, task_dir)
+                rendered_thumb = _rendered_thumb(job, task_dir, best_id)
+                badge = (
+                    f' <span class="badge">{len(trials)} trials</span>'
+                    if len(trials) > 1
+                    else ""
+                )
                 parts.append(
                     f'<a class="card" href="{href}">'
                     f'<div class="thumb-pair">'
@@ -160,92 +256,108 @@ def render_index() -> str:
                     f'  <div>{_img_or_missing(rendered_thumb, "no render")}</div>'
                     f'</div>'
                     f'<div class="meta">'
-                    f'  <span class="name">{task}</span>'
-                    f'  <span class="score {_score_class(reward)}">{_score_text(reward)}</span>'
+                    f'  <span class="name">{_escape(task)}{badge}</span>'
+                    f'  <span class="score {_score_class(best_r)}">{_score_text(best_r)}</span>'
                     f'</div></a>'
                 )
             parts.append("</div></div>")
         body = "\n".join(parts)
     legend = (
-        '<p class="legend">Left tile = target screenshot, right tile = agent\'s rendered clone. '
-        "Score is mean SSIM across pages.</p>"
+        '<p class="legend">Left tile = target screenshot, right tile = best trial render. '
+        "Score is mean SSIM across pages (best of N trials).</p>"
     )
-    return f"""<!doctype html><html><head><title>outputs</title><style>{CSS}</style></head>
-<body><h1>outputs</h1>{legend}{body}</body></html>"""
-
-
-def _first_png_url(job: str, task: str, kind: str) -> str | None:
-    d = OUTPUTS / job / task / kind
-    if not d.is_dir():
-        return None
-    pngs = sorted(d.glob("*.png"), key=lambda p: (0 if p.stem == "home" else 1, p.name))
-    if not pngs:
-        return None
     return (
-        f"/img/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}/"
-        f"{urllib.parse.quote(kind)}/{urllib.parse.quote(pngs[0].name)}"
+        f"<!doctype html><html><head><title>outputs</title><style>{CSS}</style></head>"
+        f"<body><h1>outputs</h1>{legend}{body}</body></html>"
     )
-
-
-def _img_or_missing(url: str | None, label: str) -> str:
-    if url:
-        return f'<img src="{url}" loading="lazy" alt="">'
-    return f'<span class="missing">{label}</span>'
 
 
 def render_task(job: str, task: str) -> str | None:
     tdir = OUTPUTS / job / task
     if not tdir.is_dir():
         return None
-    reward = _read_reward(tdir)
-    slugs = _slugs(tdir)
-    rows = []
-    for slug in slugs:
-        target = tdir / "screenshots" / f"{slug}.png"
-        rendered = tdir / "rendered" / f"{slug}.png"
-        target_url = (
-            f"/img/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}/"
-            f"screenshots/{urllib.parse.quote(slug)}.png"
-        ) if target.exists() else None
-        rendered_url = (
-            f"/img/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}/"
-            f"rendered/{urllib.parse.quote(slug)}.png"
-        ) if rendered.exists() else None
-        rows.append(
-            f'<div class="pair"><div class="pair-head">{slug}</div>'
-            f'<div class="pair-imgs">'
-            f'  <div><div class="lbl">target</div>'
-            f'    {_pair_img(target_url, "missing target")}</div>'
-            f'  <div><div class="lbl">rendered</div>'
-            f'    {_pair_img(rendered_url, "missing render")}</div>'
-            f'</div></div>'
+    trials = _collect_trials(tdir)
+    if not trials:
+        return None
+    slugs = _slugs_for_task(tdir, trials)
+
+    # Column widths: small label col + 1 target + N trial cols.
+    n_cols = 1 + 1 + len(trials)  # label, target, trial_1..trial_K
+    template = "80px 360px " + " ".join(["360px"] * len(trials))
+
+    # Header row.
+    header_cells = [
+        '<div class="ch lbl">page</div>',
+        '<div class="ch"><span class="tname">target</span></div>',
+    ]
+    for trial_id, reward, _ in trials:
+        label = trial_id if trial_id else "trial"
+        header_cells.append(
+            f'<div class="ch"><span class="tname">{_escape(label)}</span>'
+            f'<span class="score {_score_class(reward)}">{_score_text(reward)}</span></div>'
         )
-    err_path = tdir / "error.txt"
-    err_html = ""
-    if err_path.exists():
-        err = err_path.read_text()
-        err_html = f'<pre style="background:#fff3f3;border:1px solid #f5caca;padding:0.8em;border-radius:6px;white-space:pre-wrap;font-size:0.85em">{_escape(err)}</pre>'
-    return f"""<!doctype html><html><head><title>{task} — {job}</title><style>{CSS}</style></head>
-<body>
-<div class="detail-head">
-  <h1>{task} <a href="/">&larr; outputs</a></h1>
-  <span class="score {_score_class(reward)}">{_score_text(reward)}</span>
-  <span class="legend">{job}</span>
-</div>
-{err_html}
-{''.join(rows) if rows else '<p class="empty">No images</p>'}
-</body></html>"""
 
+    # Body rows: one per slug, columns aligned to header.
+    body_cells: list[str] = []
+    for slug in slugs:
+        body_cells.append(f'<div class="rl">{_escape(slug)}</div>')
+        target = tdir / "screenshots" / f"{slug}.png"
+        if target.exists():
+            url = _img_url(job, task, None, "screenshots", f"{slug}.png")
+            body_cells.append(f'<div class="cell"><img src="{url}" alt=""></div>')
+        else:
+            body_cells.append(
+                '<div class="cell"><div class="missing-box">'
+                '<span class="missing">missing target</span></div></div>'
+            )
+        for trial_id, _, _ in trials:
+            rdir = tdir / trial_id / "rendered" if trial_id else tdir / "rendered"
+            rendered = rdir / f"{slug}.png"
+            if rendered.exists():
+                url = _img_url(job, task, trial_id, "rendered", f"{slug}.png")
+                body_cells.append(f'<div class="cell"><img src="{url}" alt=""></div>')
+            else:
+                body_cells.append(
+                    '<div class="cell"><div class="missing-box">'
+                    '<span class="missing">missing render</span></div></div>'
+                )
 
-def _pair_img(url: str | None, label: str) -> str:
-    if url:
-        return f'<img src="{url}" alt="">'
-    return f'<div class="missing-box"><span class="missing">{label}</span></div>'
+    # Errors block (collect any present).
+    err_blocks = []
+    for trial_id, _, has_err in trials:
+        if not has_err:
+            continue
+        ep = tdir / trial_id / "error.txt" if trial_id else tdir / "error.txt"
+        if ep.exists():
+            label = trial_id if trial_id else "trial"
+            err_blocks.append(
+                f'<div class="ehead">{_escape(label)} error:</div>'
+                f"<pre>{_escape(ep.read_text())}</pre>"
+            )
+    err_html = (
+        f'<div class="errors">{"".join(err_blocks)}</div>' if err_blocks else ""
+    )
+
+    best_r = trials[0][1]
+    grid_inner = "".join(header_cells) + "".join(body_cells)
+    return (
+        f"<!doctype html><html><head><title>{_escape(task)} — {_escape(job)}</title>"
+        f"<style>{CSS}</style></head><body>"
+        f'<div class="detail-head">'
+        f'  <h1>{_escape(task)} <a href="/">&larr; outputs</a></h1>'
+        f'  <span class="score {_score_class(best_r)}">{_score_text(best_r)}</span>'
+        f'  <span class="legend">{_escape(job)} · {len(trials)} trial(s)</span>'
+        f"</div>"
+        f"{err_html}"
+        f'<div class="compare-wrap">'
+        f'<div class="compare" style="grid-template-columns:{template}">{grid_inner}</div>'
+        f"</div></body></html>"
+    )
 
 
 def _escape(s: str) -> str:
     return (
-        s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
     )
 
 
@@ -290,11 +402,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send_404("task not found")
             return self._send_html(html)
 
-        if parts[0] == "img" and len(parts) == 5:
-            job, task, kind, fname = parts[1], parts[2], parts[3], parts[4]
+        # /img/<job>/<task>/<trial-or-dash>/<kind>/<name.png>
+        if parts[0] == "img" and len(parts) == 6:
+            job, task, trial, kind, fname = parts[1:]
             if kind not in ("screenshots", "rendered") or not fname.endswith(".png"):
                 return self._send_404()
-            p = OUTPUTS / job / task / kind / fname
+            if trial == NO_TRIAL or kind == "screenshots":
+                # screenshots always live at task level; legacy renders too.
+                if kind == "screenshots":
+                    p = OUTPUTS / job / task / kind / fname
+                else:
+                    p = OUTPUTS / job / task / kind / fname
+            else:
+                p = OUTPUTS / job / task / trial / kind / fname
             if not _safe_under(p):
                 return self._send_404()
             return self._send_png(p)
