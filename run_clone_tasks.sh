@@ -4,7 +4,7 @@
 # outputs/<job-name>/<task>/. Polls every 10s.
 set -u
 
-HARBOR_BIN="${HARBOR_BIN:-/Users/ash/.local/bin/harbor}"
+HARBOR_BIN="${HARBOR_BIN:-harbor}"
 MODEL="${MODEL:-sonnet}"
 EFFORT="${EFFORT:-low}"
 POLL_SEC="${POLL_SEC:-10}"

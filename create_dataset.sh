@@ -12,7 +12,7 @@
 #   N_CONCURRENT   parallel trials (default 16)
 #
 # Env overrides:
-#   HARBOR_BIN     path to harbor CLI (default /Users/ash/.local/bin/harbor)
+#   HARBOR_BIN     path to harbor CLI (default: `harbor` from $PATH)
 #   MODEL          model name (default opus)
 #   EFFORT         claude-code reasoning effort (default max)
 #   ENV_BACKEND    environment backend (default modal)
@@ -26,7 +26,7 @@ set -euo pipefail
 K="${1:-100}"
 N_CONCURRENT="${2:-16}"
 
-HARBOR_BIN="${HARBOR_BIN:-/Users/ash/.local/bin/harbor}"
+HARBOR_BIN="${HARBOR_BIN:-harbor}"
 MODEL="${MODEL:-opus}"
 EFFORT="${EFFORT:-high}"
 ENV_BACKEND="${ENV_BACKEND:-modal}"

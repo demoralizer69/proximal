@@ -16,7 +16,7 @@
 #   ./evaluate_outputs outputs/foo eval-foo
 #
 # Env knobs: CONCURRENCY (default = min(trials, 60)), POLL_SEC (default 10),
-#            HARBOR_BIN (default /Users/ash/.local/bin/harbor),
+#            HARBOR_BIN (default: `harbor` from $PATH),
 #            KEEP_TASKS=1 to skip cleanup of tmp_eval_tasks/.
 
 set -u
@@ -32,7 +32,7 @@ NICK="${2:-eval-$(basename "$JOB_OUT")}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$ROOT_DIR/tasks/evaluate"
-HARBOR_BIN="${HARBOR_BIN:-/Users/ash/.local/bin/harbor}"
+HARBOR_BIN="${HARBOR_BIN:-harbor}"
 POLL_SEC="${POLL_SEC:-10}"
 
 if [ ! -d "$JOB_OUT" ]; then
