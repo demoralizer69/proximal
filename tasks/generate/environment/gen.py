@@ -4,15 +4,18 @@ Contract (do not break without also updating the agent's instruction.md):
     Input:  none
     Output: writes /app/website_details.json
 
-Realism strategy:
-  - Topics, pages, fonts, layouts, eras, and dial priors are all
-    conditioned on the site type, so e.g. a SaaS site doesn't pair with
-    "Bebas Neue" or a "magazine" layout and a bank doesn't get genz_ness=0.9.
-  - Color palette is sampled as a coordinated HSL scheme keyed to the
-    background tone, not three independent random hex values.
-  - Dials are sampled from Beta(p, 1-p) where p is the type-conditioned
-    prior mean. Both shape params < 1 makes the distribution U-shaped, so
-    designs commit to either-or aesthetics instead of mushing to 0.5.
+Diversity strategy:
+  - Each spec biases toward its type via topic / page / font / layout /
+    era / dial pools, but `CROSS_POLLINATE_PROB` lets categoricals
+    occasionally jump outside the type-native pool, and `PRIOR_BLEND`
+    pulls dial priors toward 0.5 so two same-type specs don't end up
+    near-identical. Loosen both to push variety further; tighten them
+    if specs start looking incoherent.
+  - Palette is sampled as one of several HSL color schemes (analogous,
+    triadic, mono, split-complement, random) so the dominant-tone
+    relationship varies across specs.
+  - Dials are sampled from Beta(p, 1-p) (U-shaped), so each spec still
+    commits to an aesthetic instead of averaging to 0.5.
 """
 from __future__ import annotations
 
@@ -261,19 +264,36 @@ DESIGN_ERAS = (
     "glassmorphism",      # frosted translucent surfaces, blurred backdrops
     "y2k",                # chrome, gradients, sparkles, frutiger aero
     "swiss-editorial",    # grid-driven, serif headlines, generous margins
+    "memphis",            # 80s postmodern: confetti shapes, primary colors, squiggles
+    "vaporwave",          # pink/teal, classical busts, vintage Mac UI chrome
+    "anti-design",        # intentionally clashing, low-craft, web1.0 default browser
+    "magazine-print",     # heavy serif, big drop caps, columnar, print-inspired
 )
 
 TYPE_ERAS: dict[str, list[str]] = {
-    "ecommerce":     ["flat-minimal", "swiss-editorial", "corporate-2010", "neo-brutalist", "material-2014"],
-    "saas":          ["flat-minimal", "corporate-2010", "material-2014", "glassmorphism"],
-    "social_media":  ["material-2014", "glassmorphism", "y2k", "neo-brutalist"],
-    "utility":       ["flat-minimal", "material-2014", "corporate-2010"],
-    "informational": ["corporate-2010", "swiss-editorial", "flat-minimal"],
-    "portfolio":     ["swiss-editorial", "brutalist", "neo-brutalist", "flat-minimal", "y2k"],
-    "news":          ["swiss-editorial", "corporate-2010", "flat-minimal"],
-    "blog":          ["swiss-editorial", "flat-minimal", "corporate-2010"],
-    "educational":   ["material-2014", "flat-minimal", "corporate-2010"],
+    "ecommerce":     ["flat-minimal", "swiss-editorial", "corporate-2010", "neo-brutalist", "material-2014", "magazine-print", "memphis"],
+    "saas":          ["flat-minimal", "corporate-2010", "material-2014", "glassmorphism", "neo-brutalist"],
+    "social_media":  ["material-2014", "glassmorphism", "y2k", "neo-brutalist", "vaporwave", "memphis"],
+    "utility":       ["flat-minimal", "material-2014", "corporate-2010", "brutalist"],
+    "informational": ["corporate-2010", "swiss-editorial", "flat-minimal", "magazine-print"],
+    "portfolio":     ["swiss-editorial", "brutalist", "neo-brutalist", "flat-minimal", "y2k", "vaporwave", "anti-design", "memphis"],
+    "news":          ["swiss-editorial", "corporate-2010", "flat-minimal", "magazine-print"],
+    "blog":          ["swiss-editorial", "flat-minimal", "corporate-2010", "magazine-print", "anti-design"],
+    "educational":   ["material-2014", "flat-minimal", "corporate-2010", "memphis"],
 }
+
+# -----------------------------------------------------------------------------
+# Diversity knobs
+# -----------------------------------------------------------------------------
+# When picking font / layout / era, this is the probability that we ignore
+# the type-native pool and draw from the full pool. Higher = more variety,
+# more weird pairings. Lower = tighter type-aesthetic coherence.
+CROSS_POLLINATE_PROB = 0.3
+
+# Weight applied to the type-conditioned dial prior. The rest goes to the
+# neutral midpoint 0.5. Lower = priors barely matter (closer to uniform-
+# bimodal across all types); higher = type drives the dials hard.
+PRIOR_BLEND = 0.4
 
 # -----------------------------------------------------------------------------
 # Temperature dials
@@ -401,29 +421,67 @@ def _hsl_to_hex(h: float, s: float, l: float) -> str:
     )
 
 
+PALETTE_SCHEMES = (
+    "analogous-complement",  # primary, near-analogous secondary, complementary accent
+    "triadic",               # three hues evenly spaced around the wheel
+    "monochromatic",         # one hue, three lightness/saturation steps
+    "split-complement",      # primary + two hues flanking its complement
+    "random",                # fully unrelated hues (clashy, "anti-design"-y)
+)
+PALETTE_WEIGHTS = (0.35, 0.2, 0.15, 0.2, 0.1)
+
+
 def random_palette(rng: random.Random, background_tone: str) -> tuple[str, str, str]:
     """Sample a coordinated 3-color palette as (primary, secondary, accent).
 
-    Strategy:
-      - Base hue H.
-      - primary:    H,           mid saturation, lightness contrasting the bg.
-      - secondary:  analogous    (H ± ~30°), softer.
-      - accent:     complementary (H + 180°), high saturation.
+    The hue relationship is picked from one of several schemes so the
+    palette character varies across specs (analogous, triadic, mono, etc.).
+    Saturation/lightness ranges are still keyed to the background tone so
+    primary text/CTA contrast against the background stays usable.
     """
     base_h = rng.random()
+    scheme = rng.choices(PALETTE_SCHEMES, weights=PALETTE_WEIGHTS, k=1)[0]
+
     if background_tone == "dark":
-        primary = (base_h, rng.uniform(0.55, 0.8), rng.uniform(0.5, 0.65))
-        sec_h = (base_h + rng.choice([-1, 1]) * rng.uniform(0.05, 0.1)) % 1.0
-        secondary = (sec_h, rng.uniform(0.35, 0.6), rng.uniform(0.4, 0.55))
-        acc_h = (base_h + 0.5) % 1.0
-        accent = (acc_h, rng.uniform(0.7, 0.9), rng.uniform(0.55, 0.7))
+        prim_s, prim_l = rng.uniform(0.55, 0.8), rng.uniform(0.5, 0.65)
+        sec_s_r, sec_l_r = (0.35, 0.6), (0.4, 0.55)
+        acc_s_r, acc_l_r = (0.7, 0.9), (0.55, 0.7)
     else:
-        primary = (base_h, rng.uniform(0.5, 0.75), rng.uniform(0.35, 0.5))
+        prim_s, prim_l = rng.uniform(0.5, 0.75), rng.uniform(0.35, 0.5)
+        sec_s_r, sec_l_r = (0.3, 0.55), (0.55, 0.75)
+        acc_s_r, acc_l_r = (0.7, 0.95), (0.45, 0.6)
+
+    if scheme == "analogous-complement":
         sec_h = (base_h + rng.choice([-1, 1]) * rng.uniform(0.05, 0.1)) % 1.0
-        secondary = (sec_h, rng.uniform(0.3, 0.55), rng.uniform(0.55, 0.75))
         acc_h = (base_h + 0.5) % 1.0
-        accent = (acc_h, rng.uniform(0.7, 0.95), rng.uniform(0.45, 0.6))
+    elif scheme == "triadic":
+        sec_h = (base_h + 1 / 3) % 1.0
+        acc_h = (base_h + 2 / 3) % 1.0
+    elif scheme == "monochromatic":
+        sec_h = base_h
+        acc_h = base_h
+        # Override secondary saturation downward for differentiation.
+        sec_s_r = (0.15, 0.35)
+    elif scheme == "split-complement":
+        sec_h = (base_h + 0.5 - 1 / 12) % 1.0
+        acc_h = (base_h + 0.5 + 1 / 12) % 1.0
+    else:  # "random" — intentionally unrelated
+        sec_h = rng.random()
+        acc_h = rng.random()
+
+    primary = (base_h, prim_s, prim_l)
+    secondary = (sec_h, rng.uniform(*sec_s_r), rng.uniform(*sec_l_r))
+    accent = (acc_h, rng.uniform(*acc_s_r), rng.uniform(*acc_l_r))
     return _hsl_to_hex(*primary), _hsl_to_hex(*secondary), _hsl_to_hex(*accent)
+
+
+def _pick_with_crosspol(rng: random.Random, type_pool: list[str], full_pool: list[str]) -> str:
+    """Pick from `type_pool` most of the time, but draw from the full pool
+    with probability CROSS_POLLINATE_PROB to seed cross-type variety.
+    """
+    if rng.random() < CROSS_POLLINATE_PROB:
+        return rng.choice(full_pool)
+    return rng.choice(type_pool)
 
 
 def _sample_bimodal_beta(rng: random.Random, mean: float) -> float:
@@ -438,10 +496,18 @@ def _sample_bimodal_beta(rng: random.Random, mean: float) -> float:
     return round(rng.betavariate(m, 1.0 - m), 2)
 
 
+def _effective_prior(type_prior: float) -> float:
+    """Pull the type-conditioned prior toward 0.5 so same-type specs don't
+    cluster too tightly. `PRIOR_BLEND` controls how much of the type bias
+    survives.
+    """
+    return PRIOR_BLEND * type_prior + (1.0 - PRIOR_BLEND) * 0.5
+
+
 def random_temperatures(rng: random.Random, site_type: str) -> dict[str, float]:
     priors = TYPE_DIAL_PRIORS.get(site_type, {})
     return {
-        key: _sample_bimodal_beta(rng, priors.get(key, 0.5))
+        key: _sample_bimodal_beta(rng, _effective_prior(priors.get(key, 0.5)))
         for key in TEMPERATURE_KEYS
     }
 
@@ -502,6 +568,11 @@ def random_brand(rng: random.Random, topic: str) -> tuple[str, str]:
 # Spec assembly
 # -----------------------------------------------------------------------------
 
+_ALL_FONTS = sorted({f for pool in TYPE_FONTS.values() for f in pool})
+_ALL_LAYOUTS = sorted({l for pool in TYPE_LAYOUTS.values() for l in pool})
+_ALL_ERAS = list(DESIGN_ERAS)
+
+
 def build_spec(seed: int) -> dict:
     rng = random.Random(seed)
     site_type = rng.choice(TYPES)
@@ -509,9 +580,9 @@ def build_spec(seed: int) -> dict:
     pages = random_pages(rng, site_type)
     background_tone = rng.choice(BACKGROUND_TONES)
     primary, secondary, accent = random_palette(rng, background_tone)
-    font_family = rng.choice(TYPE_FONTS[site_type])
-    layout = rng.choice(TYPE_LAYOUTS[site_type])
-    design_era = rng.choice(TYPE_ERAS.get(site_type, list(DESIGN_ERAS)))
+    font_family = _pick_with_crosspol(rng, TYPE_FONTS[site_type], _ALL_FONTS)
+    layout = _pick_with_crosspol(rng, TYPE_LAYOUTS[site_type], _ALL_LAYOUTS)
+    design_era = _pick_with_crosspol(rng, TYPE_ERAS.get(site_type, _ALL_ERAS), _ALL_ERAS)
     brand_name, tagline = random_brand(rng, topic)
     temperatures = random_temperatures(rng, site_type)
 
