@@ -1,4 +1,4 @@
-FROM ghcr.io/demoralizer69/proximal-genclone-base:v1
+FROM ghcr.io/demoralizer69/proximal-genclone-base:v2
 
 WORKDIR /app
 

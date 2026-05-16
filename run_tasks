@@ -9,8 +9,8 @@
 # Example:
 #   EFFORT=low ./run_tasks screenshots/best_20 best20
 #
-# Env knobs: EFFORT (default low), MODEL (default sonnet),
-#            CONCURRENCY (default = task count), POLL_SEC (default 10),
+# Env knobs: EFFORT (default low), MODEL (default sonnet), TRIALS (default 1),
+#            CONCURRENCY (default = tasks * trials), POLL_SEC (default 10),
 #            HARBOR_BIN (default /Users/ash/.local/bin/harbor),
 #            KEEP_TASKS=1 to skip cleanup.
 
@@ -18,7 +18,7 @@ set -u
 
 if [ $# -lt 2 ]; then
   echo "usage: $0 <screenshots-batch-dir> <nickname>" >&2
-  echo "  env: EFFORT MODEL CONCURRENCY POLL_SEC HARBOR_BIN KEEP_TASKS" >&2
+  echo "  env: EFFORT MODEL TRIALS CONCURRENCY POLL_SEC HARBOR_BIN KEEP_TASKS" >&2
   exit 2
 fi
 
@@ -30,7 +30,13 @@ TEMPLATE="$ROOT_DIR/tasks/clone_template"
 HARBOR_BIN="${HARBOR_BIN:-/Users/ash/.local/bin/harbor}"
 MODEL="${MODEL:-sonnet}"
 EFFORT="${EFFORT:-low}"
+TRIALS="${TRIALS:-1}"
 POLL_SEC="${POLL_SEC:-10}"
+
+if ! [[ "$TRIALS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "TRIALS must be a positive integer (got: $TRIALS)" >&2
+  exit 2
+fi
 
 if [ ! -d "$BATCH" ]; then
   echo "batch dir not found: $BATCH" >&2
@@ -92,9 +98,9 @@ if [ "$n" -eq 0 ]; then
   rmdir "$TASK_DIR" 2>/dev/null || true
   exit 1
 fi
-CONCURRENCY="${CONCURRENCY:-$n}"
+CONCURRENCY="${CONCURRENCY:-$((n * TRIALS))}"
 
-echo "==> running $n tasks on modal | model=$MODEL effort=$EFFORT concurrency=$CONCURRENCY"
+echo "==> running $n tasks x $TRIALS trials on modal | model=$MODEL effort=$EFFORT concurrency=$CONCURRENCY"
 echo "==> harbor log: $HARBOR_LOG"
 
 cleanup_tasks() {
@@ -113,7 +119,7 @@ cleanup_tasks() {
   -a claude-code \
   -m "$MODEL" \
   --ak "reasoning_effort=$EFFORT" \
-  -k 1 -n "$CONCURRENCY" -y \
+  -k "$TRIALS" -n "$CONCURRENCY" -y \
   --env modal \
   --job-name "$JOB_NAME" \
   > "$HARBOR_LOG" 2>&1 &
@@ -145,28 +151,36 @@ out_root = pathlib.Path(sys.argv[2])
 d = json.load(open(trial_dir / "result.json"))
 task_path = pathlib.Path(d["config"]["task"]["path"])
 task_name = task_path.name
+trial_name = d.get("trial_name") or trial_dir.name
+# Suffix after last "__" is the harbor trial id (the part that differs across trials).
+trial_suffix = trial_name.rsplit("__", 1)[-1] if "__" in trial_name else trial_name
+trial_sub = f"trial_{trial_suffix}"
 v = d.get("verifier_result") or {}
 reward = (v.get("rewards") or {}).get("reward")
 exc = d.get("exception_info")
-out = out_root / task_name
-out.mkdir(parents=True, exist_ok=True)
-(out / "reward.txt").write_text(f"{reward:.6f}\n" if reward is not None else "FAILED\n")
-if exc:
-    (out / "error.txt").write_text((exc.get("exception_message") or "")[:2000])
-src_screens = task_path / "environment" / "target"
-dst_screens = out / "screenshots"
+task_out = out_root / task_name
+task_out.mkdir(parents=True, exist_ok=True)
+# Target screenshots are shared across trials -> keep at task level.
+dst_screens = task_out / "screenshots"
 dst_screens.mkdir(exist_ok=True)
+src_screens = task_path / "environment" / "target"
 if src_screens.is_dir():
     for p in src_screens.glob("*.png"):
         shutil.copy2(p, dst_screens / p.name)
+# Per-trial reward, error, rendered output.
+trial_out = task_out / trial_sub
+trial_out.mkdir(parents=True, exist_ok=True)
+(trial_out / "reward.txt").write_text(f"{reward:.6f}\n" if reward is not None else "FAILED\n")
+if exc:
+    (trial_out / "error.txt").write_text((exc.get("exception_message") or "")[:2000])
 src_rendered = trial_dir / "artifacts" / "rendered"
-dst_rendered = out / "rendered"
+dst_rendered = trial_out / "rendered"
 dst_rendered.mkdir(exist_ok=True)
 if src_rendered.is_dir():
     for p in src_rendered.glob("*.png"):
         shutil.copy2(p, dst_rendered / p.name)
 status = f"reward={reward:.4f}" if reward is not None else "FAILED"
-print(f"[+] {task_name:24s} {status}", flush=True)
+print(f"[+] {task_name:20s} {trial_sub:18s} {status}", flush=True)
 PY
   done
 }
