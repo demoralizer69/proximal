@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# inspect_results — launch both viewer webservers side by side:
+#   * helper_scripts/view_screenshots.py — browse screenshots/ (port 8765)
+#   * helper_scripts/view_outputs.py     — browse outputs/     (port 8766)
+#
+# Both run until the user hits Ctrl+C; we then kill them both.
+#
+# Usage:
+#   ./inspect_results [screenshots_port] [outputs_port]
+#     defaults: 8765, 8766
+set -u
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HELPERS="$ROOT_DIR/helper_scripts"
+
+SCREENS_PORT="${1:-8765}"
+OUT_PORT="${2:-8766}"
+
+python3 "$HELPERS/view_screenshots.py" "$SCREENS_PORT" &
+PID_SCREENS=$!
+python3 "$HELPERS/view_outputs.py" "$OUT_PORT" &
+PID_OUTPUTS=$!
+
+cleanup() {
+  echo
+  echo "==> stopping viewers"
+  kill "$PID_SCREENS" "$PID_OUTPUTS" 2>/dev/null || true
+  wait "$PID_SCREENS" "$PID_OUTPUTS" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+echo "==> screenshots viewer: http://localhost:$SCREENS_PORT"
+echo "==> outputs viewer:     http://localhost:$OUT_PORT"
+echo "==> Ctrl+C to stop both"
+
+# If either viewer exits on its own, take the other down too.
+while kill -0 "$PID_SCREENS" 2>/dev/null && kill -0 "$PID_OUTPUTS" 2>/dev/null; do
+  sleep 1
+done

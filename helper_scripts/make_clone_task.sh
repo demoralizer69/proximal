@@ -21,7 +21,7 @@ fi
 SRC="$1"
 NAME="${2:-clone-$(basename "$SRC")}"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATE="$ROOT_DIR/tasks/clone_template"
 DEST_DIR="$ROOT_DIR/tmp_tasks"
 DEST="$DEST_DIR/$NAME"

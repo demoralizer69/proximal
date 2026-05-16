@@ -14,7 +14,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 SCREENSHOTS = ROOT / "screenshots"
 DEFAULT_PORT = 8765
 

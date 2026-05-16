@@ -4,6 +4,10 @@
 # outputs/<job-name>/<task>/. Polls every 10s.
 set -u
 
+# Anchor to the repo root so relative paths (tmp_tasks/, outputs/, jobs/) work
+# regardless of the caller's cwd.
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
 HARBOR_BIN="${HARBOR_BIN:-harbor}"
 MODEL="${MODEL:-sonnet}"
 EFFORT="${EFFORT:-low}"
@@ -95,4 +99,4 @@ wait "$HARBOR_PID" 2>/dev/null || true
 collect_new_trials  # final sweep
 
 echo "==> done. outputs in $OUT_DIR"
-echo "    view: python3 view_outputs.py"
+echo "    view: ./inspect_results"

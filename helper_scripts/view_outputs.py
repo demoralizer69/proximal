@@ -30,7 +30,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS = ROOT / "outputs"
 DEFAULT_PORT = 8766
 

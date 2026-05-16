@@ -196,4 +196,4 @@ wait "$HARBOR_PID" 2>/dev/null || true
 collect_new_trials  # final sweep
 
 echo "==> done. outputs in $OUT_DIR"
-echo "    view: python3 view_outputs.py"
+echo "    view: ./inspect_results"

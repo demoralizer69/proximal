@@ -30,7 +30,7 @@ fi
 JOB_OUT="${1%/}"
 NICK="${2:-eval-$(basename "$JOB_OUT")}"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATE="$ROOT_DIR/tasks/evaluate"
 HARBOR_BIN="${HARBOR_BIN:-harbor}"
 POLL_SEC="${POLL_SEC:-10}"
