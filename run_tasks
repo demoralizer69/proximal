@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# run_tasks — stamp every screenshots subdir into a fresh tmp_tasks/<job>/ tree,
+# run them as one harbor job, copy outputs as trials finish, then delete the
+# tmp tasks. The job/output folders are prefixed with <nickname>.
+#
+# Usage:
+#   EFFORT=low ./run_tasks <screenshots-batch-dir> <nickname>
+#
+# Example:
+#   EFFORT=low ./run_tasks screenshots/best_20 best20
+#
+# Env knobs: EFFORT (default low), MODEL (default sonnet),
+#            CONCURRENCY (default = task count), POLL_SEC (default 10),
+#            HARBOR_BIN (default /Users/ash/.local/bin/harbor),
+#            KEEP_TASKS=1 to skip cleanup.
+
+set -u
+
+if [ $# -lt 2 ]; then
+  echo "usage: $0 <screenshots-batch-dir> <nickname>" >&2
+  echo "  env: EFFORT MODEL CONCURRENCY POLL_SEC HARBOR_BIN KEEP_TASKS" >&2
+  exit 2
+fi
+
+BATCH="${1%/}"
+NICK="$2"
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE="$ROOT_DIR/tasks/clone_template"
+HARBOR_BIN="${HARBOR_BIN:-/Users/ash/.local/bin/harbor}"
+MODEL="${MODEL:-sonnet}"
+EFFORT="${EFFORT:-low}"
+POLL_SEC="${POLL_SEC:-10}"
+
+if [ ! -d "$BATCH" ]; then
+  echo "batch dir not found: $BATCH" >&2
+  exit 1
+fi
+if [ ! -d "$TEMPLATE" ]; then
+  echo "template not found: $TEMPLATE" >&2
+  exit 1
+fi
+
+shopt -s nullglob
+trials=("$BATCH"/*/)
+if [ ${#trials[@]} -eq 0 ]; then
+  echo "no trial subdirectories under $BATCH" >&2
+  exit 1
+fi
+
+TS="$(date +"%Y-%m-%d__%H-%M-%S")"
+JOB_NAME="${NICK}-${TS}"
+TASK_DIR="$ROOT_DIR/tmp_tasks/${JOB_NAME}"
+JOB_DIR="jobs/$JOB_NAME"
+OUT_DIR="outputs/$JOB_NAME"
+
+mkdir -p "$TASK_DIR" "$OUT_DIR"
+HARBOR_LOG="$OUT_DIR/_harbor.log"
+
+echo "==> batch:   $BATCH (${#trials[@]} trials)"
+echo "==> job:     $JOB_NAME"
+echo "==> tasks:   $TASK_DIR"
+echo "==> outputs: $OUT_DIR"
+
+i=0
+for tdir in "${trials[@]}"; do
+  i=$((i + 1))
+  tdir="${tdir%/}"
+  pngs=("$tdir"/*.png)
+  if [ ${#pngs[@]} -eq 0 ]; then
+    echo "skip (no pngs): $tdir" >&2
+    continue
+  fi
+  name="${NICK}_task_${i}"
+  dest="$TASK_DIR/$name"
+  cp -R "$TEMPLATE" "$dest"
+  rm -f "$dest/environment/target/.gitkeep"
+  cp "${pngs[@]}" "$dest/environment/target/"
+  python3 - "$dest/task.toml" "$name" <<'PY'
+import sys, pathlib
+path, name = pathlib.Path(sys.argv[1]), sys.argv[2]
+text = path.read_text()
+text = text.replace('name = "proximal/clone-TEMPLATE"', f'name = "proximal/{name}"')
+path.write_text(text)
+PY
+  echo "[$i/${#trials[@]}] $(basename "$tdir") -> $name"
+done
+
+n=$(find "$TASK_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+if [ "$n" -eq 0 ]; then
+  echo "no tasks created (every trial subdir was empty)" >&2
+  rmdir "$TASK_DIR" 2>/dev/null || true
+  exit 1
+fi
+CONCURRENCY="${CONCURRENCY:-$n}"
+
+echo "==> running $n tasks on modal | model=$MODEL effort=$EFFORT concurrency=$CONCURRENCY"
+echo "==> harbor log: $HARBOR_LOG"
+
+cleanup_tasks() {
+  if [ "${KEEP_TASKS:-0}" = "1" ]; then
+    echo "==> KEEP_TASKS=1, leaving $TASK_DIR"
+    return
+  fi
+  if [ -d "$TASK_DIR" ]; then
+    echo "==> cleaning up $TASK_DIR"
+    rm -rf "$TASK_DIR"
+  fi
+}
+
+"$HARBOR_BIN" run \
+  -p "$TASK_DIR" \
+  -a claude-code \
+  -m "$MODEL" \
+  --ak "reasoning_effort=$EFFORT" \
+  -k 1 -n "$CONCURRENCY" -y \
+  --env modal \
+  --job-name "$JOB_NAME" \
+  > "$HARBOR_LOG" 2>&1 &
+HARBOR_PID=$!
+
+cleanup_running() {
+  if kill -0 "$HARBOR_PID" 2>/dev/null; then
+    echo "==> interrupted, stopping harbor (pid $HARBOR_PID)"
+    kill "$HARBOR_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup_running INT TERM
+
+seen_file="$(mktemp)"
+trap 'rm -f "$seen_file"; cleanup_tasks' EXIT
+
+collect_new_trials() {
+  [ -d "$JOB_DIR" ] || return 0
+  for tdir in "$JOB_DIR"/*__*/; do
+    [ -d "$tdir" ] || continue
+    [ -f "$tdir/result.json" ] || continue
+    key=$(basename "$tdir")
+    if grep -qx "$key" "$seen_file" 2>/dev/null; then continue; fi
+    echo "$key" >> "$seen_file"
+    python3 - "$tdir" "$OUT_DIR" <<'PY'
+import json, sys, shutil, pathlib
+trial_dir = pathlib.Path(sys.argv[1])
+out_root = pathlib.Path(sys.argv[2])
+d = json.load(open(trial_dir / "result.json"))
+task_path = pathlib.Path(d["config"]["task"]["path"])
+task_name = task_path.name
+v = d.get("verifier_result") or {}
+reward = (v.get("rewards") or {}).get("reward")
+exc = d.get("exception_info")
+out = out_root / task_name
+out.mkdir(parents=True, exist_ok=True)
+(out / "reward.txt").write_text(f"{reward:.6f}\n" if reward is not None else "FAILED\n")
+if exc:
+    (out / "error.txt").write_text((exc.get("exception_message") or "")[:2000])
+src_screens = task_path / "environment" / "target"
+dst_screens = out / "screenshots"
+dst_screens.mkdir(exist_ok=True)
+if src_screens.is_dir():
+    for p in src_screens.glob("*.png"):
+        shutil.copy2(p, dst_screens / p.name)
+src_rendered = trial_dir / "artifacts" / "rendered"
+dst_rendered = out / "rendered"
+dst_rendered.mkdir(exist_ok=True)
+if src_rendered.is_dir():
+    for p in src_rendered.glob("*.png"):
+        shutil.copy2(p, dst_rendered / p.name)
+status = f"reward={reward:.4f}" if reward is not None else "FAILED"
+print(f"[+] {task_name:24s} {status}", flush=True)
+PY
+  done
+}
+
+while kill -0 "$HARBOR_PID" 2>/dev/null; do
+  sleep "$POLL_SEC"
+  collect_new_trials
+done
+
+wait "$HARBOR_PID" 2>/dev/null || true
+collect_new_trials  # final sweep
+
+echo "==> done. outputs in $OUT_DIR"
+echo "    view: python3 view_outputs.py"

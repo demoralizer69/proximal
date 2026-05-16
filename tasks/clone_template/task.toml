@@ -3,9 +3,9 @@ artifacts = ["/app/pages", "/app/rendered"]
 
 [task]
 name = "proximal/clone-TEMPLATE"
-description = "Reproduce a multi-page website from screenshots. Mean SSIM across pages is the reward."
+description = "Reproduce a multi-page website from screenshots. Mean WebSight composite score (MS-SSIM + LPIPS + OCR F1) across pages is the reward."
 authors = []
-keywords = ["clone", "html", "ssim"]
+keywords = ["clone", "html", "websight"]
 
 [metadata]
 

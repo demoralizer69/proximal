@@ -1,6 +1,7 @@
 #!/bin/bash
 # Verifier: for each target screenshot in /opt/target/<slug>.png, render the
-# agent's /app/pages/<slug>.html via Playwright, compute SSIM, and average.
+# agent's /app/pages/<slug>.html via Playwright, compute the WebSight
+# composite score (MS-SSIM + LPIPS + OCR F1), and average.
 # Missing pages count as 0.
 set -e
 mkdir -p /logs/verifier /app/rendered
@@ -46,7 +47,7 @@ for ref in "${targets[@]}"; do
     echo "[$slug] evaluate failed -> 0.0" >> "$log"
     continue
   fi
-  echo "[$slug] ssim=$score" >> "$log"
+  echo "[$slug] score=$score" >> "$log"
   total=$(python3 -c "print($total + $score)")
 done
 
