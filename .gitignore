@@ -5,3 +5,4 @@ screenshots/
 create_dataset.log
 __pycache__/
 tmp/
+tmp_tasks/

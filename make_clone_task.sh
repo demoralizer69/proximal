@@ -8,8 +8,8 @@
 # Example:
 #   ./make_clone_task.sh screenshots/2026-05-16__09-00-00/trial-0001 clone-trial-0001
 #
-# Produces tasks/<task-name>/ ready to run with:
-#   harbor run -p tasks/<task-name> -a claude-code -m opus
+# Produces tmp_tasks/<task-name>/ ready to run with:
+#   harbor run -p tmp_tasks/<task-name> -a claude-code -m opus
 
 set -euo pipefail
 
@@ -23,7 +23,9 @@ NAME="${2:-clone-$(basename "$SRC")}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$ROOT_DIR/tasks/clone_template"
-DEST="$ROOT_DIR/tasks/$NAME"
+DEST_DIR="$ROOT_DIR/tmp_tasks"
+DEST="$DEST_DIR/$NAME"
+mkdir -p "$DEST_DIR"
 
 if [ ! -d "$SRC" ]; then
   echo "screenshots dir not found: $SRC" >&2
@@ -60,4 +62,4 @@ PY
 
 echo "==> created $DEST"
 echo "    pages: $(ls "$DEST/environment/target/" | wc -l | tr -d ' ')"
-echo "    run with: harbor run -p tasks/$NAME -a claude-code -m opus"
+echo "    run with: harbor run -p tmp_tasks/$NAME -a claude-code -m opus"
