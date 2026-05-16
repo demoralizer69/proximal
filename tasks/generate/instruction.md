@@ -17,18 +17,20 @@ Requirements:
 {
   "topic": "...",
   "fixed": {
-    "type":             "ecommerce | social_media | utility | informational | portfolio | news | blog | saas | educational",
-    "brand_name":       "the site's brand / wordmark",
-    "tagline":          "short marketing line",
-    "design_era":       "corporate-2010 | material-2014 | flat-minimal | brutalist | neo-brutalist | glassmorphism | y2k | swiss-editorial",
-    "primary_color":    "#rrggbb",
-    "secondary_color":  "#rrggbb",
-    "accent_color":     "#rrggbb",
-    "background_tone":  "light | dark",
-    "font_family":      "CSS font stack",
-    "layout":           "layout name",
-    "language":         "en",
-    "pages":            ["home", "<slug>", ...]
+    "type":                  "ecommerce | social_media | utility | informational | portfolio | news | blog | saas | educational",
+    "brand_name":            "the site's brand / wordmark",
+    "tagline":               "short marketing line",
+    "design_era":            "corporate-2010 | material-2014 | flat-minimal | brutalist | neo-brutalist | glassmorphism | y2k | swiss-editorial | memphis | vaporwave | anti-design | magazine-print",
+    "composition_archetype": "scrapbook | editorial-poster | window-frame | magazine-spread | single-canvas | timeline | split-aesthetic | manifesto | infinite-canvas | kiosk | null",
+    "heading_treatment":     "plain | outline | oversized | rotated | split-color | marquee",
+    "primary_color":         "#rrggbb",
+    "secondary_color":       "#rrggbb",
+    "accent_color":          "#rrggbb",
+    "background_tone":       "light | dark",
+    "font_family":           "CSS font stack",
+    "layout":                "layout name | null",
+    "language":              "en",
+    "pages":                 ["home", "<slug>", ...]
   },
   "temperature": { "<key>": 0.00 .. 1.00, ... }
 }
@@ -45,13 +47,15 @@ Concrete categorical choices. Use each value as-is, no interpolation.
 | `type` | Overall site genre (`ecommerce`, `social_media`, `utility`, `informational`, `portfolio`, `news`, `blog`, `saas`, `educational`). Shape the page content and components to match. |
 | `brand_name` | The site's brand / wordmark. Use it in the header, footer, page titles, and copy. Don't invent a different name. |
 | `tagline` | A short marketing line. Use it in the hero or header. |
-| `design_era` | The era / movement to anchor the visual style to. Reference points: `corporate-2010` (rounded blue buttons, drop shadows), `material-2014` (Google Material: bold flat colors, cards), `flat-minimal` (lots of whitespace, neutral tones), `brutalist` (raw, system fonts, harsh borders), `neo-brutalist` (hard shadows, vivid blocks, thick borders), `glassmorphism` (frosted translucent surfaces, blurred backdrops), `y2k` (chrome, gradients, sparkles, frutiger aero), `swiss-editorial` (grid-driven, serif headlines, generous margins). |
+| `design_era` | The era / movement to anchor the visual style to. Reference points: `corporate-2010` (rounded blue buttons, drop shadows), `material-2014` (Google Material: bold flat colors, cards), `flat-minimal` (lots of whitespace, neutral tones), `brutalist` (raw, system fonts, harsh borders), `neo-brutalist` (hard shadows, vivid blocks, thick borders), `glassmorphism` (frosted translucent surfaces, blurred backdrops), `y2k` (chrome, gradients, sparkles, frutiger aero), `swiss-editorial` (grid-driven, serif headlines, generous margins), `memphis` (80s postmodern: confetti shapes, primaries), `vaporwave` (pink/teal, classical busts, vintage Mac UI), `anti-design` (intentionally clashing, low-craft, web1.0 default browser), `magazine-print` (heavy serif, big drop caps, columnar). |
+| `composition_archetype` | A high-level compositional mode that overrides default layout thinking. `scrapbook` (collage, taped photos, sticker overlays), `editorial-poster` (postmodern dramatic display type, layered text), `window-frame` (OS-window / desktop / terminal pastiche), `magazine-spread` (multi-column print-magazine), `single-canvas` (one huge focal element on near-empty page), `timeline` (timeline as the spine of the page), `split-aesthetic` (halves with different visual languages), `manifesto` (text-only declarative one-pager), `infinite-canvas` (implied side-scroll), `kiosk` (info-board feel). When `null`, no archetype is enforced — compose from `layout` and the dials. |
+| `heading_treatment` | How display type should be handled. `plain` (ordinary filled), `outline` (stroke / outlined text as a primary visual), `oversized` (display sizes dominate the viewport), `rotated` (headings tilted off horizontal), `split-color` (words broken into multiple fill colors mid-letter / mid-word), `marquee` (horizontal-scrolling text bar implied by composition). |
 | `primary_color` | Main brand color. |
 | `secondary_color` | Companion to the primary; surfaces or secondary accents. |
 | `accent_color` | Highlight color for CTAs, tags, links. |
 | `background_tone` | `"light"` or `"dark"` — overall page lightness. |
 | `font_family` | CSS font-family stack for body text. |
-| `layout` | Named layout pattern (e.g. `"hero + 3-card grid"`, `"sidebar-left"`, `"magazine"`). Structure the home page accordingly; other pages may adapt as appropriate. |
+| `layout` | Named layout pattern (e.g. `"hero + 3-card grid"`, `"sidebar-left"`, `"magazine"`). Structure the home page accordingly; other pages may adapt as appropriate. **When `null`, you have full compositional freedom** — let the dials and `composition_archetype` drive the page composition instead of a named pattern. |
 | `language` | BCP-47 string for `<html lang>`. |
 | `pages` | Ordered list of page slugs. The first slug is always `home`. Produce **exactly** one HTML file per slug. |
 
@@ -78,5 +82,20 @@ Each value is a float in `[0, 1]`. **0 means "none / minimal / off"; 1 means "lo
 | `card_density` | few large cards (or none) | many small cards |
 | `gradients` | solid fills only, no gradients | gradients used heavily across surfaces |
 | `genz_ness` | neutral / corporate tone & styling | maximalist Gen-Z styling and copy (vivid color clashes, internet slang, emoji, playful headlines) |
+| `grid_break` | strict grid alignment everywhere | anti-grid / intentional misalignment, postmodern poster feel |
+| `asymmetry` | symmetric, centered balance | heavily weighted to one side; off-center heroes |
+| `container_escape` | content stays inside section / column bounds | images and text bleed past section borders and column edges |
+| `overlap_density` | no overlapping elements | panels, cards, text, and images visually overlap |
+| `element_rotation` | everything axis-aligned | items tilted off horizontal (text boxes, photos, badges at angles) |
+| `shape_organic` | rectangles only | blob backgrounds, curved section dividers, irregular shapes |
+| `shape_geometric_decoration` | no decorative shapes | floating triangles / circles / lines as page ornaments |
+| `outline_typography` | solid filled type | oversized outline / stroke text used as a primary visual element |
+| `mixed_typeface` | one typeface throughout | 3+ contrasting families mixed within one page (serif + mono + sans) |
+| `bento_irregularity` | uniform grid cells | varied-size tile grid (Apple-style bento landing) |
+| `marquee_kinetic` | static type | composition implies horizontal-scrolling text bars / looping headlines |
+| `scale_contrast_extreme` | subtle size variation | huge display sizes adjacent to tiny captions (Swiss/editorial extremes) |
+| `negative_space_focal` | balanced page | one dominant focal element surrounded by near-empty space |
+| `section_divider_irregular` | straight horizontal section borders | wavy / diagonal / jagged section dividers |
+| `depth_layering` | flat, no z-stacking | strong z-order with stacked shadow layers, parallax-style composition |
 
 The spec at `/app/website_details.json` is the source of truth. Do not invent additional pages beyond what is listed in `fixed.pages`.

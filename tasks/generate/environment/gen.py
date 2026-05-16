@@ -303,6 +303,7 @@ PRIOR_BLEND = 0.4
 #   - `saturation` merged into `colorfulness`
 #   - `gradient_usage` merged into `gradients`
 TEMPERATURE_KEYS = (
+    # Base aesthetic dials
     "colorfulness",
     "content_density",
     "button_density",
@@ -321,6 +322,22 @@ TEMPERATURE_KEYS = (
     "card_density",
     "gradients",
     "genz_ness",
+    # Compositional / "break the grid" dials
+    "grid_break",
+    "asymmetry",
+    "container_escape",
+    "overlap_density",
+    "element_rotation",
+    "shape_organic",
+    "shape_geometric_decoration",
+    "outline_typography",
+    "mixed_typeface",
+    "bento_irregularity",
+    "marquee_kinetic",
+    "scale_contrast_extreme",
+    "negative_space_focal",
+    "section_divider_irregular",
+    "depth_layering",
 )
 
 # Per-type prior means for each dial. Missing keys default to 0.5.
@@ -400,6 +417,65 @@ TYPE_DIAL_PRIORS: dict[str, dict[str, float]] = {
         "card_density": 0.55, "gradients": 0.25, "genz_ness": 0.3,
     },
 }
+
+# Priors for the "compositional / break-the-grid" dials. Types not listed
+# for a given dial fall back to the neutral 0.5 in priors.get(key, 0.5),
+# so add only the types where there's a strong directional bias.
+CREATIVE_DIAL_PRIORS: dict[str, dict[str, float]] = {
+    "grid_break":                {"portfolio": 0.65, "saas": 0.2,  "utility": 0.1,  "news": 0.25, "blog": 0.2,  "informational": 0.2},
+    "asymmetry":                 {"portfolio": 0.7,  "news": 0.4,  "saas": 0.3,  "utility": 0.15, "blog": 0.25, "informational": 0.25},
+    "container_escape":          {"portfolio": 0.55, "ecommerce": 0.4, "utility": 0.1,  "saas": 0.2,  "news": 0.2,  "blog": 0.2,  "informational": 0.2},
+    "overlap_density":           {"portfolio": 0.5,  "social_media": 0.45, "utility": 0.1,  "news": 0.15, "blog": 0.2,  "informational": 0.2},
+    "element_rotation":          {"portfolio": 0.4,  "social_media": 0.3,  "utility": 0.05, "saas": 0.1,  "news": 0.05, "blog": 0.1,  "informational": 0.1},
+    "shape_organic":             {"portfolio": 0.5,  "social_media": 0.5,  "educational": 0.45, "utility": 0.1,  "news": 0.15, "blog": 0.2,  "informational": 0.25},
+    "shape_geometric_decoration":{"portfolio": 0.45, "educational": 0.45, "social_media": 0.4,  "utility": 0.15, "news": 0.2,  "blog": 0.2},
+    "outline_typography":        {"portfolio": 0.45, "news": 0.25, "blog": 0.3,  "utility": 0.1,  "saas": 0.3,  "informational": 0.2},
+    "mixed_typeface":            {"portfolio": 0.55, "news": 0.5,  "blog": 0.45, "utility": 0.1,  "saas": 0.2,  "informational": 0.25},
+    "bento_irregularity":        {"saas": 0.65, "ecommerce": 0.55, "educational": 0.5,  "informational": 0.4,  "utility": 0.25, "blog": 0.25},
+    "marquee_kinetic":           {"portfolio": 0.4,  "social_media": 0.55, "ecommerce": 0.3,  "utility": 0.1,  "news": 0.15, "blog": 0.15},
+    "scale_contrast_extreme":    {"portfolio": 0.75, "news": 0.7,  "blog": 0.55, "ecommerce": 0.55, "utility": 0.2,  "informational": 0.45},
+    "negative_space_focal":      {"portfolio": 0.6,  "saas": 0.5,  "blog": 0.4,  "utility": 0.2,  "social_media": 0.2,  "news": 0.3},
+    "section_divider_irregular": {"portfolio": 0.45, "social_media": 0.4,  "educational": 0.35, "utility": 0.15, "news": 0.15, "blog": 0.25},
+    "depth_layering":            {"portfolio": 0.5,  "social_media": 0.45, "ecommerce": 0.4,  "saas": 0.4,  "utility": 0.2,  "news": 0.2,  "blog": 0.2},
+}
+
+# Merge the creative priors into the master table at import time.
+for _dial, _by_type in CREATIVE_DIAL_PRIORS.items():
+    for _type, _prior in _by_type.items():
+        TYPE_DIAL_PRIORS.setdefault(_type, {})[_dial] = _prior
+
+# -----------------------------------------------------------------------------
+# Compositional categoricals
+# -----------------------------------------------------------------------------
+
+COMPOSITION_ARCHETYPES = (
+    "scrapbook",         # cut-and-stick collage feel, taped photos, sticker overlays
+    "editorial-poster",  # postmodern poster, dramatic display type, layered text
+    "window-frame",      # OS-window / desktop / terminal pastiche
+    "magazine-spread",   # multi-column print-magazine treatment
+    "single-canvas",     # one huge focal element on near-empty page
+    "timeline",          # horizontal/vertical timeline as the spine of the page
+    "split-aesthetic",   # page divided into halves with different visual languages
+    "manifesto",         # text-only declarative one-pager, big claims
+    "infinite-canvas",   # implied side-scroll, content extending past the viewport
+    "kiosk",             # info-board / wayfinding-screen feel
+)
+# Probability that composition_archetype is null (no archetype enforced).
+ARCHETYPE_NONE_PROB = 0.55
+
+HEADING_TREATMENTS = (
+    "plain",        # ordinary filled headings
+    "outline",      # stroke / outlined display type as a primary visual
+    "oversized",    # display sizes that dominate the viewport
+    "rotated",      # headings tilted off the horizontal axis
+    "split-color",  # words broken into multiple fill colors mid-letter / mid-word
+    "marquee",      # horizontal-scrolling text bar implied by composition
+)
+HEADING_WEIGHTS = (0.45, 0.12, 0.13, 0.08, 0.1, 0.12)
+
+# Probability that `layout` is set to null, leaving composition fully up to
+# the agent (driven by the dials and archetype instead of a named pattern).
+LAYOUT_NONE_PROB = 0.4
 
 PAGE_MIN = 5
 PAGE_MAX = 7
@@ -581,8 +657,18 @@ def build_spec(seed: int) -> dict:
     background_tone = rng.choice(BACKGROUND_TONES)
     primary, secondary, accent = random_palette(rng, background_tone)
     font_family = _pick_with_crosspol(rng, TYPE_FONTS[site_type], _ALL_FONTS)
-    layout = _pick_with_crosspol(rng, TYPE_LAYOUTS[site_type], _ALL_LAYOUTS)
+    layout: str | None = (
+        None
+        if rng.random() < LAYOUT_NONE_PROB
+        else _pick_with_crosspol(rng, TYPE_LAYOUTS[site_type], _ALL_LAYOUTS)
+    )
     design_era = _pick_with_crosspol(rng, TYPE_ERAS.get(site_type, _ALL_ERAS), _ALL_ERAS)
+    composition_archetype: str | None = (
+        None
+        if rng.random() < ARCHETYPE_NONE_PROB
+        else rng.choice(COMPOSITION_ARCHETYPES)
+    )
+    heading_treatment = rng.choices(HEADING_TREATMENTS, weights=HEADING_WEIGHTS, k=1)[0]
     brand_name, tagline = random_brand(rng, topic)
     temperatures = random_temperatures(rng, site_type)
 
@@ -593,6 +679,8 @@ def build_spec(seed: int) -> dict:
             "brand_name": brand_name,
             "tagline": tagline,
             "design_era": design_era,
+            "composition_archetype": composition_archetype,
+            "heading_treatment": heading_treatment,
             "primary_color": primary,
             "secondary_color": secondary,
             "accent_color": accent,
