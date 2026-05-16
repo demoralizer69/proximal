@@ -10,7 +10,7 @@
 #   EFFORT=low ./run_tasks screenshots/best_20 best20
 #
 # Env knobs: EFFORT (default low), MODEL (default sonnet), TRIALS (default 1),
-#            CONCURRENCY (default = tasks * trials), POLL_SEC (default 10),
+#            CONCURRENCY (default = min(tasks * trials, 60)), POLL_SEC (default 10),
 #            HARBOR_BIN (default /Users/ash/.local/bin/harbor),
 #            KEEP_TASKS=1 to skip cleanup.
 
@@ -98,7 +98,9 @@ if [ "$n" -eq 0 ]; then
   rmdir "$TASK_DIR" 2>/dev/null || true
   exit 1
 fi
-CONCURRENCY="${CONCURRENCY:-$((n * TRIALS))}"
+default_conc=$(( n * TRIALS ))
+if [ "$default_conc" -gt 60 ]; then default_conc=60; fi
+CONCURRENCY="${CONCURRENCY:-$default_conc}"
 
 echo "==> running $n tasks x $TRIALS trials on modal | model=$MODEL effort=$EFFORT concurrency=$CONCURRENCY"
 echo "==> harbor log: $HARBOR_LOG"

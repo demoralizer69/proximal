@@ -59,7 +59,7 @@ def _collect_trials(task_dir: Path) -> list[tuple[str | None, float | None, bool
         trials.append((None, _read_reward(task_dir), (task_dir / "error.txt").exists()))
     else:
         return []
-    trials.sort(key=lambda t: (-1 if t[1] is None else 0, -(t[1] or 0)))
+    trials.sort(key=lambda t: (1 if t[1] is None else 0, -(t[1] or 0)))
     return trials
 
 
