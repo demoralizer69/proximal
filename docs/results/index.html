@@ -259,6 +259,40 @@
     font-size: 11px; color: var(--muted);
   }
   .task-card .info .row .typ { text-transform: uppercase; letter-spacing: 0.1em; }
+  .task-card .card-dist {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .card-dist-bar {
+    position: relative;
+    height: 14px;
+    border-radius: 999px;
+    overflow: visible;
+  }
+  .card-dist-track {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,122,138,0.25), rgba(240,181,107,0.25), rgba(123,224,161,0.25));
+  }
+  .card-dist-line {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 2px; background: rgba(155,166,178,0.55);
+  }
+  .card-dist-dot {
+    position: absolute; top: 50%; transform: translate(-50%,-50%);
+    width: 7px; height: 7px; border-radius: 999px; background: var(--muted);
+  }
+  .card-dist-dot.mean {
+    width: 11px; height: 11px; background: var(--accent);
+    box-shadow: 0 0 0 2px rgba(122,162,255,0.22); z-index: 2;
+  }
+  .card-dist-nums {
+    margin-top: 6px;
+    display: flex; justify-content: space-between;
+    font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted);
+  }
+  .card-dist-nums .mean-val { color: var(--text); font-weight: 600; }
 
   /* SCORE COLOR CODING */
   .score-hi { color: var(--good); }
@@ -497,31 +531,21 @@
     </p>
   </section>
 
-  <!-- DISTRIBUTION -->
-  <section class="card" id="distribution">
-    <h2><span class="num">3</span> Score distribution per task</h2>
-    <p class="lede">All 20 tasks, hardest at the top. Each row shows min, mean, and max across 10 trials. Click a row to drill into that task.</p>
-    <div class="dist" id="dist-rows"></div>
-    <div class="dist-scale">
-      <div></div>
-      <div class="dist-scale-ticks" id="dist-ticks"></div>
-    </div>
-  </section>
-
   <!-- GALLERY -->
   <section class="card" id="gallery-section">
-    <h2><span class="num">4</span> The 20 tasks</h2>
+    <h2><span class="num">3</span> The 20 tasks</h2>
     <p class="lede">
-      In difficulty order (lowest mean MAE first). Click any tile to open the drilldown — by default the
-      overlay shows the target, the best trial, and the worst trial across every page of the website.
-      Expand to see all ten trials side-by-side.
+      Sorted by best-vs-worst spread (largest gap first). Each card shows the task thumbnail and a mini
+      distribution: min · mean · max across its 10 trials. Click any tile to open the drilldown — by
+      default the overlay shows the target, the best trial, and the worst trial across every page of
+      the website. Expand to see all ten trials side-by-side.
     </p>
     <div class="gallery" id="gallery"></div>
   </section>
 
   <!-- FAILURE PATTERNS -->
   <section class="card" id="patterns">
-    <h2><span class="num">5</span> Common patterns the model struggles with</h2>
+    <h2><span class="num">4</span> Common patterns the model struggles with</h2>
     <p class="lede">Drafted from inspecting the worst-scoring trials and cross-referencing each task's temperature knobs.</p>
 
     <h3>1. Background-tone inversion</h3>
@@ -553,16 +577,7 @@
       this strongly because the shadow region's pixels are wrong in two places at once.
     </p>
 
-    <h3>4. Tickers and marquees rendered as static text</h3>
-    <p>
-      Tasks with <code>marquee_kinetic ≥ 0.7</code> often produce a marquee strip in the target — a slim
-      band of scrolling text across the page. The clone tends to render it as a static, fully-populated
-      bar of text. Static screenshots already collapse motion (so the comparison sees one frame against
-      another), but the model frequently writes very different content into the bar, which makes the
-      pixels mismatch. Task #4's <code>search</code> page is a clean example.
-    </p>
-
-    <h3>5. Typography contrast and outline type</h3>
+    <h3>4. Typography contrast and outline type</h3>
     <p>
       Tasks with very high <code>typography_contrast</code> (the same page mixes 12pt body with 80pt
       display) tend to lose the extreme scale jumps in clones. Similarly, <code>outline_typography</code>
@@ -571,7 +586,7 @@
       but the visual mass differs by a lot of pixels.
     </p>
 
-    <h3>6. Image density and image content</h3>
+    <h3>5. Image density and image content</h3>
     <p>
       <code>image_density</code> correlates negatively with score (<span class="mono">r = −0.41</span>).
       The pipeline uses no real assets — the target screenshots already render images as coloured
@@ -581,7 +596,7 @@
       pixels.
     </p>
 
-    <h3>7. Per-page variance: secondary pages drag the score down</h3>
+    <h3>6. Per-page variance: secondary pages drag the score down</h3>
     <p>
       The home page is almost always the best-cloned page in any trial — it's the most distinctive,
       most-described surface and the model focuses its effort there. Secondary pages
@@ -664,43 +679,11 @@ function buildStatTiles() {
     </div>`).join('');
 }
 
-function buildDistribution() {
+function buildGallery() {
   const minS = 0.30, maxS = 1.00;
   const pct = v => ((v - minS)/(maxS - minS)) * 100;
-  const html = DATA.map(t => `
-    <div class="dist-row" onclick="openModal(${t.rank})" role="button" tabindex="0">
-      <div class="rank-num">${t.rank}</div>
-      <div class="dist-bar-wrap">
-        <div class="dist-bar-track" style="width:100%"></div>
-        <div class="dist-bar-line" style="left:${pct(t.min)}%; right:${100-pct(t.max)}%"></div>
-        <div class="dist-bar-dot" style="left:${pct(t.min)}%" title="min ${fmt(t.min)}"></div>
-        <div class="dist-bar-dot" style="left:${pct(t.max)}%" title="max ${fmt(t.max)}"></div>
-        <div class="dist-bar-dot mean" style="left:${pct(t.mean)}%" title="mean ${fmt(t.mean)}"></div>
-        <div class="dist-label">
-          <span class="topic">${t.topic}</span>
-          <span class="typ">· ${t.type}</span>
-        </div>
-        <div class="dist-scores">
-          <span>${fmt(t.min)}</span>
-          &nbsp;·&nbsp;
-          <span class="mean-val">${fmt(t.mean)}</span>
-          &nbsp;·&nbsp;
-          <span>${fmt(t.max)}</span>
-        </div>
-      </div>
-    </div>`).join('');
-  document.getElementById('dist-rows').innerHTML = html;
-
-  // ticks
-  const ticks = [0.30, 0.50, 0.70, 0.85, 1.00];
-  document.getElementById('dist-ticks').innerHTML = ticks.map(v => {
-    const p = ((v-minS)/(maxS-minS))*100;
-    return `<span style="left:${p}%">${v.toFixed(2)}</span>`;
-  }).join('');
-}
-
-function buildGallery() {
-  const html = DATA.map(t => {
+  const sorted = [...DATA].sort((a, b) => (b.max - b.min) - (a.max - a.min));
+  const html = sorted.map(t => {
     const folder = String(t.rank).padStart(2,'0');
     const cls = scoreClass(t.mean);
     return `
@@ -715,6 +698,20 @@ function buildGallery() {
         <div class="row">
           <span class="typ">${t.type.replace('_',' ')}</span>
           <span>${t.brand}</span>
+        </div>
+        <div class="card-dist">
+          <div class="card-dist-bar">
+            <div class="card-dist-track"></div>
+            <div class="card-dist-line" style="left:${pct(t.min)}%; right:${100-pct(t.max)}%"></div>
+            <div class="card-dist-dot" style="left:${pct(t.min)}%" title="min ${fmt(t.min)}"></div>
+            <div class="card-dist-dot" style="left:${pct(t.max)}%" title="max ${fmt(t.max)}"></div>
+            <div class="card-dist-dot mean" style="left:${pct(t.mean)}%" title="mean ${fmt(t.mean)}"></div>
+          </div>
+          <div class="card-dist-nums">
+            <span>${fmt(t.min)}</span>
+            <span class="mean-val">${fmt(t.mean)}</span>
+            <span>${fmt(t.max)}</span>
+          </div>
         </div>
       </div>
     </div>`;
@@ -848,7 +845,6 @@ document.addEventListener('keydown', e => {
 fetch('data.json').then(r => r.json()).then(d => {
   DATA = d;
   buildStatTiles();
-  buildDistribution();
   buildGraderCompare();
   buildGallery();
 });
