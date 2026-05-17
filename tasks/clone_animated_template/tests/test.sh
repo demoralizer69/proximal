@@ -2,9 +2,9 @@
 # Verifier (animated): for each /opt/target/<slug>/ (containing 6 keyframes +
 # a clip.webm), render the agent's /app/pages/<slug>.html into
 # /app/rendered/<slug>/ via the same Playwright capture pipeline, then score
-# the directory pair with the animated WebSight evaluator (per-frame static
-# composite averaged across 6 frames, plus a delta-SSIM temporal term).
-# Average across pages. Missing pages count as 0.
+# the directory pair with the animated MAE evaluator (per-frame MAE plus a
+# delta-MAE temporal term, each aggregated within-page with PM_p=0.05).
+# Aggregate across pages with PM_p=0.05. Missing/failed pages contribute eps=1e-6.
 set -e
 mkdir -p /logs/verifier /app/rendered
 log=/logs/verifier/verifier.log
@@ -34,7 +34,7 @@ if [ ${#slugs[@]} -eq 0 ]; then
   exit 0
 fi
 
-total=0
+scores_csv=""
 n=0
 for slug in "${slugs[@]}"; do
   ref_dir="/opt/target/${slug}"
@@ -42,26 +42,43 @@ for slug in "${slugs[@]}"; do
   cand_dir="/app/rendered/${slug}"
   n=$((n + 1))
 
+  s="0.0"
   if [ ! -s "$html" ]; then
     echo "[$slug] missing $html -> 0.0" >> "$log"
-    continue
+  else
+    mkdir -p "$cand_dir"
+    if ! python3 /opt/render.py "$html" "$cand_dir" 2>>"$log"; then
+      echo "[$slug] render failed -> 0.0" >> "$log"
+    elif ! s=$(python3 /opt/evaluate.py "$ref_dir" "$cand_dir" 2>>"$log"); then
+      echo "[$slug] evaluate failed -> 0.0" >> "$log"
+      s="0.0"
+    else
+      echo "[$slug] score=$s" >> "$log"
+    fi
   fi
-  mkdir -p "$cand_dir"
-  if ! python3 /opt/render.py "$html" "$cand_dir" 2>>"$log"; then
-    echo "[$slug] render failed -> 0.0" >> "$log"
-    continue
+
+  if [ -z "$scores_csv" ]; then
+    scores_csv="$s"
+  else
+    scores_csv="$scores_csv,$s"
   fi
-  if ! score=$(python3 /opt/evaluate.py "$ref_dir" "$cand_dir" 2>>"$log"); then
-    echo "[$slug] evaluate failed -> 0.0" >> "$log"
-    continue
-  fi
-  echo "[$slug] score=$score" >> "$log"
-  total=$(python3 -c "print($total + $score)")
 done
 
 if [ "$n" -eq 0 ]; then
   write_reward 0.0
 else
-  mean=$(python3 -c "print($total / $n)")
-  write_reward "$mean"
+  reward=$(python3 - "$scores_csv" <<'PY'
+import sys
+P = 0.05
+EPS = 1e-6
+vs = [float(x) for x in sys.argv[1].split(",") if x != ""]
+if not vs:
+    print("0.0")
+else:
+    ys = [max(v, EPS) for v in vs]
+    pm = (sum(y ** P for y in ys) / len(ys)) ** (1.0 / P)
+    print(f"{pm:.6f}")
+PY
+)
+  write_reward "$reward"
 fi

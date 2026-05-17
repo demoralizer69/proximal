@@ -12,7 +12,7 @@ Delta-MAE:        1 - MAE/255 between |T_{i+1} - T_i| and |C_{i+1} - C_i|
 Within-page agg:  PM_p=0.05 across the 6 frame sims and across the 5 delta
                   sims separately, combined 0.5 * static + 0.5 * temporal.
 
-Mirrored by evaluators/animated_mae_pm_0.05/evaluator.py — keep in sync.
+Mirrored by tasks/clone_animated_template/environment/evaluate.py — keep in sync.
 """
 from __future__ import annotations
 
@@ -112,6 +112,6 @@ def score(ref_dir: str, cand_dir: str) -> float:
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("usage: evaluate.py <ref_dir> <cand_dir>", file=sys.stderr)
+        print("usage: evaluator.py <ref_dir> <cand_dir>", file=sys.stderr)
         sys.exit(2)
     print(f"{score(sys.argv[1], sys.argv[2]):.6f}")

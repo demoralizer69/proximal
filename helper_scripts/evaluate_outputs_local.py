@@ -38,7 +38,7 @@ def load_evaluators(only: set[str] | None = None) -> dict:
             continue
         if only and d.name not in only:
             continue
-        if d.name == "animated_websight":
+        if d.name == "animated_mae_pm_0.05":
             # different contract (dir, not png)
             continue
         spec = importlib.util.spec_from_file_location(f"ev_{d.name}", d / "evaluator.py")

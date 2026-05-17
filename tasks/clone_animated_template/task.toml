@@ -3,9 +3,9 @@ artifacts = ["/app/pages", "/app/rendered"]
 
 [task]
 name = "proximal/clone_animated-TEMPLATE"
-description = "Reproduce a multi-page animated website from 6 keyframes + a short WebM per page. Score mixes per-frame WebSight with a temporal frame-delta SSIM."
+description = "Reproduce a multi-page animated website from 6 keyframes + a short WebM per page. Score mixes per-frame MAE with a temporal frame-delta MAE, aggregated within-page and across pages with generalized power mean PM_p (p=0.05)."
 authors = []
-keywords = ["clone", "html", "animated", "websight"]
+keywords = ["clone", "html", "animated", "mae"]
 
 [metadata]
 
