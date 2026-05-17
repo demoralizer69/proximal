@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proximal — Work Log</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #161a22;
+    --surface-2: #1c2230;
+    --border: #262d3d;
+    --text: #e6e8ee;
+    --muted: #9aa3b2;
+    --accent: #7aa2ff;
+    --accent-2: #b48cff;
+    --code-bg: #0b0e14;
+    --shadow: 0 10px 30px rgba(0,0,0,0.35);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(1200px 600px at 20% -10%, rgba(122,162,255,0.15), transparent 60%),
+                radial-gradient(900px 500px at 90% 10%, rgba(180,140,255,0.12), transparent 60%),
+                var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  header.hero {
+    padding: 48px 36px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(122,162,255,0.12), rgba(180,140,255,0.10));
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    margin-bottom: 40px;
+  }
+
+  header.hero .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  header.hero h1 {
+    font-size: 52px;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #ffffff, #b8c4dd);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  header.hero p.tagline {
+    margin: 0;
+    color: var(--muted);
+    font-size: 17px;
+    max-width: 70ch;
+  }
+
+  nav.toc {
+    margin: 0 0 36px;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  nav.toc h4 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 20px;
+    columns: 2;
+    column-gap: 32px;
+  }
+  nav.toc li { margin: 4px 0; break-inside: avoid; }
+  nav.toc a { color: var(--text); text-decoration: none; border-bottom: 1px dashed transparent; }
+  nav.toc a:hover { border-bottom-color: var(--accent); color: var(--accent); }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 28px;
+    box-shadow: var(--shadow);
+  }
+
+  section.card h2 {
+    margin: 0 0 6px;
+    font-size: 26px;
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  section.card h2 .num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b0e14;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  section.card .lede {
+    color: var(--muted);
+    margin: 0 0 18px;
+    font-size: 15px;
+  }
+
+  section.card h3 {
+    margin: 22px 0 8px;
+    font-size: 17px;
+    color: #d7defd;
+  }
+
+  section.card p { margin: 10px 0; }
+
+  ul.bullets {
+    padding-left: 22px;
+    margin: 10px 0;
+  }
+  ul.bullets li { margin: 6px 0; }
+  ul.bullets li::marker { color: var(--accent); }
+
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-2); }
+
+  code, pre {
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  }
+
+  pre.code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    color: #d3dcef;
+    margin: 14px 0 18px;
+  }
+
+  .callout {
+    margin: 16px 0;
+    padding: 14px 18px;
+    border-left: 3px solid var(--accent);
+    background: rgba(122,162,255,0.07);
+    border-radius: 8px;
+    color: #cfd6e6;
+  }
+
+  .figure {
+    margin: 16px 0;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .figure img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+  }
+  .figure figcaption {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 16px 0;
+  }
+  @media (max-width: 720px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    header.hero h1 { font-size: 40px; }
+    nav.toc ol { columns: 1; }
+    section.card { padding: 22px 20px; }
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    margin-top: 14px;
+  }
+  .metric-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .metric-card h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+  }
+  .metric-card.winner h4 { color: #7be0a1; }
+  .metric-card img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    background: rgba(122,162,255,0.15);
+    color: var(--accent);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-right: 6px;
+    border: 1px solid rgba(122,162,255,0.25);
+  }
+
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Work Log</div>
+    <h1>Proximal</h1>
+    <p class="tagline">Building a generation + cloning pipeline for websites — datasets, graders, evaluation metrics, and animations — wired through Harbor, Claude Code, and Modal.</p>
+  </header>
+
+  <nav class="toc">
+    <h4>Contents</h4>
+    <ol>
+      <li><a href="#initial-ideas">Initial Ideas</a></li>
+      <li><a href="#generate-task">Generate Task</a></li>
+      <li><a href="#clone-task">Clone Task Template</a></li>
+      <li><a href="#optimization">Task-related Optimization</a></li>
+      <li><a href="#complexity">Making Complicated Tasks</a></li>
+      <li><a href="#metrics">Evaluation Metric Improvements</a></li>
+      <li><a href="#power-mean">Power-Mean Across Pages</a></li>
+      <li><a href="#animated">Animated Pipeline</a></li>
+    </ol>
+  </nav>
+
+  <!-- INITIAL IDEAS -->
+  <section class="card" id="initial-ideas">
+    <h2><span class="num">1</span> Initial Ideas</h2>
+    <p class="lede">First passes after watching the Harbor video — figuring out where my work needed to focus.</p>
+
+    <ul class="bullets">
+      <li>Watched the harbor video, didn't go in-depth, but it seems like it can handle running a task if the dataset is present, and it will invoke my grader as well.</li>
+      <li>I need to focus on:
+        <ul class="bullets">
+          <li>Having an automated way to create the dataset</li>
+          <li>Have a grader tool</li>
+          <li>Integrate all of this with claude and modal and harbor so that it all works nicely together</li>
+        </ul>
+      </li>
+      <li>Seems like a nice idea to have the "dataset creator" and the "output grader" have some initial source of truth — will be easy to grade that way.
+        <ul class="bullets">
+          <li>For example, assume I have the info of how a website looks in some format <strong>F</strong>, so I have a list like F1, F2, F3….
+            <ul class="bullets">
+              <li>The creator will convert these into a collection of screenshots data → D1, D2, D3 and so on</li>
+              <li>The agent gets Dx and gives Ox (output code)</li>
+              <li>Grader gets Fx (and maybe also Dx) and Ox and evaluates Ox based on whether it fulfills the requirements</li>
+            </ul>
+          </li>
+          <li>The problem boils down to deciding the format F.
+            <ul class="bullets">
+              <li>Could it just be a prompt?
+                <ul class="bullets">
+                  <li>The "creator" creates a website from the prompt and then screenshots it → <u>using playwright python tool</u></li>
+                  <li>The "grader" can simply check if the website is according to the prompt or not</li>
+                  <li>The weakness here might be over-reliance on AI →</li>
+                </ul>
+              </li>
+              <li>Once I decide what is F → how do I generate many different Fx?</li>
+              <li>F can be a prompt along with a randomly generated JSON description of various features in the website → the grader must use Dx to evaluate Ox.</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <p>Generate a website based on a list of given requirements:</p>
+<pre class="code">{
+        "Type" : "Social Media"
+        "Topic" : "finance",
+        "button_density" : "0.8",
+        "corner_pointyness" : "0.3",
+}</pre>
+
+    <p>Can randomly create multiple JSON descriptions of files using an RNG → these JSON descriptions contain some fixed fields and some temperature-like knobs and dials which forces AI to diverse samples instead of making all similar websites.</p>
+  </section>
+
+  <!-- GENERATE TASK -->
+  <section class="card" id="generate-task">
+    <h2><span class="num">2</span> Generate Task</h2>
+    <p class="lede">Turned the idea into a real Harbor task — generating the dataset of websites end-to-end.</p>
+
+    <p>Created a harbor task with the above idea, a <a href="http://gen.py">gen.py</a> is called on environment setup which creates the json — the resulting json is fed to claude_code with the <a href="http://instructions.md">instructions.md</a> to create the website. The verifier is a dummy which always gives score=1.0, but it converts the html files to screenshots by using playwright chromium. Multiple trials of this same task will generate different looking websites. (run with <code>-k 20</code> for 20 websites.)</p>
+
+    <ul class="bullets">
+      <li>Ran these tasks on Modal to finish quickly and not overheat my laptop.</li>
+      <li>Here I first made websites using low-effort Haiku to make sure everything is working and the generated websites are diverse.</li>
+      <li>To debug and inspect → I ended up making some automations and dashboards:
+        <ul class="bullets">
+          <li>Essentially a script keeps watching task success and collects the artifacts into a folder as the trials keep on getting completed.</li>
+          <li>I spin up a webserver which has a dashboard which shows a slideshow of the screenshots generated by the finished tasks along with thumbnails.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="grid-2">
+      <figure class="figure">
+        <img src="images/image10.png" alt="Generated website dashboard slideshow">
+      </figure>
+      <figure class="figure">
+        <img src="images/image11.png" alt="Generated website dashboard thumbnails">
+      </figure>
+    </div>
+
+    <div class="callout">
+      Once I was sure that the output looked fine, I ran it with Opus on xhigh effort (max effort sometimes overthinks and pollutes its own context).
+    </div>
+  </section>
+
+  <!-- CLONE TASK -->
+  <section class="card" id="clone-task">
+    <h2><span class="num">3</span> Clone Task Template</h2>
+    <p class="lede">One template task, many stamped instances — one per generated website.</p>
+
+    <p>Need to create multiple clone tasks → once for each of the generated websites. So I just created a template-task which is like a boilerplate — then a script <code>run_tasks</code> basically manages everything; it uses the template to create multiple tasks and runs them all on Modal.</p>
+
+    <ul class="bullets">
+      <li>This task_template is essentially just <em>"you are given some screenshots, make a clone website"</em> along with some extra instructions to make sure it uses only HTML and CSS.</li>
+      <li>The verifier here uses the <strong>Websight metric</strong> (mean of OCR_f1, lpips and ms_ssim) → I decided this by evaluating some outputs over different metrics (implemented in <code>evaluators</code> in the repo, and also <code>evaluator_task</code> to run in parallel on Modal) → and I realized that <em>"websight"</em> is the metric that is closest to my human perception. Used it to compare 2 screenshots → the final score of the entire website is just the mean of the scores from all the individual pages.</li>
+      <li>Here also, I first generated everything with low-effort Haiku to make sure everything is alright in the pipeline.
+        <ul class="bullets">
+          <li>Again I made another dashboard to keep "watching" the results as the trials kept finishing.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <figure class="figure">
+      <img src="images/image1.png" alt="Clone tasks dashboard view">
+    </figure>
+    <figure class="figure">
+      <img src="images/image4.png" alt="Comparison dashboard between target and candidate clones">
+      <figcaption>Can use this to visually compare multiple tasks and pages within the tasks, along with the metrics — outputs are sorted in order of score decreasing.</figcaption>
+    </figure>
+
+    <div class="callout">
+      Once I was sure that the pipeline is fine, ran it with Opus max effort.
+    </div>
+  </section>
+
+  <!-- OPTIMIZATION -->
+  <section class="card" id="optimization">
+    <h2><span class="num">4</span> Task-related Optimization</h2>
+    <p>I noticed that the environment setup was taking too long because it was downloading Playwright and Chromium and other dependencies every time, so instead I created a custom <code>dockerfile.base</code> to ensure the environment setup is quick.</p>
+  </section>
+
+  <!-- COMPLEXITY -->
+  <section class="card" id="complexity">
+    <h2><span class="num">5</span> How I Made Complicated Tasks</h2>
+    <p>To increase the complexity of tasks — I added multiple knobs and dials to control the probability of complicated elements on the page:</p>
+    <p>
+      <span class="pill">shape_geometric_decoration</span>
+      <span class="pill">element_rotation</span>
+      <span class="pill">shape_organic</span>
+      <span class="pill">overlap_density</span>
+      <span class="pill">container_escape</span>
+      <span class="pill">grid_break</span>
+    </p>
+    <p>…these lead to unique, diverse and complicated tasks for claude_code.</p>
+  </section>
+
+  <!-- METRICS -->
+  <section class="card" id="metrics">
+    <h2><span class="num">6</span> Improvement to Evaluation Metric</h2>
+    <p class="lede">From "the metric Claude suggested" to one grounded in research and my own intuition.</p>
+
+    <p>I initially didn't know a lot about screenshot similarity metrics, so I went with one that Claude suggested (Websight).</p>
+
+    <p>Later I found a research paper regarding this:</p>
+    <figure class="figure">
+      <img src="images/image8.png" alt="Research paper screenshot on website similarity metrics">
+      <figcaption><a href="https://arxiv.org/html/2412.15310v1">https://arxiv.org/html/2412.15310v1</a></figcaption>
+    </figure>
+
+    <p>Didn't have enough time to actually understand every metric, so I asked Claude to implement and compare all of them (I already had the code in a way that it was easy to plug this into the existing pipeline):</p>
+
+    <figure class="figure">
+      <img src="images/image2.png" alt="Implementation comparing different similarity metrics">
+    </figure>
+
+    <p>This helped me fast-track my research.</p>
+
+    <figure class="figure">
+      <img src="images/image13.png" alt="Side-by-side metric comparison results">
+    </figure>
+
+    <p>Based on the results from research, upon manually inspecting — it seems that <strong>MAE (Mean Absolute Error)</strong> is the metric which is closest to my human intuition. Here's an example to justify that:</p>
+
+    <div class="metric-grid">
+      <div class="metric-card winner">
+        <h4>MAE (chosen)</h4>
+        <img src="images/image6.png" alt="MAE ranked top-3 trials">
+        <p>With MAE this is the ranking of runs on these trials — these are the top 3 trials (leftmost is the target).</p>
+      </div>
+      <div class="metric-card">
+        <h4>Websight</h4>
+        <img src="images/image12.png" alt="Websight ranking of trials">
+      </div>
+      <div class="metric-card">
+        <h4>MS-SSIM</h4>
+        <img src="images/image3.png" alt="MS-SSIM ranking of trials">
+      </div>
+      <div class="metric-card">
+        <h4>LPIPS</h4>
+        <img src="images/image5.png" alt="LPIPS ranking of trials">
+      </div>
+      <div class="metric-card">
+        <h4>NEMD</h4>
+        <img src="images/image7.png" alt="NEMD ranking of trials">
+        <p>NEMD is a close second but I didn't choose it for the final metric because it was giving scores like 97% to the above examples which seems pretty generous. MAE's 88% score intuitively suggests more scope for improvement which is definitely there.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- POWER MEAN -->
+  <section class="card" id="power-mean">
+    <h2><span class="num">7</span> Power Mean Across Pages</h2>
+    <p>Another thing that I saw while looking at the results manually → taking the mean over multiple pages seems to <em>"forgive"</em> one bad page. In fact, many times, sparse or un-complicated pages tend to help the website "win".</p>
+
+    <ul class="bullets">
+      <li>To tackle this problem → instead of taking the average of the scores across pages, I decided to take the <strong>Generalized Power Mean</strong> with power less than 1 (I tried out different values to get rid of "bad apples") → intuitively, a value less than 0.25 seemed like what I needed for this task → especially since my scores are in the range of [0, 1].</li>
+    </ul>
+
+    <figure class="figure">
+      <img src="images/image9.png" alt="Plot of generalized power mean behavior across pages">
+    </figure>
+
+    <div class="callout">
+      Ended up making a metric <code>mae_pm_0.05</code> → MAE per page, then taking a generalized power mean with power 0.05 across pages.
+    </div>
+  </section>
+
+  <!-- ANIMATED -->
+  <section class="card" id="animated">
+    <h2><span class="num">8</span> Animated Pipeline</h2>
+    <p class="lede">After the static HTML+CSS clone pipeline was working end-to-end, I started on the animation bonus task.</p>
+
+    <h3>Generate_animated task</h3>
+    <ul class="bullets">
+      <li>Reused the same <code>gen.py</code> + knobs-and-dials approach but in the instructions, I asked it to use animations.</li>
+    </ul>
+
+    <h3>Capture format</h3>
+    <ul class="bullets">
+      <li>Each page gets rendered via a custom Playwright recipe → <strong>6 keyframes</strong> (full page) at exactly <code>t = 0.0, 0.5, 1.0, 1.5, 2.0, 2.5s</code> from first paint, plus a continuous WebM recording of the full 3s window.</li>
+      <li>All of the above is done with Playwright Chromium.</li>
+    </ul>
+
+    <h3>Clone_animated_template</h3>
+    <ul class="bullets">
+      <li>Same stamping pattern as the static clone task → <code>run_tasks</code> has an <code>ANIMATED=1</code> flag that swaps the template to use <code>clone_animated_template</code> task.</li>
+      <li>The agent's instructions are in the same spirit as the static task → one <code>/app/pages/&lt;slug&gt;.html</code> per slug.</li>
+      <li><code>Inspect_results</code> (<code>view_screenshots</code> and <code>view_outputs</code>) picks up the animated layout automatically → per-slug comparison views instead of flat png pairs.</li>
+    </ul>
+
+    <h3>Evaluator for animation</h3>
+    <ul class="bullets">
+      <li>Didn't research much around this — just used MAE for every keyframe and combined the results with <code>pm_0.05</code>.</li>
+      <li>Also → I wanted to make sure that the motion happens in the similar pixels in target and candidate webpage → so I made a temporal metric and averaged the static and temporal metrics → the temporal metric is basically just <em>"MAE over the delta of keyframes"</em> from target and candidate.</li>
+    </ul>
+
+    <div class="callout">
+      The nice thing here is that I managed to make the pipeline run with the same 2 commands — just need to pass <code>ANIMATED=1</code> in the env vars.
+    </div>
+  </section>
+
+  <footer>
+    Proximal · work log
+  </footer>
+
+</div>
+</body>
+</html>
