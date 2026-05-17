@@ -1,0 +1,28 @@
+schema_version = "1.2"
+artifacts = ["/app/website_details.json", "/app/pages", "/app/captures"]
+
+[task]
+name = "proximal/generate_animated"
+description = "Generate a 5-10 page animated website (CSS-only, on-load). Renders each page to 6 keyframes + clip.webm; verifier returns a dummy 1.0 score."
+authors = []
+keywords = []
+
+[metadata]
+
+[agent]
+timeout_sec = 1800.0
+
+[verifier]
+timeout_sec = 1800.0
+
+[environment]
+build_timeout_sec = 1800.0
+os = "linux"
+cpus = 64
+memory_mb = 8192
+storage_mb = 16384
+gpus = 0
+allow_internet = true
+workdir = "/app"
+mcp_servers = []
+[environment.env]

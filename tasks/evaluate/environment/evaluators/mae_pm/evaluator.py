@@ -1,16 +1,15 @@
-"""EVALUATOR — pixel MAE similarity (per page).
+"""EVALUATOR — MAE pixel similarity, aggregated across pages with PM_p (p=0.25).
 
-Per-page score: sim = 1 - MAE/255, where MAE is the mean absolute difference
-across RGB pixels after resizing the candidate to the reference's shape and
-downsampling both to a max edge of 1600 px.
+Per-page score is identical to evaluators/mae (1 - MAE/255). The difference is
+in how the runner combines per-page scores into a per-trial aggregate: instead
+of the arithmetic mean (PM_1), this metric requests power mean with p=0.25,
+which downweights pages that happen to score high. This rewards trials whose
+*worst* pages are still decent and penalizes trials that nail one page and
+flop on another.
 
-Aggregation across pages happens in tests/test.sh using generalized power mean
-with p=0.05 (very weak-page-sensitive: a single bad page sharply pulls the
-trial reward down). This mirrors evaluators/mae_pm_0.05/evaluator.py.
-
-Contract:
-    Input:  argv[1] = reference PNG path, argv[2] = candidate PNG path
-    Output: prints one float in [0.0, 1.0] on stdout. Diagnostics on stderr.
+The runners (tasks/evaluate/environment/run_evaluators.py and
+helper_scripts/evaluate_outputs_local.py) honor the AGGREGATE_P module
+constant when computing aggregates.
 """
 from __future__ import annotations
 
@@ -18,6 +17,8 @@ import sys
 
 import numpy as np
 from PIL import Image
+
+AGGREGATE_P = 0.25  # runner picks this up and applies PM_p instead of mean
 
 MAX_EDGE = 1600
 
@@ -46,13 +47,11 @@ def score(ref_path: str, cand_path: str) -> float:
     ref, cand = _resize_pair(ref, cand)
     mae = float(np.mean(np.abs(ref.astype(np.int16) - cand.astype(np.int16))))
     sim = 1.0 - mae / 255.0
-    sim = max(0.0, min(1.0, sim))
-    print(f"mae={mae:.4f} sim={sim:.4f}", file=sys.stderr)
-    return sim
+    return max(0.0, min(1.0, sim))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("usage: evaluate.py <ref.png> <cand.png>", file=sys.stderr)
+        print("usage: evaluator.py <ref.png> <cand.png>", file=sys.stderr)
         sys.exit(2)
     print(f"{score(sys.argv[1], sys.argv[2]):.6f}")

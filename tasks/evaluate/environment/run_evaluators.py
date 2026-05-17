@@ -33,6 +33,17 @@ def load_evaluator(name: str):
     return mod
 
 
+def _aggregate(vs: list[float], p: float | None, eps: float = 1e-6) -> float:
+    """Combine per-page scores. p=None or p=1 -> arithmetic mean; otherwise
+    generalized power mean PM_p over max(v, eps)."""
+    if not vs:
+        return 0.0
+    if p is None or p == 1.0:
+        return sum(vs) / len(vs)
+    ys = [max(v, eps) for v in vs]
+    return (sum(y ** p for y in ys) / len(ys)) ** (1.0 / p)
+
+
 def main() -> int:
     REWARD_OUT.parent.mkdir(parents=True, exist_ok=True)
     METRICS_OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -83,7 +94,7 @@ def main() -> int:
         print(f"[{slug}] {summary}", file=sys.stderr)
 
     aggregate = {
-        name: (sum(vs) / len(vs) if vs else 0.0)
+        name: _aggregate(vs, getattr(evaluators[name], "AGGREGATE_P", None))
         for name, vs in metric_values.items()
     }
 

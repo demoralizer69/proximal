@@ -2,10 +2,10 @@ schema_version = "1.2"
 artifacts = ["/app/pages", "/app/rendered"]
 
 [task]
-name = "proximal/clone-TEMPLATE"
-description = "Reproduce a multi-page website from screenshots. Reward is pixel MAE similarity (1 - MAE/255) per page, aggregated across pages with generalized power mean PM_p (p=0.05)."
+name = "proximal/clone_animated-TEMPLATE"
+description = "Reproduce a multi-page animated website from 6 keyframes + a short WebM per page. Score mixes per-frame WebSight with a temporal frame-delta SSIM."
 authors = []
-keywords = ["clone", "html", "websight"]
+keywords = ["clone", "html", "animated", "websight"]
 
 [metadata]
 

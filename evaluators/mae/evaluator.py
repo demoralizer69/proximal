@@ -1,16 +1,7 @@
-"""EVALUATOR — pixel MAE similarity (per page).
+"""EVALUATOR — Mean Absolute Error (MAE) pixel similarity.
 
-Per-page score: sim = 1 - MAE/255, where MAE is the mean absolute difference
-across RGB pixels after resizing the candidate to the reference's shape and
-downsampling both to a max edge of 1600 px.
-
-Aggregation across pages happens in tests/test.sh using generalized power mean
-with p=0.05 (very weak-page-sensitive: a single bad page sharply pulls the
-trial reward down). This mirrors evaluators/mae_pm_0.05/evaluator.py.
-
-Contract:
-    Input:  argv[1] = reference PNG path, argv[2] = candidate PNG path
-    Output: prints one float in [0.0, 1.0] on stdout. Diagnostics on stderr.
+From MRWeb (arxiv 2412.15310): MAE = mean(|p1 - p2|) over RGB pixels in [0,255].
+Returned as similarity = 1 - MAE/255, clamped to [0,1] (higher = more similar).
 """
 from __future__ import annotations
 
@@ -18,6 +9,7 @@ import sys
 
 import numpy as np
 from PIL import Image
+
 
 MAX_EDGE = 1600
 
@@ -46,13 +38,12 @@ def score(ref_path: str, cand_path: str) -> float:
     ref, cand = _resize_pair(ref, cand)
     mae = float(np.mean(np.abs(ref.astype(np.int16) - cand.astype(np.int16))))
     sim = 1.0 - mae / 255.0
-    sim = max(0.0, min(1.0, sim))
     print(f"mae={mae:.4f} sim={sim:.4f}", file=sys.stderr)
-    return sim
+    return max(0.0, min(1.0, sim))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("usage: evaluate.py <ref.png> <cand.png>", file=sys.stderr)
+        print("usage: evaluator.py <ref.png> <cand.png>", file=sys.stderr)
         sys.exit(2)
     print(f"{score(sys.argv[1], sys.argv[2]):.6f}")

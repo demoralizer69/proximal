@@ -1,25 +1,20 @@
-"""EVALUATOR — pixel MAE similarity (per page).
+"""EVALUATOR — Peak Signal-to-Noise Ratio (PSNR) similarity.
 
-Per-page score: sim = 1 - MAE/255, where MAE is the mean absolute difference
-across RGB pixels after resizing the candidate to the reference's shape and
-downsampling both to a max edge of 1600 px.
-
-Aggregation across pages happens in tests/test.sh using generalized power mean
-with p=0.05 (very weak-page-sensitive: a single bad page sharply pulls the
-trial reward down). This mirrors evaluators/mae_pm_0.05/evaluator.py.
-
-Contract:
-    Input:  argv[1] = reference PNG path, argv[2] = candidate PNG path
-    Output: prints one float in [0.0, 1.0] on stdout. Diagnostics on stderr.
+From MRWeb (arxiv 2412.15310): PSNR = 10 * log10(MAX^2 / MSE) in dB.
+Mapped to [0,1] with a saturating curve sim = PSNR / (PSNR + 30) (30 dB midpoint)
+so the metric is comparable to the others in the suite.
 """
 from __future__ import annotations
 
+import math
 import sys
 
 import numpy as np
 from PIL import Image
 
 MAX_EDGE = 1600
+PSNR_CAP = 100.0  # cap reported PSNR when MSE is exactly 0
+PSNR_MIDPOINT = 30.0  # sim = psnr / (psnr + midpoint)
 
 
 def _load(path: str) -> np.ndarray:
@@ -41,18 +36,23 @@ def _resize_pair(ref: np.ndarray, cand: np.ndarray) -> tuple[np.ndarray, np.ndar
 
 
 def score(ref_path: str, cand_path: str) -> float:
-    ref = _load(ref_path)
-    cand = _load(cand_path)
-    ref, cand = _resize_pair(ref, cand)
-    mae = float(np.mean(np.abs(ref.astype(np.int16) - cand.astype(np.int16))))
-    sim = 1.0 - mae / 255.0
-    sim = max(0.0, min(1.0, sim))
-    print(f"mae={mae:.4f} sim={sim:.4f}", file=sys.stderr)
-    return sim
+    ref = _load(ref_path).astype(np.float64)
+    cand = _load(cand_path).astype(np.float64)
+    ref, cand = _resize_pair(ref.astype(np.uint8), cand.astype(np.uint8))
+    ref = ref.astype(np.float64)
+    cand = cand.astype(np.float64)
+    mse = float(np.mean((ref - cand) ** 2))
+    if mse == 0:
+        psnr = PSNR_CAP
+    else:
+        psnr = 10.0 * math.log10((255.0 ** 2) / mse)
+    sim = psnr / (psnr + PSNR_MIDPOINT)
+    print(f"psnr={psnr:.4f} dB sim={sim:.4f}", file=sys.stderr)
+    return max(0.0, min(1.0, sim))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("usage: evaluate.py <ref.png> <cand.png>", file=sys.stderr)
+        print("usage: evaluator.py <ref.png> <cand.png>", file=sys.stderr)
         sys.exit(2)
     print(f"{score(sys.argv[1], sys.argv[2]):.6f}")

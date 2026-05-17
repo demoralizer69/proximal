@@ -16,7 +16,8 @@
 #   MODEL          model name (default opus)
 #   EFFORT         claude-code reasoning effort (default max)
 #   ENV_BACKEND    environment backend (default modal)
-#   TASK_PATH      task path (default tasks/generate)
+#   TASK_PATH      task path (default tasks/generate, or tasks/generate_animated when ANIMATED=1)
+#   ANIMATED       1 = generate animated sites (keyframes + WebM per page) (default 0)
 #   SCREENSHOTS    output dir (default screenshots)
 #   JOB_NAME       harbor job name (default auto-timestamp)
 #   POLL_INTERVAL  seconds between copy-passes during the run (default 10)
@@ -30,7 +31,12 @@ HARBOR_BIN="${HARBOR_BIN:-harbor}"
 MODEL="${MODEL:-opus}"
 EFFORT="${EFFORT:-high}"
 ENV_BACKEND="${ENV_BACKEND:-modal}"
-TASK_PATH="${TASK_PATH:-tasks/generate}"
+ANIMATED="${ANIMATED:-0}"
+if [ "$ANIMATED" = "1" ]; then
+  TASK_PATH="${TASK_PATH:-tasks/generate_animated}"
+else
+  TASK_PATH="${TASK_PATH:-tasks/generate}"
+fi
 SCREENSHOTS="${SCREENSHOTS:-screenshots}"
 JOB_NAME="${JOB_NAME:-$(date +"%Y-%m-%d__%H-%M-%S")}"
 POLL_INTERVAL="${POLL_INTERVAL:-10}"
@@ -75,12 +81,26 @@ copy_ready_trials() {
     if [[ -f "$artifacts_dir/website_details.json" ]]; then
       cp "$artifacts_dir/website_details.json" "$dest/" || true
     fi
-    if [[ -d "$artifacts_dir/pages" ]]; then
-      cp -R "$artifacts_dir/pages/." "$dest/" || true
+    if [[ "$ANIMATED" = "1" ]]; then
+      # Animated layout: HTML sources in pages/, per-slug capture dirs at the top level.
+      if [[ -d "$artifacts_dir/pages" ]]; then
+        mkdir -p "$dest/pages"
+        cp -R "$artifacts_dir/pages/." "$dest/pages/" || true
+      fi
+      if [[ -d "$artifacts_dir/captures" ]]; then
+        cp -R "$artifacts_dir/captures/." "$dest/" || true
+      fi
+      local slug_count
+      slug_count=$(find "$dest" -mindepth 1 -maxdepth 1 -type d ! -name pages | wc -l | tr -d ' ')
+      printf '  + %s (%s slugs)\n' "$trial" "$slug_count"
+    else
+      if [[ -d "$artifacts_dir/pages" ]]; then
+        cp -R "$artifacts_dir/pages/." "$dest/" || true
+      fi
+      local png_count
+      png_count=$(find "$dest" -maxdepth 1 -name "*.png" | wc -l | tr -d ' ')
+      printf '  + %s (%s png)\n' "$trial" "$png_count"
     fi
-    local png_count
-    png_count=$(find "$dest" -maxdepth 1 -name "*.png" | wc -l | tr -d ' ')
-    printf '  + %s (%s png)\n' "$trial" "$png_count"
   done
   shopt -u nullglob
 }

@@ -7,3 +7,5 @@ __pycache__/
 tmp/
 tmp_tasks/
 tmp_eval_tasks/
+.venv/
+.claude/

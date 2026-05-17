@@ -12,13 +12,15 @@
 # Env knobs: EFFORT (default low), MODEL (default sonnet), TRIALS (default 1),
 #            CONCURRENCY (default = min(tasks * trials, 60)), POLL_SEC (default 10),
 #            HARBOR_BIN (default: `harbor` from $PATH),
+#            ANIMATED=1 to stamp tasks/clone_animated_template (per-slug capture dirs
+#              with frame_NN.png + clip.webm) instead of tasks/clone_template,
 #            KEEP_TASKS=1 to skip cleanup.
 
 set -u
 
 if [ $# -lt 2 ]; then
   echo "usage: $0 <screenshots-batch-dir> <nickname>" >&2
-  echo "  env: EFFORT MODEL TRIALS CONCURRENCY POLL_SEC HARBOR_BIN KEEP_TASKS" >&2
+  echo "  env: EFFORT MODEL TRIALS CONCURRENCY POLL_SEC HARBOR_BIN ANIMATED KEEP_TASKS" >&2
   exit 2
 fi
 
@@ -26,7 +28,14 @@ BATCH="${1%/}"
 NICK="$2"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEMPLATE="$ROOT_DIR/tasks/clone_template"
+ANIMATED="${ANIMATED:-0}"
+if [ "$ANIMATED" = "1" ]; then
+  TEMPLATE="$ROOT_DIR/tasks/clone_animated_template"
+  TEMPLATE_TOML_NAME="proximal/clone_animated-TEMPLATE"
+else
+  TEMPLATE="$ROOT_DIR/tasks/clone_template"
+  TEMPLATE_TOML_NAME="proximal/clone-TEMPLATE"
+fi
 HARBOR_BIN="${HARBOR_BIN:-harbor}"
 MODEL="${MODEL:-sonnet}"
 EFFORT="${EFFORT:-low}"
@@ -72,21 +81,49 @@ i=0
 for tdir in "${trials[@]}"; do
   i=$((i + 1))
   tdir="${tdir%/}"
-  pngs=("$tdir"/*.png)
-  if [ ${#pngs[@]} -eq 0 ]; then
-    echo "skip (no pngs): $tdir" >&2
-    continue
+  if [ "$ANIMATED" = "1" ]; then
+    # Animated trial dir: per-slug subdirs (each with frame_NN.png + clip.webm),
+    # plus a sibling pages/ directory that we don't ship to the cloner.
+    shopt -s nullglob
+    slug_dirs=()
+    for d in "$tdir"/*/; do
+      base="$(basename "$d")"
+      [ "$base" = "pages" ] && continue
+      # Only count it if it actually has at least one keyframe.
+      first_frame=("${d%/}"/frame_*.png)
+      [ ${#first_frame[@]} -gt 0 ] || continue
+      slug_dirs+=("${d%/}")
+    done
+    shopt -u nullglob
+    if [ ${#slug_dirs[@]} -eq 0 ]; then
+      echo "skip (no slug capture dirs): $tdir" >&2
+      continue
+    fi
+  else
+    pngs=("$tdir"/*.png)
+    if [ ${#pngs[@]} -eq 0 ]; then
+      echo "skip (no pngs): $tdir" >&2
+      continue
+    fi
   fi
   name="${NICK}_task_${i}"
   dest="$TASK_DIR/$name"
   cp -R "$TEMPLATE" "$dest"
   rm -f "$dest/environment/target/.gitkeep"
-  cp "${pngs[@]}" "$dest/environment/target/"
-  python3 - "$dest/task.toml" "$name" <<'PY'
+  if [ "$ANIMATED" = "1" ]; then
+    for d in "${slug_dirs[@]}"; do
+      base="$(basename "$d")"
+      mkdir -p "$dest/environment/target/${base}"
+      cp -R "$d/." "$dest/environment/target/${base}/"
+    done
+  else
+    cp "${pngs[@]}" "$dest/environment/target/"
+  fi
+  python3 - "$dest/task.toml" "$name" "$TEMPLATE_TOML_NAME" <<'PY'
 import sys, pathlib
-path, name = pathlib.Path(sys.argv[1]), sys.argv[2]
+path, name, marker = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 text = path.read_text()
-text = text.replace('name = "proximal/clone-TEMPLATE"', f'name = "proximal/{name}"')
+text = text.replace(f'name = "{marker}"', f'name = "proximal/{name}"')
 path.write_text(text)
 PY
   echo "[$i/${#trials[@]}] $(basename "$tdir") -> $name"
@@ -146,15 +183,15 @@ collect_new_trials() {
     key=$(basename "$tdir")
     if grep -qx "$key" "$seen_file" 2>/dev/null; then continue; fi
     echo "$key" >> "$seen_file"
-    python3 - "$tdir" "$OUT_DIR" <<'PY'
+    python3 - "$tdir" "$OUT_DIR" "$ANIMATED" <<'PY'
 import json, sys, shutil, pathlib
 trial_dir = pathlib.Path(sys.argv[1])
 out_root = pathlib.Path(sys.argv[2])
+animated = sys.argv[3] == "1"
 d = json.load(open(trial_dir / "result.json"))
 task_path = pathlib.Path(d["config"]["task"]["path"])
 task_name = task_path.name
 trial_name = d.get("trial_name") or trial_dir.name
-# Suffix after last "__" is the harbor trial id (the part that differs across trials).
 trial_suffix = trial_name.rsplit("__", 1)[-1] if "__" in trial_name else trial_name
 trial_sub = f"trial_{trial_suffix}"
 v = d.get("verifier_result") or {}
@@ -162,13 +199,20 @@ reward = (v.get("rewards") or {}).get("reward")
 exc = d.get("exception_info")
 task_out = out_root / task_name
 task_out.mkdir(parents=True, exist_ok=True)
-# Target screenshots are shared across trials -> keep at task level.
+# Target captures/screenshots are shared across trials -> keep at task level.
 dst_screens = task_out / "screenshots"
 dst_screens.mkdir(exist_ok=True)
 src_screens = task_path / "environment" / "target"
 if src_screens.is_dir():
-    for p in src_screens.glob("*.png"):
-        shutil.copy2(p, dst_screens / p.name)
+    if animated:
+        for child in src_screens.iterdir():
+            if child.is_dir():
+                dst_dir = dst_screens / child.name
+                if not dst_dir.exists():
+                    shutil.copytree(child, dst_dir)
+    else:
+        for p in src_screens.glob("*.png"):
+            shutil.copy2(p, dst_screens / p.name)
 # Per-trial reward, error, rendered output.
 trial_out = task_out / trial_sub
 trial_out.mkdir(parents=True, exist_ok=True)
@@ -179,8 +223,16 @@ src_rendered = trial_dir / "artifacts" / "rendered"
 dst_rendered = trial_out / "rendered"
 dst_rendered.mkdir(exist_ok=True)
 if src_rendered.is_dir():
-    for p in src_rendered.glob("*.png"):
-        shutil.copy2(p, dst_rendered / p.name)
+    if animated:
+        for child in src_rendered.iterdir():
+            if child.is_dir():
+                dst_dir = dst_rendered / child.name
+                if dst_dir.exists():
+                    shutil.rmtree(dst_dir)
+                shutil.copytree(child, dst_dir)
+    else:
+        for p in src_rendered.glob("*.png"):
+            shutil.copy2(p, dst_rendered / p.name)
 status = f"reward={reward:.4f}" if reward is not None else "FAILED"
 print(f"[+] {task_name:20s} {trial_sub:18s} {status}", flush=True)
 PY

@@ -5,7 +5,10 @@ Two storage layouts are supported in outputs/<job>/<task>/:
 
     Multi-trial (current):
         screenshots/<slug>.png                 - target screenshots (shared)
-        trial_<suffix>/reward.txt              - composite reward (websight)
+        trial_<suffix>/reward.txt              - whatever the task's verifier
+                                                 optimized for (clone_template
+                                                 historically wrote websight,
+                                                 now writes mae_pm_0.05)
         trial_<suffix>/metrics.json            - per-metric scores (optional)
         trial_<suffix>/rendered/<slug>.png     - that trial's clone
         trial_<suffix>/error.txt               - optional
@@ -35,11 +38,103 @@ OUTPUTS = ROOT / "outputs"
 DEFAULT_PORT = 8766
 
 NO_TRIAL = "-"
-METRICS = ["websight", "ms_ssim", "lpips", "dists"]
-METRIC_SHORT = {"websight": "ws", "ms_ssim": "ms", "lpips": "lp", "dists": "ds"}
-DEFAULT_METRIC = "websight"
+# nested_pm = PM_p over the same three legs websight uses ({ms_ssim, lpips_sim, ocr_f1}),
+# nested across pages. ocr_f1 isn't stored explicitly; it's recovered algebraically from
+# the websight composite: websight = (ms_ssim + lpips_sim + ocr_f1) / 3.
+# Defined locally; not produced by the in-container evaluators.
+NESTED_PM_P = 0.2
+# Each entry derives a "mae aggregated with power mean p" metric from per-page
+# mae scores when not explicitly stored by the evaluator runner.
+MAE_PM_VARIANTS: dict[str, float] = {
+    "mae_pm": 0.25,
+    "mae_pm_0.05": 0.05,
+}
+METRICS = [
+    "reward", "websight", "nested_pm",
+    "ms_ssim", "ssim", "lpips", "dists",
+    "mae", "mae_pm", "mae_pm_0.05", "psnr", "nemd", "ciede2000", "ocr_text",
+]
+METRIC_SHORT = {
+    "reward": "rwd", "websight": "ws", "nested_pm": "npm",
+    "ms_ssim": "ms", "ssim": "ss", "lpips": "lp", "dists": "ds",
+    "mae": "mae", "mae_pm": "mae⁰⋅²⁵", "mae_pm_0.05": "mae⁰⋅⁰⁵", "psnr": "psnr",
+    "nemd": "emd", "ciede2000": "de", "ocr_text": "ocr",
+}
+# "reward" = whatever the task verifier wrote to reward.txt. For clone_template
+# pre-mae-switch that's websight; post-switch it's mae_pm_0.05. Treat as the
+# only metric that's universally populated across job types.
+DEFAULT_METRIC = "reward"
 BAR_MAX_PX = 18
 BAR_MIN_PX = 2
+
+
+def _pm(xs: list[float], p: float, eps: float = 1e-6) -> float | None:
+    """Generalized power mean of a non-empty list. Returns None if empty."""
+    if not xs:
+        return None
+    if p == 1.0:
+        return sum(xs) / len(xs)
+    ys = [max(x, eps) for x in xs]
+    return (sum(y ** p for y in ys) / len(ys)) ** (1.0 / p)
+
+
+def _ocr_f1_from_websight(row: dict) -> float | None:
+    """Recover ocr_f1 = 3*websight - ms_ssim - lpips_sim. Returns None if any leg
+    is missing. Result is clamped to [0,1] (MS-SSIM is unclamped inside the
+    websight evaluator, so the inversion can drift a fraction past 1)."""
+    ms = row.get("ms_ssim")
+    lp = row.get("lpips")
+    ws = row.get("websight")
+    if ms is None or lp is None or ws is None:
+        return None
+    v = 3.0 * ws - ms - lp
+    return max(0.0, min(1.0, v))
+
+
+def _inject_mae_pm(per_page: dict, aggregate: dict) -> None:
+    """Derive each mae_pm variant from per-page mae scores when not already
+    stored by the evaluator runner. Per-page chip values fall back to the raw
+    mae (a one-page PM is trivially the value itself)."""
+    page_vals = [row.get("mae") for row in per_page.values() if row.get("mae") is not None]
+    if not page_vals:
+        return
+    for name, p in MAE_PM_VARIANTS.items():
+        if aggregate.get(name) is None:
+            v = _pm(page_vals, p)
+            if v is not None:
+                aggregate[name] = v
+        for row in per_page.values():
+            if row.get(name) is None and row.get("mae") is not None:
+                row[name] = row["mae"]
+
+
+def _inject_nested_pm(per_page: dict, aggregate: dict) -> None:
+    """Compute nested_pm and ocr_text at the per-page and aggregate level, in
+    place. nested_pm uses {ms_ssim, lpips_sim, ocr_f1} (the same three legs as
+    websight) with PM_p at both the metric and across-pages levels. ocr_text
+    is the OCR-F1 leg surfaced as its own metric — taken from the stored
+    evaluator value if present, else derived algebraically from websight."""
+    page_vals: list[float] = []
+    ocr_page_vals: list[float] = []
+    for slug, row in per_page.items():
+        stored_ocr = row.get("ocr_text")
+        ocr = stored_ocr if stored_ocr is not None else _ocr_f1_from_websight(row)
+        if ocr is not None:
+            row["ocr_text"] = ocr
+            ocr_page_vals.append(ocr)
+        comp_vals = [v for v in (row.get("ms_ssim"), row.get("lpips"), ocr) if v is not None]
+        if comp_vals:
+            v = _pm(comp_vals, NESTED_PM_P)
+            row["nested_pm"] = v
+            row["ocr_f1"] = ocr  # surface it for inspection
+            if v is not None:
+                page_vals.append(v)
+        else:
+            row["nested_pm"] = None
+            row["ocr_f1"] = None
+    aggregate["nested_pm"] = _pm(page_vals, NESTED_PM_P) if page_vals else None
+    if aggregate.get("ocr_text") is None and ocr_page_vals:
+        aggregate["ocr_text"] = sum(ocr_page_vals) / len(ocr_page_vals)
 
 
 # ----------------------------------------------------------------------- data
@@ -55,19 +150,22 @@ def _read_reward(d: Path) -> float | None:
 
 
 def _read_metrics(d: Path) -> dict:
-    """Load metrics.json from a trial dir. Falls back to {aggregate:{websight: reward}}
-    when missing, so legacy jobs still surface a single metric."""
+    """Load metrics.json from a trial dir. Falls back to {aggregate:{reward: ...}}
+    when missing, so jobs that haven't been post-evaluated still surface the
+    verifier's reward. Also computes nested_pm (PM_p=0.2 over {ms_ssim, lpips,
+    dists}, nested across pages)."""
     f = d / "metrics.json"
     if f.exists():
         try:
             data = json.loads(f.read_text())
-            return {
-                "aggregate": data.get("aggregate") or {},
-                "per_page": data.get("per_page") or {},
-            }
+            agg = dict(data.get("aggregate") or {})
+            per_page = {k: dict(v) for k, v in (data.get("per_page") or {}).items()}
+            _inject_mae_pm(per_page, agg)
+            _inject_nested_pm(per_page, agg)
+            return {"aggregate": agg, "per_page": per_page}
         except (ValueError, OSError):
             pass
-    return {"aggregate": {"websight": _read_reward(d)}, "per_page": {}}
+    return {"aggregate": {"reward": _read_reward(d), "nested_pm": None}, "per_page": {}}
 
 
 # Trial tuple: (trial_id, reward, has_error, metrics)
@@ -96,11 +194,13 @@ def _collect_trials(task_dir: Path) -> list[Trial]:
 
 
 def _trial_aggregate(trial: Trial) -> dict:
-    """Return the trial's aggregate metrics dict, with websight backfilled from reward.txt."""
+    """Return the trial's aggregate metrics dict. `reward` always reflects
+    reward.txt (the verifier's actual output for this trial), regardless of
+    which underlying metric the task happens to optimize."""
     _, reward, _, metrics = trial
     agg = dict(metrics.get("aggregate", {}))
-    if agg.get("websight") is None:
-        agg["websight"] = reward
+    if reward is not None:
+        agg["reward"] = reward
     return agg
 
 
@@ -122,11 +222,34 @@ def _per_metric_ranges(rows: list[dict]) -> dict:
     return out
 
 
+def _is_animated_task(task_dir: Path) -> bool:
+    """Animated tasks store per-slug subdirectories (with frame_NN.png + clip.webm)
+    under screenshots/ and trial_*/rendered/, not flat PNGs at the top level."""
+    s = task_dir / "screenshots"
+    if s.is_dir():
+        for child in s.iterdir():
+            if child.is_dir() and any(child.glob("frame_*.png")):
+                return True
+    return False
+
+
 def _slugs_for_task(task_dir: Path, trials: list[Trial]) -> list[str]:
-    seen = {p.stem for p in (task_dir / "screenshots").glob("*.png")}
+    animated = _is_animated_task(task_dir)
+    seen: set[str] = set()
+    s = task_dir / "screenshots"
+    if s.is_dir():
+        if animated:
+            seen |= {c.name for c in s.iterdir() if c.is_dir() and any(c.glob("frame_*.png"))}
+        else:
+            seen |= {p.stem for p in s.glob("*.png")}
     for trial_id, _, _, _ in trials:
         rdir = task_dir / trial_id / "rendered" if trial_id else task_dir / "rendered"
-        seen |= {p.stem for p in rdir.glob("*.png")}
+        if not rdir.is_dir():
+            continue
+        if animated:
+            seen |= {c.name for c in rdir.iterdir() if c.is_dir() and any(c.glob("frame_*.png"))}
+        else:
+            seen |= {p.stem for p in rdir.glob("*.png")}
     slugs = sorted(seen)
     slugs.sort(key=lambda s: (0 if s == "home" else 1, s))
     return slugs
@@ -233,6 +356,12 @@ body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:2em 1em;
   background:rgba(255,255,255,0.92);border:1px solid var(--border);border-radius:4px;
   font-family:ui-monospace,monospace;font-weight:600;
   box-shadow:0 1px 2px rgba(0,0,0,0.08);cursor:help}
+.compare .cell video{max-width:100%;max-height:520px;height:auto;display:block;
+  border:1px solid var(--border);background:#000}
+.compare .cell .frame-strip{display:grid;grid-template-columns:repeat(6,1fr);
+  gap:2px;margin-top:0.4em;width:100%}
+.compare .cell .frame-strip img{width:100%;height:auto;display:block;
+  border:1px solid var(--border)}
 .errors{margin:0 0 1.2em 0}
 .errors pre{background:#fff3f3;border:1px solid #f5caca;padding:0.6em 0.8em;
   border-radius:6px;white-space:pre-wrap;font-size:0.8em;margin:0.4em 0}
@@ -243,13 +372,24 @@ body{font-family:-apple-system,system-ui,sans-serif;margin:0;padding:2em 1em;
 # Per-metric thresholds (good / mid). Initial server render uses websight
 # values via _score_class; JS overrides on dropdown change.
 JS = """
-const METRICS = ["websight","ms_ssim","lpips","dists"];
-const SHORT = {websight:"ws", ms_ssim:"ms", lpips:"lp", dists:"ds"};
+const METRICS = ["reward","websight","nested_pm","ms_ssim","ssim","lpips","dists","mae","mae_pm","mae_pm_0.05","psnr","nemd","ciede2000","ocr_text"];
+const SHORT = {reward:"rwd", websight:"ws", nested_pm:"npm", ms_ssim:"ms", ssim:"ss", lpips:"lp", dists:"ds",
+               mae:"mae", mae_pm:"mae⁰⋅²⁵", "mae_pm_0.05":"mae⁰⋅⁰⁵", psnr:"psnr", nemd:"emd", ciede2000:"de", ocr_text:"ocr"};
 const THRESH = {
-  websight: [0.9, 0.5],
-  ms_ssim:  [0.7, 0.4],
-  lpips:    [0.7, 0.45],
-  dists:    [0.85, 0.7],
+  reward:        [0.8, 0.5],
+  websight:      [0.9, 0.5],
+  nested_pm:     [0.7, 0.45],
+  ms_ssim:       [0.7, 0.4],
+  ssim:          [0.7, 0.4],
+  lpips:         [0.7, 0.45],
+  dists:         [0.85, 0.7],
+  mae:           [0.95, 0.85],
+  mae_pm:        [0.95, 0.85],
+  "mae_pm_0.05": [0.95, 0.85],
+  psnr:          [0.55, 0.40],
+  nemd:          [0.95, 0.80],
+  ciede2000:     [0.85, 0.65],
+  ocr_text:      [0.7, 0.4],
 };
 function fmt(v){ return (v==null) ? "\\u2014" : v.toFixed(3); }
 function cls(v, m){
@@ -324,7 +464,7 @@ function apply(metric){
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const stored = localStorage.getItem("viewMetric") || "websight";
+  const stored = localStorage.getItem("viewMetric") || "reward";
   document.querySelectorAll("select.metric-selector").forEach(s => {
     s.addEventListener("change", e => apply(e.target.value));
   });
@@ -436,11 +576,13 @@ def collect_jobs():
     return jobs
 
 
-def _img_url(job: str, task: str, trial_id: str | None, kind: str, name: str) -> str:
+def _asset_url(job: str, task: str, trial_id: str | None, kind: str, rest: str) -> str:
+    """URL to an arbitrary asset path inside <kind>/. `rest` may be 'foo.png' or 'slug/frame_00.png'."""
     seg = urllib.parse.quote(trial_id) if trial_id else NO_TRIAL
+    rest_q = "/".join(urllib.parse.quote(p) for p in rest.split("/") if p)
     return (
-        f"/img/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}/"
-        f"{seg}/{urllib.parse.quote(kind)}/{urllib.parse.quote(name)}"
+        f"/asset/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}/"
+        f"{seg}/{urllib.parse.quote(kind)}/{rest_q}"
     )
 
 
@@ -451,19 +593,40 @@ def _first_png(d: Path) -> str | None:
     return pngs[0].name if pngs else None
 
 
-def _target_thumb(job: str, task_dir: Path) -> str | None:
-    name = _first_png(task_dir / "screenshots")
+def _first_slug(d: Path) -> str | None:
+    if not d.is_dir():
+        return None
+    subs = sorted(
+        (c for c in d.iterdir() if c.is_dir() and any(c.glob("frame_*.png"))),
+        key=lambda c: (0 if c.name == "home" else 1, c.name),
+    )
+    return subs[0].name if subs else None
+
+
+def _target_thumb(job: str, task_dir: Path, animated: bool) -> str | None:
+    sdir = task_dir / "screenshots"
+    if animated:
+        slug = _first_slug(sdir)
+        if not slug:
+            return None
+        return _asset_url(job, task_dir.name, None, "screenshots", f"{slug}/frame_00.png")
+    name = _first_png(sdir)
     if not name:
         return None
-    return _img_url(job, task_dir.name, None, "screenshots", name)
+    return _asset_url(job, task_dir.name, None, "screenshots", name)
 
 
-def _rendered_thumb(job: str, task_dir: Path, trial_id: str | None) -> str | None:
+def _rendered_thumb(job: str, task_dir: Path, trial_id: str | None, animated: bool) -> str | None:
     rdir = task_dir / trial_id / "rendered" if trial_id else task_dir / "rendered"
+    if animated:
+        slug = _first_slug(rdir)
+        if not slug:
+            return None
+        return _asset_url(job, task_dir.name, trial_id, "rendered", f"{slug}/frame_00.png")
     name = _first_png(rdir)
     if not name:
         return None
-    return _img_url(job, task_dir.name, trial_id, "rendered", name)
+    return _asset_url(job, task_dir.name, trial_id, "rendered", name)
 
 
 def _img_or_missing(url: str | None, label: str) -> str:
@@ -519,8 +682,9 @@ def render_index() -> str:
                 task_dir = OUTPUTS / job / task
                 best_trial_id = trials[0][0]
                 href = f"/job/{urllib.parse.quote(job)}/{urllib.parse.quote(task)}"
-                target_thumb = _target_thumb(job, task_dir)
-                rendered_thumb = _rendered_thumb(job, task_dir, best_trial_id)
+                animated = _is_animated_task(task_dir)
+                target_thumb = _target_thumb(job, task_dir, animated)
+                rendered_thumb = _rendered_thumb(job, task_dir, best_trial_id, animated)
                 n = len(trials)
                 badge = f' <span class="badge">{n} trial{"s" if n != 1 else ""}</span>'
                 v0 = best.get(DEFAULT_METRIC)
@@ -545,7 +709,7 @@ def render_index() -> str:
         body=body,
         legend=(
             "Left tile = target, right tile = best trial render. "
-            "Sparkbar = ws / ms / lp / ds normalized within the job; selected metric is highlighted. "
+            "Sparkbar = ws / npm / ms / ss / lp / ds / mae / mae⁰⋅²⁵ / mae⁰⋅⁰⁵ / psnr / emd / de / ocr normalized within the job; selected metric is highlighted. "
             "Use the dropdown to re-sort + relabel."
         ),
     )
@@ -558,6 +722,7 @@ def render_task(job: str, task: str) -> str | None:
     trials = _collect_trials(tdir)
     if not trials:
         return None
+    animated = _is_animated_task(tdir)
     slugs = _slugs_for_task(tdir, trials)
 
     n_trials = len(trials)
@@ -593,6 +758,31 @@ def render_task(job: str, task: str) -> str | None:
             f"</span></div>"
         )
 
+    def _media_html(target_dir: Path, trial_id: str | None, kind: str, slug: str) -> str:
+        """Render a target or candidate cell. For animated tasks, emit a <video>
+        with the keyframe strip below; for static, emit a single <img>."""
+        if animated:
+            slug_dir = target_dir / slug
+            if not slug_dir.is_dir() or not any(slug_dir.glob("frame_*.png")):
+                return ('<div class="missing-box"><span class="missing">missing</span></div>')
+            video_url = _asset_url(job, task, trial_id, kind, f"{slug}/clip.webm")
+            poster_url = _asset_url(job, task, trial_id, kind, f"{slug}/frame_00.png")
+            frames = sorted(slug_dir.glob("frame_*.png"))
+            thumbs = "".join(
+                f'<img src="{_asset_url(job, task, trial_id, kind, f"{slug}/{f.name}")}" '
+                f'alt="" title="{f.stem}">'
+                for f in frames
+            )
+            return (
+                f'<video src="{video_url}" poster="{poster_url}" autoplay loop muted playsinline></video>'
+                f'<div class="frame-strip">{thumbs}</div>'
+            )
+        path = target_dir / f"{slug}.png"
+        if not path.exists():
+            return '<div class="missing-box"><span class="missing">missing</span></div>'
+        url = _asset_url(job, task, trial_id, kind, f"{slug}.png")
+        return f'<img src="{url}" alt="">'
+
     # Body rows
     for ri, slug in enumerate(slugs):
         row_idx = 2 + ri
@@ -600,33 +790,17 @@ def render_task(job: str, task: str) -> str | None:
             f'<div class="rl" style="grid-row:{row_idx};grid-column:1" '
             f'data-col="label">{_escape(slug)}</div>'
         )
-        target_p = tdir / "screenshots" / f"{slug}.png"
-        if target_p.exists():
-            url = _img_url(job, task, None, "screenshots", f"{slug}.png")
-            cells.append(
-                f'<div class="cell" style="grid-row:{row_idx};grid-column:2" '
-                f'data-col="target"><img src="{url}" alt=""></div>'
-            )
-        else:
-            cells.append(
-                f'<div class="cell" style="grid-row:{row_idx};grid-column:2" '
-                f'data-col="target"><div class="missing-box">'
-                f'<span class="missing">missing target</span></div></div>'
-            )
+        target_cell = _media_html(tdir / "screenshots", None, "screenshots", slug)
+        cells.append(
+            f'<div class="cell" style="grid-row:{row_idx};grid-column:2" '
+            f'data-col="target">{target_cell}</div>'
+        )
         for i, (trial_id, _, _, metrics) in enumerate(trials):
             col_idx = 3 + i
             col_key = f"trial:{trial_id or 'legacy'}"
             rdir = tdir / trial_id / "rendered" if trial_id else tdir / "rendered"
-            rendered_p = rdir / f"{slug}.png"
             chip = _page_chip_html(metrics.get("per_page") or {}, slug, DEFAULT_METRIC)
-            if rendered_p.exists():
-                url = _img_url(job, task, trial_id, "rendered", f"{slug}.png")
-                inner = f'<img src="{url}" alt="">{chip}'
-            else:
-                inner = (
-                    f'<div class="missing-box"><span class="missing">missing render</span></div>'
-                    f"{chip}"
-                )
+            inner = _media_html(rdir, trial_id, "rendered", slug) + chip
             cells.append(
                 f'<div class="cell" style="grid-row:{row_idx};grid-column:{col_idx}" '
                 f'data-col="{col_key}">{inner}</div>'
@@ -689,13 +863,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _send_404(self, msg: str = "not found") -> None:
         self._send_html(f"<h1>404</h1><p>{msg}</p>", status=404)
 
-    def _send_png(self, path: Path) -> None:
+    def _send_file(self, path: Path, content_type: str) -> None:
         try:
             data = path.read_bytes()
         except FileNotFoundError:
             return self._send_404()
         self.send_response(200)
-        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "public, max-age=3600")
         self.end_headers()
@@ -714,18 +888,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._send_404("task not found")
             return self._send_html(html)
 
-        # /img/<job>/<task>/<trial-or-dash>/<kind>/<name.png>
-        if parts[0] == "img" and len(parts) == 6:
-            job, task, trial, kind, fname = parts[1:]
-            if kind not in ("screenshots", "rendered") or not fname.endswith(".png"):
+        # /asset/<job>/<task>/<trial-or-dash>/<kind>/<rest...>
+        if parts[0] == "asset" and len(parts) >= 6:
+            job, task, trial, kind = parts[1:5]
+            rest = "/".join(parts[5:])
+            if kind not in ("screenshots", "rendered"):
                 return self._send_404()
             if trial == NO_TRIAL or kind == "screenshots":
-                p = OUTPUTS / job / task / kind / fname
+                p = OUTPUTS / job / task / kind / rest
             else:
-                p = OUTPUTS / job / task / trial / kind / fname
+                p = OUTPUTS / job / task / trial / kind / rest
             if not _safe_under(p):
                 return self._send_404()
-            return self._send_png(p)
+            if rest.endswith(".png"):
+                return self._send_file(p, "image/png")
+            if rest.endswith(".webm"):
+                return self._send_file(p, "video/webm")
+            return self._send_404()
 
         return self._send_404()
 
