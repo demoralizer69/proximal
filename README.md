@@ -98,14 +98,21 @@ To add a new evaluator: drop an `evaluator.py` under `evaluators/<name>/` that t
 
 ---
 
-## What's actually happening under the hood
+## 5. `ANIMATED=1` — generate and clone CSS-only animated sites
 
-`proximal` is mostly orchestration glue around the harbor CLI:
+All three top-level commands accept `ANIMATED=1` to swap the whole pipeline from static screenshots to animated captures. Each page is rendered for a fixed **3-second window starting at first paint**: 6 viewport keyframes are sampled at t = 0.0, 0.5, 1.0, 1.5, 2.0, 2.5 s, and a continuous `clip.webm` is recorded alongside them.
 
-1. **Stamping tasks.** `tasks/clone_template/` and `tasks/evaluate/` are *templates*. The top-level commands copy them into `tmp_tasks/` (or `tmp_eval_tasks/`) per-input, drop the relevant PNGs into `environment/target/` (and `environment/candidate/` for evaluate), and patch `task.toml` so each stamped task has a unique `proximal/<name>` id.
-2. **Running on Modal.** Each script invokes `harbor run -p <task-dir> --env modal -k <trials> -n <concurrency> -y --job-name <name>` in the background. Harbor builds the per-task image (from `ghcr.io/demoralizer69/proximal-genclone-base:v2`), spins up one Modal container per (task × trial), and runs the agent inside.
-3. **Polling for results.** While harbor is alive, the launcher polls `jobs/<job-name>/` every ~10s. As soon as a trial finalizes (`result.json` + `artifacts/manifest.json` appear), the script copies its outputs into the right destination (`screenshots/…` for generate, `outputs/…` for clone/evaluate) and prints a one-line status. A trial finished mid-run is visible *before* the whole job finishes.
-4. **Scoring.** Inside the clone container, after the agent quits, the harbor verifier renders the agent's HTML via Playwright (`render.py`) and pipes each (target, candidate) pair through `evaluate.py`, which prints the page's score on stdout. The mean is written to `/logs/verifier/reward.txt` and surfaces as the trial's "reward" in `result.json`. The optional `evaluate_outputs` step re-runs *all four* evaluators on those same PNG pairs after the fact.
-5. **Cleanup.** Unless `KEEP_TASKS=1`, the stamped `tmp_tasks/` and `tmp_eval_tasks/` are deleted after the job finishes — `screenshots/`, `outputs/`, and `jobs/` are the permanent artifacts.
+```bash
+# 1. Generate an animated dataset (uses tasks/generate_animated)
+ANIMATED=1 ./create_dataset.sh 20 8
 
-The base image (`ghcr.io/demoralizer69/proximal-genclone-base:v2`) bakes in everything heavy: Playwright + Chromium, torch + torchvision (CPU), `piq` for MS-SSIM / LPIPS / DISTS, and `tesseract-ocr` + `pytesseract` for the WebSight OCR F1 component. The image source lives in `tasks/generate/environment/Dockerfile.base`; to publish a new tag, build it for `linux/amd64` and push to GHCR.
+# 2. Have agents clone it (uses tasks/clone_animated_template)
+ANIMATED=1 EFFORT=low ./run_tasks screenshots/<job-id> animated-run
+
+# 3. Browse — the viewers pick up the animated layout automatically
+./inspect_results
+```
+
+What `ANIMATED=1` actually changes:
+
+It invokes an entirely different pipeline under the hood, different generator, cloner, evaluator.

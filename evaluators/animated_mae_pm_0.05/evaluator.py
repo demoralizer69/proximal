@@ -51,6 +51,8 @@ def _mae_sim(ref: np.ndarray, cand: np.ndarray) -> float:
 
 
 def _delta(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    if a.shape != b.shape:
+        b = np.array(Image.fromarray(b).resize((a.shape[1], a.shape[0])))
     return np.abs(a.astype(np.int16) - b.astype(np.int16)).astype(np.uint8)
 
 
@@ -84,6 +86,10 @@ def score(ref_dir: str, cand_dir: str) -> float:
             frame_sims.append(0.0)
             continue
         cand_img = _load(cand_p)
+        if cand_img.shape != ref_img.shape:
+            cand_img = np.array(
+                Image.fromarray(cand_img).resize((ref_img.shape[1], ref_img.shape[0]))
+            )
         cand_frames.append(cand_img)
         frame_sims.append(_mae_sim(ref_img, cand_img))
 
