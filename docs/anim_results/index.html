@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proximal — Animated results</title>
+<style>
+  :root {
+    --bg: #0f1115; --surface: #161a22; --surface-2: #1c2230; --surface-3: #232a3a;
+    --border: #262d3d; --text: #e6e8ee; --muted: #9aa3b2; --dim: #6b7385;
+    --accent: #7aa2ff; --accent-2: #b48cff;
+    --good: #7be0a1; --warn: #f0b56b; --bad: #ff7a8a;
+    --shadow: 0 10px 30px rgba(0,0,0,0.35); --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: radial-gradient(1200px 600px at 20% -10%, rgba(122,162,255,0.15), transparent 60%),
+                radial-gradient(900px 500px at 90% 10%, rgba(180,140,255,0.12), transparent 60%),
+                var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 24px 96px; }
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-2); }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace; }
+
+  header.hero {
+    padding: 48px 36px; border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(122,162,255,0.12), rgba(180,140,255,0.10));
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+    margin-bottom: 32px;
+  }
+  header.hero .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: 12px; color: var(--muted); margin-bottom: 12px;
+  }
+  header.hero h1 {
+    font-size: 48px; margin: 0 0 8px; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #ffffff, #b8c4dd);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header.hero p.tagline { margin: 0; color: var(--muted); font-size: 17px; max-width: 70ch; }
+  header.hero .meta { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    display: inline-block; padding: 4px 12px;
+    background: rgba(122,162,255,0.15); color: var(--accent);
+    border-radius: 999px; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.04em; border: 1px solid rgba(122,162,255,0.25);
+  }
+  .pill.muted { color: var(--muted); background: rgba(155,166,178,0.10); border-color: rgba(155,166,178,0.20); }
+  .breadcrumb { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .breadcrumb a { color: var(--muted); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--accent); }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px 32px;
+    margin-bottom: 24px; box-shadow: var(--shadow);
+  }
+  section.card h2 {
+    margin: 0 0 6px; font-size: 24px; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 12px;
+  }
+  section.card h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 32px; height: 32px; padding: 0 10px; border-radius: 999px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b0e14; font-size: 14px; font-weight: 700;
+  }
+  section.card .lede { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
+
+  .stat-tiles {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px; margin-top: 18px;
+  }
+  .stat {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .stat .value { font-size: 28px; font-weight: 700; margin-top: 4px; font-family: ui-monospace, monospace; }
+  .stat .sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
+
+  .gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px; margin-top: 18px;
+  }
+  .task-card {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    display: flex; flex-direction: column;
+  }
+  .task-card:hover {
+    transform: translateY(-2px); border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(122,162,255,0.18);
+  }
+  .task-card .thumb {
+    aspect-ratio: 4 / 5; overflow: hidden;
+    background: var(--surface-3); position: relative;
+  }
+  .task-card .thumb video {
+    width: 100%; height: 100%; object-fit: cover; object-position: top center;
+    display: block;
+  }
+  .task-card .rank-badge {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(15,17,21,0.75); backdrop-filter: blur(4px);
+    color: var(--text); font-weight: 700; font-size: 11px;
+    padding: 3px 8px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .task-card .score-badge {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(15,17,21,0.75); backdrop-filter: blur(4px);
+    font-family: ui-monospace, monospace; font-size: 11px;
+    padding: 3px 8px; border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .task-card .info { padding: 12px 14px; }
+  .task-card .info .topic {
+    font-size: 14px; font-weight: 600; margin-bottom: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .task-card .info .row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .task-card .info .row .typ { text-transform: uppercase; letter-spacing: 0.1em; }
+  .task-card .card-dist {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .card-dist-bar { position: relative; height: 14px; }
+  .card-dist-track {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(255,122,138,0.25), rgba(240,181,107,0.25), rgba(123,224,161,0.25));
+  }
+  .card-dist-line {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 2px; background: rgba(155,166,178,0.55);
+  }
+  .card-dist-dot {
+    position: absolute; top: 50%; transform: translate(-50%,-50%);
+    width: 7px; height: 7px; border-radius: 999px; background: var(--muted);
+  }
+  .card-dist-dot.mean {
+    width: 11px; height: 11px; background: var(--accent);
+    box-shadow: 0 0 0 2px rgba(122,162,255,0.22); z-index: 2;
+  }
+  .card-dist-nums {
+    margin-top: 6px; display: flex; justify-content: space-between;
+    font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted);
+  }
+  .card-dist-nums .mean-val { color: var(--text); font-weight: 600; }
+
+  .score-hi { color: var(--good); }
+  .score-mid { color: var(--warn); }
+  .score-lo { color: var(--bad); }
+
+  dialog.modal {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); max-width: min(96vw, 1400px);
+    width: 96vw; max-height: 92vh; padding: 0; overflow: hidden;
+  }
+  dialog.modal::backdrop { background: rgba(8,10,14,0.78); backdrop-filter: blur(4px); }
+  .modal-inner { display: flex; flex-direction: column; max-height: 92vh; height: 92vh; }
+  .modal-head {
+    padding: 16px 22px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(180deg, rgba(122,162,255,0.06), transparent);
+  }
+  .modal-head h3 {
+    margin: 0; font-size: 18px; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .modal-head .scoreline {
+    font-family: ui-monospace, monospace; font-size: 13px; color: var(--muted);
+  }
+  .modal-head .close-btn {
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); width: 32px; height: 32px; border-radius: 999px;
+    cursor: pointer; font-size: 18px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .modal-head .close-btn:hover { background: var(--surface-3); }
+  .modal-body { flex: 1; overflow: auto; padding: 18px; background: var(--bg); }
+  .grid-table { display: grid; gap: 10px; min-width: 600px; }
+  .grid-table .gt-row { display: grid; gap: 10px; }
+  .grid-table .gt-row .gt-cell {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .grid-table .gt-row .gt-cell.header {
+    background: var(--surface); padding: 8px 12px;
+    align-items: center; justify-content: center; text-align: center;
+    font-size: 13px; flex-direction: column;
+  }
+  .grid-table .gt-row .gt-cell.header.target { border-color: var(--accent); }
+  .grid-table .gt-row .gt-cell.header .vname { font-weight: 600; }
+  .grid-table .gt-row .gt-cell.header .vscore {
+    font-family: ui-monospace, monospace; font-size: 12px;
+    color: var(--muted); margin-top: 2px;
+  }
+  .grid-table .gt-row .gt-cell.header.best .vscore { color: var(--good); }
+  .grid-table .gt-row .gt-cell.header.worst .vscore { color: var(--bad); }
+  .grid-table .gt-row .gt-cell.row-header {
+    background: var(--surface); padding: 8px 12px;
+    align-items: center; justify-content: center; text-align: center;
+    font-size: 12px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .grid-table .gt-row .gt-cell.video-cell { padding: 4px; }
+  .grid-table .gt-row .gt-cell.video-cell video {
+    width: 100%; height: auto; display: block;
+    background: #000; border-radius: 6px;
+  }
+
+  .footer-link { text-align: center; margin-top: 32px; color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 24px 16px 64px; }
+    header.hero { padding: 32px 22px; }
+    header.hero h1 { font-size: 36px; }
+    section.card { padding: 22px 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="breadcrumb">
+    <a href="../work_log.html">← Work log</a> &nbsp;·&nbsp; Animated results
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Visual report · animated</div>
+    <h1>Animated results</h1>
+    <p class="tagline">
+      Four animated tasks generated and cloned by Claude Opus on medium effort. Each task ships several
+      pages, each captured as a 6-frame loop and a <code>.webm</code> clip. The cards below sort by
+      best-vs-worst reward spread; click any tile to open the side-by-side video drilldown.
+    </p>
+    <div class="meta" id="hero-meta"></div>
+  </header>
+
+  <section class="card" id="summary">
+    <h2><span class="num">1</span> Summary</h2>
+    <p class="lede">Headline counts for the run.</p>
+    <div class="stat-tiles" id="stat-tiles"></div>
+  </section>
+
+  <section class="card" id="gallery-section">
+    <h2><span class="num">2</span> The tasks</h2>
+    <p class="lede">
+      Sorted by best-vs-worst reward spread (largest gap first). Each card shows the home page clip and a
+      min/mean/max bar across that task's trials. Click any tile to compare the target against every
+      trial across every page.
+    </p>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+</div>
+
+<dialog class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="modal-title">Task</h3>
+      <span class="scoreline" id="modal-scoreline"></span>
+      <button class="close-btn" onclick="closeModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</dialog>
+
+<script>
+let DATA = null;
+let currentRank = null;
+
+function buildHero() {
+  const total = DATA.length;
+  const totalTrials = DATA.reduce((a, t) => a + t.n_trials, 0);
+  const slugs = DATA.reduce((a, t) => a + t.slugs.length, 0);
+  document.getElementById('hero-meta').innerHTML = `
+    <span class="pill">${total} task${total!==1?'s':''}</span>
+    <span class="pill">${totalTrials} trial${totalTrials!==1?'s':''} total</span>
+    <span class="pill">${slugs} page clips total</span>
+    <span class="pill muted">Opus · medium effort</span>`;
+}
+
+function buildStatTiles() {
+  const all = DATA.flatMap(t => t.trials.map(tr => tr.reward).filter(v => v != null));
+  const tiles = [
+    { label: 'Tasks', value: DATA.length, sub: 'animated' },
+    { label: 'Total trials', value: all.length, sub: 'across all tasks' },
+    { label: 'Page clips', value: DATA.reduce((a,t)=>a+t.slugs.length,0), sub: 'unique target pages' },
+  ];
+  document.getElementById('stat-tiles').innerHTML = tiles.map(t => `
+    <div class="stat">
+      <div class="label">${t.label}</div>
+      <div class="value">${t.value}</div>
+      <div class="sub">${t.sub}</div>
+    </div>`).join('');
+}
+
+function buildGallery() {
+  const sorted = [...DATA].sort((a, b) => ((b.best||0) - (b.worst||0)) - ((a.best||0) - (a.worst||0)));
+  // Normalize the dist bar within this run's actual range so the spread is visible
+  const allMin = Math.min(...DATA.map(t => t.worst ?? 1));
+  const allMax = Math.max(...DATA.map(t => t.best ?? 0));
+  const pad = (allMax - allMin) * 0.1 || 0.05;
+  const minS = allMin - pad, maxS = allMax + pad;
+  const pct = v => ((v - minS)/(maxS - minS)) * 100;
+  document.getElementById('gallery').innerHTML = sorted.map(t => {
+    const slug = t.slugs[0] || 'home';
+    return `
+    <div class="task-card" onclick="openModal(${t.rank})" role="button" tabindex="0">
+      <div class="thumb">
+        <span class="rank-badge">task #${t.rank}</span>
+        <video src="assets/task_${t.rank}/target/${slug}/clip.webm"
+               poster="assets/task_${t.rank}/target/${slug}/frame_00.png"
+               autoplay loop muted playsinline></video>
+      </div>
+      <div class="info">
+        <div class="topic">task #${t.rank}</div>
+        <div class="row">
+          <span class="typ">${t.n_trials} trials</span>
+          <span>${t.slugs.length} pages</span>
+        </div>
+        <div class="card-dist">
+          <div class="card-dist-bar">
+            <div class="card-dist-track"></div>
+            <div class="card-dist-line" style="left:${pct(t.worst)}%; right:${100-pct(t.best)}%"></div>
+            <div class="card-dist-dot" style="left:${pct(t.worst)}%" title="worst"></div>
+            <div class="card-dist-dot" style="left:${pct(t.best)}%" title="best"></div>
+            <div class="card-dist-dot mean" style="left:${pct(t.mean)}%" title="mean"></div>
+          </div>
+          <div class="card-dist-nums">
+            <span>worst</span>
+            <span class="mean-val">mean</span>
+            <span>best</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openModal(rank) {
+  currentRank = rank;
+  renderModal();
+  document.getElementById('modal').showModal();
+}
+function closeModal() {
+  document.getElementById('modal').close();
+  document.querySelectorAll('#modal-body video').forEach(v => v.pause());
+}
+function renderModal() {
+  const t = DATA.find(x => x.rank === currentRank);
+  document.getElementById('modal-title').textContent = `task #${t.rank}`;
+  document.getElementById('modal-scoreline').textContent =
+    `${t.n_trials} trials · ${t.slugs.length} pages`;
+
+  const cols = 1 + t.trials.length;
+  const colTemplate = `120px repeat(${cols}, 1fr)`;
+  const folder = `assets/task_${t.rank}`;
+
+  const headRow = `
+    <div class="gt-row" style="grid-template-columns: ${colTemplate};">
+      <div class="gt-cell row-header">page</div>
+      <div class="gt-cell header target"><div class="vname">target</div><div class="vscore">reference</div></div>
+      ${t.trials.map((tr, i) => {
+        const rankLabel = i === 0 ? 'best' : i === t.trials.length - 1 ? 'worst' : '';
+        const cls = rankLabel ? `header ${rankLabel}` : 'header';
+        const subLabel = rankLabel || `trial ${i + 1}`;
+        return `<div class="gt-cell ${cls}"><div class="vname">${subLabel}</div><div class="vscore">${tr.id}</div></div>`;
+      }).join('')}
+    </div>`;
+
+  const slugRows = t.slugs.map(slug => `
+    <div class="gt-row" style="grid-template-columns: ${colTemplate};">
+      <div class="gt-cell row-header">${slug}</div>
+      <div class="gt-cell video-cell">
+        <video src="${folder}/target/${slug}/clip.webm"
+               poster="${folder}/target/${slug}/frame_00.png"
+               autoplay loop muted playsinline></video>
+      </div>
+      ${t.trials.map(tr => `
+        <div class="gt-cell video-cell">
+          <video src="${folder}/${tr.id}/${slug}/clip.webm"
+                 poster="${folder}/${tr.id}/${slug}/frame_00.png"
+                 autoplay loop muted playsinline></video>
+        </div>`).join('')}
+    </div>`).join('');
+
+  document.getElementById('modal-body').innerHTML = `<div class="grid-table">${headRow}${slugRows}</div>`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('modal').open) closeModal();
+});
+
+fetch('data.json').then(r => r.json()).then(d => {
+  DATA = d;
+  buildHero();
+  buildStatTiles();
+  buildGallery();
+});
+</script>
+</body>
+</html>

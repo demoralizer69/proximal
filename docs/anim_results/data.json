@@ -1,0 +1,138 @@
+[
+  {
+    "rank": 1,
+    "task_id": 1,
+    "task_dir": "anim-opus-med_task_1",
+    "slugs": [
+      "home",
+      "archive",
+      "category",
+      "subscribe",
+      "tag"
+    ],
+    "trials": [
+      {
+        "id": "trial_TKTD6H3",
+        "reward": 0.640904
+      },
+      {
+        "id": "trial_Es5TDLP",
+        "reward": 0.609485
+      },
+      {
+        "id": "trial_gErECzk",
+        "reward": 0.601179
+      },
+      {
+        "id": "trial_7TguhE7",
+        "reward": 0.567729
+      }
+    ],
+    "best": 0.640904,
+    "worst": 0.567729,
+    "mean": 0.6048242500000001,
+    "n_trials": 4
+  },
+  {
+    "rank": 2,
+    "task_id": 2,
+    "task_dir": "anim-opus-med_task_2",
+    "slugs": [
+      "home",
+      "blog",
+      "changelog",
+      "integrations",
+      "login"
+    ],
+    "trials": [
+      {
+        "id": "trial_7HkjY7r",
+        "reward": 0.793582
+      },
+      {
+        "id": "trial_LsZ22QH",
+        "reward": 0.788098
+      },
+      {
+        "id": "trial_f3PPdtZ",
+        "reward": 0.771918
+      },
+      {
+        "id": "trial_iXo7v4e",
+        "reward": 0.749167
+      }
+    ],
+    "best": 0.793582,
+    "worst": 0.749167,
+    "mean": 0.7756912499999999,
+    "n_trials": 4
+  },
+  {
+    "rank": 3,
+    "task_id": 3,
+    "task_dir": "anim-opus-med_task_3",
+    "slugs": [
+      "home",
+      "article",
+      "category",
+      "contact",
+      "newsletter",
+      "opinion",
+      "video"
+    ],
+    "trials": [
+      {
+        "id": "trial_dZPwQFi",
+        "reward": 0.674373
+      },
+      {
+        "id": "trial_r2phwQ4",
+        "reward": 0.651789
+      },
+      {
+        "id": "trial_gMjrJQK",
+        "reward": 0.645177
+      }
+    ],
+    "best": 0.674373,
+    "worst": 0.645177,
+    "mean": 0.657113,
+    "n_trials": 3
+  },
+  {
+    "rank": 4,
+    "task_id": 4,
+    "task_dir": "anim-opus-med_task_4",
+    "slugs": [
+      "home",
+      "about",
+      "archive",
+      "category",
+      "post",
+      "search",
+      "tag"
+    ],
+    "trials": [
+      {
+        "id": "trial_FGkmFCB",
+        "reward": 0.642038
+      },
+      {
+        "id": "trial_gpzvSwV",
+        "reward": 0.621577
+      },
+      {
+        "id": "trial_LESse3g",
+        "reward": 0.602972
+      },
+      {
+        "id": "trial_EAv838t",
+        "reward": 0.590649
+      }
+    ],
+    "best": 0.642038,
+    "worst": 0.590649,
+    "mean": 0.614309,
+    "n_trials": 4
+  }
+]
