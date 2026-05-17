@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proximal — Results</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --surface: #161a22;
+    --surface-2: #1c2230;
+    --surface-3: #232a3a;
+    --border: #262d3d;
+    --text: #e6e8ee;
+    --muted: #9aa3b2;
+    --dim: #6b7385;
+    --accent: #7aa2ff;
+    --accent-2: #b48cff;
+    --good: #7be0a1;
+    --warn: #f0b56b;
+    --bad: #ff7a8a;
+    --shadow: 0 10px 30px rgba(0,0,0,0.35);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(1200px 600px at 20% -10%, rgba(122,162,255,0.15), transparent 60%),
+                radial-gradient(900px 500px at 90% 10%, rgba(180,140,255,0.12), transparent 60%),
+                var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 56px 24px 96px; }
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-2); }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace; }
+
+  /* HERO */
+  header.hero {
+    padding: 48px 36px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(122,162,255,0.12), rgba(180,140,255,0.10));
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    margin-bottom: 32px;
+  }
+  header.hero .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  header.hero h1 {
+    font-size: 48px;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #ffffff, #b8c4dd);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  header.hero p.tagline { margin: 0; color: var(--muted); font-size: 17px; max-width: 70ch; }
+  header.hero .meta { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    display: inline-block;
+    padding: 4px 12px;
+    background: rgba(122,162,255,0.15);
+    color: var(--accent);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border: 1px solid rgba(122,162,255,0.25);
+  }
+  .pill.muted { color: var(--muted); background: rgba(155,166,178,0.10); border-color: rgba(155,166,178,0.20); }
+
+  /* CARDS */
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  section.card h2 {
+    margin: 0 0 6px;
+    font-size: 24px;
+    letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 12px;
+  }
+  section.card h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 32px; height: 32px; padding: 0 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b0e14; font-size: 14px; font-weight: 700;
+  }
+  section.card .lede { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
+  section.card h3 { margin: 22px 0 8px; font-size: 17px; color: #d7defd; }
+  section.card p { margin: 10px 0; }
+  ul.bullets { padding-left: 22px; margin: 10px 0; }
+  ul.bullets li { margin: 6px 0; }
+  ul.bullets li::marker { color: var(--accent); }
+
+  .callout {
+    margin: 14px 0;
+    padding: 14px 18px;
+    border-left: 3px solid var(--accent);
+    background: rgba(122,162,255,0.07);
+    border-radius: 8px;
+    color: #cfd6e6;
+  }
+
+  /* STAT TILES */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+  .stat {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .stat .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .stat .value { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; }
+  .stat .sub { font-size: 12px; color: var(--dim); margin-top: 2px; }
+
+  /* DISTRIBUTION CHART */
+  .dist {
+    margin-top: 18px;
+    display: grid;
+    gap: 8px;
+  }
+  .dist-row {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+  .dist-row .rank-num { font-size: 12px; color: var(--dim); text-align: right; }
+  .dist-bar-wrap {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 6px 12px;
+    height: 30px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .dist-bar-wrap:hover { border-color: var(--accent); }
+  .dist-bar-track {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, rgba(255,122,138,0.2), rgba(240,181,107,0.2), rgba(123,224,161,0.2));
+  }
+  .dist-bar-dot {
+    position: absolute; top: 50%; transform: translate(-50%,-50%);
+    width: 8px; height: 8px; border-radius: 999px; background: var(--muted);
+  }
+  .dist-bar-dot.mean { width: 14px; height: 14px; background: var(--accent); box-shadow: 0 0 0 3px rgba(122,162,255,0.18); z-index: 2; }
+  .dist-bar-line {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 2px; background: rgba(155,166,178,0.5);
+  }
+  .dist-label {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; color: var(--text); z-index: 3;
+    text-shadow: 0 0 6px rgba(15,17,21,0.85);
+    pointer-events: none;
+  }
+  .dist-label .topic { font-weight: 600; }
+  .dist-label .typ { color: var(--muted); margin-left: 6px; }
+  .dist-scores {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted);
+    pointer-events: none;
+    text-shadow: 0 0 6px rgba(15,17,21,0.85);
+  }
+  .dist-scores .mean-val { color: var(--text); font-weight: 600; }
+
+  .dist-scale {
+    display: grid; grid-template-columns: 26px 1fr; gap: 12px;
+    margin-top: 4px; font-size: 11px; color: var(--dim);
+  }
+  .dist-scale-ticks { position: relative; height: 16px; }
+  .dist-scale-ticks span { position: absolute; transform: translateX(-50%); }
+
+  /* TASK GALLERY */
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .task-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    display: flex;
+    flex-direction: column;
+  }
+  .task-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(122,162,255,0.18);
+  }
+  .task-card .thumb {
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: var(--surface-3);
+    position: relative;
+  }
+  .task-card .thumb img {
+    width: 100%; height: 100%; object-fit: cover; object-position: top center;
+    display: block;
+  }
+  .task-card .rank-badge {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(15,17,21,0.75);
+    backdrop-filter: blur(4px);
+    color: var(--text);
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .task-card .score-badge {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(15,17,21,0.75);
+    backdrop-filter: blur(4px);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .task-card .info { padding: 12px 14px; }
+  .task-card .info .topic {
+    font-size: 14px; font-weight: 600; margin-bottom: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .task-card .info .row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .task-card .info .row .typ { text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* SCORE COLOR CODING */
+  .score-hi { color: var(--good); }
+  .score-mid { color: var(--warn); }
+  .score-lo { color: var(--bad); }
+
+  /* MODAL */
+  dialog.modal {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    max-width: min(96vw, 1400px);
+    width: 96vw;
+    max-height: 92vh;
+    padding: 0;
+    overflow: hidden;
+  }
+  dialog.modal::backdrop {
+    background: rgba(8,10,14,0.78);
+    backdrop-filter: blur(4px);
+  }
+  .modal-inner {
+    display: flex; flex-direction: column;
+    max-height: 92vh;
+    height: 92vh;
+  }
+  .modal-head {
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    background: linear-gradient(180deg, rgba(122,162,255,0.06), transparent);
+  }
+  .modal-head h3 {
+    margin: 0; font-size: 18px; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .modal-head .scoreline {
+    font-family: ui-monospace, monospace; font-size: 13px; color: var(--muted);
+  }
+  .modal-head .close-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 32px; height: 32px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .modal-head .close-btn:hover { background: var(--surface-3); }
+
+  .modal-toolbar {
+    padding: 10px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px;
+    flex-wrap: wrap;
+    background: var(--surface);
+  }
+  .modal-toolbar .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.14em; }
+  .modal-toolbar button.toggle {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .modal-toolbar button.toggle:hover { border-color: var(--accent); }
+  .modal-toolbar button.toggle.active {
+    background: rgba(122,162,255,0.18);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .modal-toolbar .knobs { color: var(--dim); font-size: 12px; }
+
+  .modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 18px;
+    background: var(--bg);
+  }
+  /* responsive table-grid layout */
+  .grid-table {
+    display: grid;
+    gap: 10px;
+    min-width: 600px;
+  }
+  .grid-table .gt-row {
+    display: grid;
+    gap: 10px;
+  }
+  .grid-table .gt-row .gt-cell {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .grid-table .gt-row .gt-cell.header {
+    background: var(--surface);
+    padding: 8px 12px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 13px;
+    flex-direction: column;
+  }
+  .grid-table .gt-row .gt-cell.header.target { border-color: var(--accent); }
+  .grid-table .gt-row .gt-cell.header .vname { font-weight: 600; }
+  .grid-table .gt-row .gt-cell.header .vscore {
+    font-family: ui-monospace, monospace; font-size: 12px;
+    color: var(--muted); margin-top: 2px;
+  }
+  .grid-table .gt-row .gt-cell.header.best .vscore { color: var(--good); }
+  .grid-table .gt-row .gt-cell.header.worst .vscore { color: var(--bad); }
+  .grid-table .gt-row .gt-cell.row-header {
+    background: var(--surface);
+    padding: 8px 12px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .grid-table .gt-row .gt-cell.img-cell { padding: 0; position: relative; }
+  .grid-table .gt-row .gt-cell.img-cell img {
+    width: 100%; height: auto; display: block; cursor: zoom-in;
+    transition: opacity 0.15s;
+  }
+  .grid-table .gt-row .gt-cell.img-cell .corner-score {
+    position: absolute; bottom: 4px; right: 4px;
+    background: rgba(15,17,21,0.85);
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--muted);
+  }
+
+  /* horizontal scroll wrapper for wide expanded grids */
+  .scroll-x { overflow-x: auto; }
+
+  /* lightbox - fullscreen single image viewer */
+  .lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.94);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 200;
+    cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 95vw; max-height: 95vh; }
+
+  /* misc */
+  .footer-link { text-align: center; margin-top: 32px; color: var(--muted); font-size: 13px; }
+  .breadcrumb { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .breadcrumb a { color: var(--muted); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--accent); }
+
+  @media (max-width: 720px) {
+    .wrap { padding: 24px 16px 64px; }
+    header.hero { padding: 32px 22px; }
+    header.hero h1 { font-size: 36px; }
+    section.card { padding: 22px 18px; }
+    .dist-label .topic { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="breadcrumb">
+    <a href="../work_log.html">← Work log</a> &nbsp;·&nbsp; Results
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Visual report</div>
+    <h1>Results</h1>
+    <p class="tagline">
+      Twenty generated tasks, each cloned ten times by Claude Opus on max effort. Two hundred runs scored
+      with the pipeline's final metric — per-page MAE aggregated across pages with a generalized power mean
+      at <code>p = 0.05</code>.
+    </p>
+    <div class="meta">
+      <span class="pill">20 tasks</span>
+      <span class="pill">10 trials / task</span>
+      <span class="pill">200 runs total</span>
+      <span class="pill muted">Opus · max effort</span>
+    </div>
+  </header>
+
+  <!-- SUMMARY -->
+  <section class="card" id="summary">
+    <h2><span class="num">1</span> Summary</h2>
+    <p class="lede">Headline numbers across the run.</p>
+    <div class="stats" id="stat-tiles"></div>
+  </section>
+
+  <!-- GRADER VALIDITY -->
+  <section class="card" id="why-grader">
+    <h2><span class="num">2</span> Why higher scores = better replications</h2>
+    <p class="lede">A quick visual sanity check that the grader's ranking matches what a human would call "closer."</p>
+
+    <p>
+      The grader is per-page MAE on rendered screenshots — for each pixel, the absolute difference between
+      target and candidate is averaged across the page, normalised to <code>[0, 1]</code>, then aggregated
+      across pages with a generalized power mean at <code>p = 0.05</code>. The power mean weighs the
+      worst-scoring pages much more heavily than a plain average — a single poorly cloned page is enough
+      to drag a website down, which mirrors how a reviewer would judge it.
+    </p>
+    <p>
+      Because the metric works directly on pixels, it captures the things humans actually care about:
+      colour, layout, typography weight and spatial composition all show up as pixel disagreement.
+      An obviously wrong background tone or a missing hero block immediately collapses the score, while a
+      faithful clone with minor wording changes barely moves it.
+    </p>
+
+    <div id="compare-best-worst"></div>
+    <p class="callout">
+      Best trial scores <strong class="score-hi" id="cmp-best-score"></strong>, worst trial scores
+      <strong class="score-lo" id="cmp-worst-score"></strong>. The best is visually close to the target on
+      every page — colour, layout and decoration are mostly preserved. The worst inverts the background,
+      drops decorative shapes and rearranges sections, which is exactly the kind of failure a per-pixel
+      metric is designed to punish.
+    </p>
+  </section>
+
+  <!-- DISTRIBUTION -->
+  <section class="card" id="distribution">
+    <h2><span class="num">3</span> Score distribution per task</h2>
+    <p class="lede">All 20 tasks, hardest at the top. Each row shows min, mean, and max across 10 trials. Click a row to drill into that task.</p>
+    <div class="dist" id="dist-rows"></div>
+    <div class="dist-scale">
+      <div></div>
+      <div class="dist-scale-ticks" id="dist-ticks"></div>
+    </div>
+  </section>
+
+  <!-- GALLERY -->
+  <section class="card" id="gallery-section">
+    <h2><span class="num">4</span> The 20 tasks</h2>
+    <p class="lede">
+      In difficulty order (lowest mean MAE first). Click any tile to open the drilldown — by default the
+      overlay shows the target, the best trial, and the worst trial across every page of the website.
+      Expand to see all ten trials side-by-side.
+    </p>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <!-- FAILURE PATTERNS -->
+  <section class="card" id="patterns">
+    <h2><span class="num">5</span> Common patterns the model struggles with</h2>
+    <p class="lede">Drafted from inspecting the worst-scoring trials and cross-referencing each task's temperature knobs.</p>
+
+    <h3>1. Background-tone inversion</h3>
+    <p>
+      The single most expensive failure mode. When the target has a light background (<code>bg_tone: light</code>)
+      and the clone renders dark — or vice versa — the per-pixel MAE collapses globally because every pixel
+      of the page disagrees, not just the foreground. This is what produces the worst single trial in the
+      whole batch: task #11's <code>latest</code> page at <strong class="score-lo">0.293</strong>, where the
+      model rendered the entire site on near-black despite the spec specifying a light cream background.
+      The structure of the page was largely correct, but the inverted palette wipes out the score.
+    </p>
+
+    <h3>2. Missing decorative organic shapes</h3>
+    <p>
+      Many of the harder tasks have <code>shape_organic ≥ 0.5</code> and <code>container_escape ≥ 0.7</code> —
+      large blobs, orbs and overlapping circles that sit behind the hero. In the worst clones these are simply
+      dropped: the page reads as a flat bento grid with no background art. The model gets the type and the
+      cards right but misses the decorative layer entirely. Task #11 (giant green orb and triangle behind the
+      hero) and task #18 (organic green blobs bleeding past the page edge) both show this.
+    </p>
+
+    <h3>3. Flattened depth: shadows, double borders, neo-brutalist offsets</h3>
+    <p>
+      <code>shadow_intensity</code> has the strongest negative correlation with mean task score
+      (<span class="mono">r = −0.43</span>). Tasks built around heavy drop shadows (neo-brutalist offset
+      cards, skeuomorphic raised buttons) get reduced to flat outlined boxes in the worst trials —
+      task #4's "Open HQ" radio operator UI is the canonical example: target cards have a sharp 6-8px
+      hard offset shadow; worst trials render them with no shadow or a soft blur. Per-pixel MAE penalises
+      this strongly because the shadow region's pixels are wrong in two places at once.
+    </p>
+
+    <h3>4. Tickers and marquees rendered as static text</h3>
+    <p>
+      Tasks with <code>marquee_kinetic ≥ 0.7</code> often produce a marquee strip in the target — a slim
+      band of scrolling text across the page. The clone tends to render it as a static, fully-populated
+      bar of text. Static screenshots already collapse motion (so the comparison sees one frame against
+      another), but the model frequently writes very different content into the bar, which makes the
+      pixels mismatch. Task #4's <code>search</code> page is a clean example.
+    </p>
+
+    <h3>5. Typography contrast and outline type</h3>
+    <p>
+      Tasks with very high <code>typography_contrast</code> (the same page mixes 12pt body with 80pt
+      display) tend to lose the extreme scale jumps in clones. Similarly, <code>outline_typography</code>
+      (hollow stroked headings like "AMATEUR." in task #11) is often rendered as solid weight, or as a
+      very faint outline that barely registers against the background. The text is in the right place,
+      but the visual mass differs by a lot of pixels.
+    </p>
+
+    <h3>6. Image density and image content</h3>
+    <p>
+      <code>image_density</code> correlates negatively with score (<span class="mono">r = −0.41</span>).
+      The pipeline uses no real assets — the target screenshots already render images as coloured
+      placeholder rectangles, and the clone is expected to do the same. The failure mode is the clone
+      using a <em>different</em> rectangle treatment (white background and a small icon, instead of a
+      bold solid colour fill, or vice versa), which on image-heavy pages disagrees on a huge fraction of
+      pixels.
+    </p>
+
+    <h3>7. Per-page variance: secondary pages drag the score down</h3>
+    <p>
+      The home page is almost always the best-cloned page in any trial — it's the most distinctive,
+      most-described surface and the model focuses its effort there. Secondary pages
+      (<code>settings</code>, <code>history</code>, <code>category</code>, <code>profile</code>) tend
+      to be simpler in the target but also more idiosyncratic in the clone, and the power-mean
+      aggregation with <code>p = 0.05</code> is specifically designed to surface this — one bad page
+      drags the website's score down sharply. Without the power mean (i.e. with a plain average), the
+      strong home page would mask weak secondaries and many of these clones would score noticeably
+      higher than they deserve to.
+    </p>
+  </section>
+
+  <div class="footer-link">
+    Proximal · <a href="../work_log.html">work log</a> · <a href="https://github.com/demoralizer69/proximal">github</a>
+  </div>
+</div>
+
+<!-- MODAL -->
+<dialog class="modal" id="modal">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="modal-title"></h3>
+      <div class="scoreline" id="modal-score"></div>
+      <button class="close-btn" onclick="closeModal()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-toolbar">
+      <span class="label">View</span>
+      <button class="toggle active" id="btn-default" onclick="setView('default')">Target · best · worst</button>
+      <button class="toggle" id="btn-all" onclick="setView('all')">All 10 trials</button>
+      <span class="knobs" id="modal-knobs"></span>
+    </div>
+    <div class="modal-body">
+      <div class="scroll-x"><div class="grid-table" id="grid"></div></div>
+    </div>
+  </div>
+</dialog>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()"><img id="lightbox-img" alt=""></div>
+
+<script>
+let DATA = null;
+let currentRank = null;
+let currentView = 'default'; // 'default' | 'all'
+
+function scoreClass(s) {
+  if (s >= 0.90) return 'score-hi';
+  if (s >= 0.80) return 'score-mid';
+  return 'score-lo';
+}
+
+function fmt(s) { return s.toFixed(3); }
+
+function buildStatTiles() {
+  const all = DATA.flatMap(t => t.trials.map(tr => tr.mae_pm05));
+  const mean = all.reduce((a,b)=>a+b,0)/all.length;
+  const sorted = [...all].sort((a,b)=>a-b);
+  const median = sorted[Math.floor(sorted.length/2)];
+  const variance = all.reduce((s,v)=>s+(v-mean)**2,0)/all.length;
+  const std = Math.sqrt(variance);
+  const above90 = all.filter(v=>v>=0.9).length;
+  const below70 = all.filter(v=>v<0.7).length;
+  const best = Math.max(...all);
+  const worst = Math.min(...all);
+
+  const tiles = [
+    { label: 'Mean score', value: fmt(mean), sub: 'across 200 runs' },
+    { label: 'Median', value: fmt(median), sub: '50th percentile' },
+    { label: 'Std. dev.', value: fmt(std), sub: 'population' },
+    { label: 'Best run', value: fmt(best), sub: '+1.0 = identical' },
+    { label: 'Worst run', value: fmt(worst), sub: 'task #11' },
+    { label: 'Trials ≥ 0.90', value: above90 + ' / 200', sub: 'high-fidelity clones' },
+    { label: 'Trials < 0.70', value: below70 + ' / 200', sub: 'clear failure' },
+  ];
+  document.getElementById('stat-tiles').innerHTML = tiles.map(t => `
+    <div class="stat">
+      <div class="label">${t.label}</div>
+      <div class="value">${t.value}</div>
+      <div class="sub">${t.sub}</div>
+    </div>`).join('');
+}
+
+function buildDistribution() {
+  const minS = 0.30, maxS = 1.00;
+  const pct = v => ((v - minS)/(maxS - minS)) * 100;
+  const html = DATA.map(t => `
+    <div class="dist-row" onclick="openModal(${t.rank})" role="button" tabindex="0">
+      <div class="rank-num">${t.rank}</div>
+      <div class="dist-bar-wrap">
+        <div class="dist-bar-track" style="width:100%"></div>
+        <div class="dist-bar-line" style="left:${pct(t.min)}%; right:${100-pct(t.max)}%"></div>
+        <div class="dist-bar-dot" style="left:${pct(t.min)}%" title="min ${fmt(t.min)}"></div>
+        <div class="dist-bar-dot" style="left:${pct(t.max)}%" title="max ${fmt(t.max)}"></div>
+        <div class="dist-bar-dot mean" style="left:${pct(t.mean)}%" title="mean ${fmt(t.mean)}"></div>
+        <div class="dist-label">
+          <span class="topic">${t.topic}</span>
+          <span class="typ">· ${t.type}</span>
+        </div>
+        <div class="dist-scores">
+          <span>${fmt(t.min)}</span>
+          &nbsp;·&nbsp;
+          <span class="mean-val">${fmt(t.mean)}</span>
+          &nbsp;·&nbsp;
+          <span>${fmt(t.max)}</span>
+        </div>
+      </div>
+    </div>`).join('');
+  document.getElementById('dist-rows').innerHTML = html;
+
+  // ticks
+  const ticks = [0.30, 0.50, 0.70, 0.85, 1.00];
+  document.getElementById('dist-ticks').innerHTML = ticks.map(v => {
+    const p = ((v-minS)/(maxS-minS))*100;
+    return `<span style="left:${p}%">${v.toFixed(2)}</span>`;
+  }).join('');
+}
+
+function buildGallery() {
+  const html = DATA.map(t => {
+    const folder = String(t.rank).padStart(2,'0');
+    const cls = scoreClass(t.mean);
+    return `
+    <div class="task-card" onclick="openModal(${t.rank})" role="button" tabindex="0">
+      <div class="thumb">
+        <span class="rank-badge">#${t.rank}</span>
+        <span class="score-badge ${cls}">${fmt(t.mean)}</span>
+        <img src="task_${folder}/target/home.webp" alt="${t.topic} target home" loading="lazy">
+      </div>
+      <div class="info">
+        <div class="topic">${t.topic}</div>
+        <div class="row">
+          <span class="typ">${t.type.replace('_',' ')}</span>
+          <span>${t.brand}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('gallery').innerHTML = html;
+}
+
+function buildGraderCompare() {
+  // Use task rank 1 (hardest, biggest spread) to demonstrate
+  const t = DATA[0];
+  const folder = String(t.rank).padStart(2,'0');
+  const best = t.trials[0]; // best
+  const worst = t.trials[t.trials.length - 1]; // worst
+  document.getElementById('cmp-best-score').textContent = fmt(best.mae_pm05);
+  document.getElementById('cmp-worst-score').textContent = fmt(worst.mae_pm05);
+
+  const wrap = document.getElementById('compare-best-worst');
+  wrap.innerHTML = `
+    <div class="grid-table" style="grid-template-rows: auto auto; margin-top: 16px;">
+      <div class="gt-row" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="gt-cell header target"><div class="vname">Target</div><div class="vscore">reference</div></div>
+        <div class="gt-cell header best"><div class="vname">Best trial</div><div class="vscore">${fmt(best.mae_pm05)}</div></div>
+        <div class="gt-cell header worst"><div class="vname">Worst trial</div><div class="vscore">${fmt(worst.mae_pm05)}</div></div>
+      </div>
+      <div class="gt-row" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="gt-cell img-cell"><img src="task_${folder}/target/home.webp" alt="target home" loading="lazy" onclick="openLightbox(this.src)"></div>
+        <div class="gt-cell img-cell"><img src="task_${folder}/trial_01/home.webp" alt="best trial home" loading="lazy" onclick="openLightbox(this.src)"><span class="corner-score">${fmt(best.per_page.home)}</span></div>
+        <div class="gt-cell img-cell"><img src="task_${folder}/trial_10/home.webp" alt="worst trial home" loading="lazy" onclick="openLightbox(this.src)"><span class="corner-score">${fmt(worst.per_page.home)}</span></div>
+      </div>
+    </div>
+    <div style="text-align:center; color: var(--muted); font-size: 12px; margin-top: 6px;">
+      Task #${t.task_id}: <strong style="color:var(--text)">${t.topic}</strong> — home page
+    </div>`;
+}
+
+function openModal(rank) {
+  currentRank = rank;
+  currentView = 'default';
+  document.getElementById('btn-default').classList.add('active');
+  document.getElementById('btn-all').classList.remove('active');
+  renderModal();
+  document.getElementById('modal').showModal();
+}
+
+function closeModal() { document.getElementById('modal').close(); }
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('btn-default').classList.toggle('active', v === 'default');
+  document.getElementById('btn-all').classList.toggle('active', v === 'all');
+  renderModal();
+}
+
+function renderModal() {
+  const t = DATA[currentRank - 1];
+  const folder = String(t.rank).padStart(2,'0');
+  document.getElementById('modal-title').textContent =
+    `#${t.rank} · ${t.topic} (${t.type.replace('_',' ')}) · ${t.brand}`;
+  document.getElementById('modal-score').innerHTML =
+    `mean <strong>${fmt(t.mean)}</strong> · best ${fmt(t.max)} · worst ${fmt(t.min)} · σ ${fmt(t.std)}`;
+  document.getElementById('modal-knobs').textContent =
+    `complexity drivers: ${t.complexity_drivers.join(', ')}`;
+
+  let variants;
+  if (currentView === 'default') {
+    variants = [
+      { key: 'target', label: 'Target', cls: 'target', score: null },
+      { key: 'trial_01', label: `Best (#${t.trials[0].n})`, cls: 'best', score: t.trials[0].mae_pm05, perPage: t.trials[0].per_page },
+      { key: 'trial_10', label: `Worst (#${t.trials[9].n})`, cls: 'worst', score: t.trials[9].mae_pm05, perPage: t.trials[9].per_page },
+    ];
+  } else {
+    variants = [{ key: 'target', label: 'Target', cls: 'target', score: null }];
+    t.trials.forEach((tr, i) => {
+      const n = i + 1;
+      const cls = i === 0 ? 'best' : (i === 9 ? 'worst' : '');
+      variants.push({
+        key: `trial_${String(n).padStart(2,'0')}`,
+        label: `Trial ${n}${i === 0 ? ' (best)' : i === 9 ? ' (worst)' : ''}`,
+        cls,
+        score: tr.mae_pm05,
+        perPage: tr.per_page
+      });
+    });
+  }
+
+  const cols = variants.length;
+  const colWidth = currentView === 'all' ? '160px' : '1fr';
+  const gridCols = `90px repeat(${cols}, ${colWidth})`;
+
+  let html = `<div class="gt-row" style="grid-template-columns:${gridCols}">`;
+  html += `<div class="gt-cell row-header">Page</div>`;
+  variants.forEach(v => {
+    const scoreText = v.score !== null ? fmt(v.score) : 'reference';
+    html += `<div class="gt-cell header ${v.cls}">
+              <div class="vname">${v.label}</div>
+              <div class="vscore">${scoreText}</div>
+            </div>`;
+  });
+  html += `</div>`;
+
+  t.pages.forEach(page => {
+    html += `<div class="gt-row" style="grid-template-columns:${gridCols}">`;
+    html += `<div class="gt-cell row-header">${page}</div>`;
+    variants.forEach(v => {
+      const src = `task_${folder}/${v.key}/${page}.webp`;
+      const pageScore = v.perPage ? fmt(v.perPage[page]) : '';
+      html += `<div class="gt-cell img-cell">
+                <img src="${src}" alt="${v.label} ${page}" loading="lazy" onclick="openLightbox(this.src)">
+                ${pageScore ? `<span class="corner-score">${pageScore}</span>` : ''}
+              </div>`;
+    });
+    html += `</div>`;
+  });
+
+  document.getElementById('grid').innerHTML = html;
+  document.getElementById('grid').style.minWidth = currentView === 'all' ? '1400px' : '600px';
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+});
+
+fetch('data.json').then(r => r.json()).then(d => {
+  DATA = d;
+  buildStatTiles();
+  buildDistribution();
+  buildGraderCompare();
+  buildGallery();
+});
+</script>
+</body>
+</html>
