@@ -1,0 +1,2496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GPT-1 — Improving Language Understanding by Generative Pre-Training — Lesson</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --accent: #2e6b4f;
+    --accent2: #2e5c8a;
+    --card: #ffffff;
+    --border: #e3e3df;
+    --code-bg: #f3f1ec;
+  }
+  body {
+    font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; color: var(--accent); }
+  h3 { font-size: 1.2rem; margin-top: 1.6rem; color: var(--accent2); }
+  h4 { font-size: 1.05rem; margin-top: 1.2rem; color: var(--fg); }
+  code {
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .checkin {
+    background: #eef5ff;
+    border-left: 4px solid var(--accent2);
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin: 1.5rem 0;
+  }
+  .doubt {
+    background: #fff0f0;
+    border-left: 4px solid #c44536;
+    padding: 0.8rem 1.25rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    font-style: italic;
+  }
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .toc ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+  .toc a { color: var(--accent2); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .timestamp {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+  }
+  .formula {
+    text-align: center;
+    margin: 1.5rem 0;
+    font-size: 1.1em;
+  }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    color: var(--muted);
+    margin-left: 0;
+    font-style: italic;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.6em;
+    background: var(--accent);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-left: 0.5em;
+    vertical-align: middle;
+  }
+  .badge.new { background: #2c9d4a; }
+  hr {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 2.5rem 0;
+  }
+  .ascii-diagram {
+    background: #1a1a1a;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    width: 100%;
+    font-size: 0.95em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.8rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); }
+</style>
+</head>
+<body>
+
+<h1>GPT-1 — Improving Language Understanding by Generative Pre-Training</h1>
+<div class="timestamp">Radford, Narasimhan, Salimans, Sutskever (OpenAI, June 2018). Lesson started: 2026-05-26.</div>
+
+<div class="toc">
+  <strong>Table of Contents</strong>
+  <ul>
+    <li><a href="#orientation">Orientation — where this paper sits</a></li>
+    <li><a href="#part1">Part 1 — Abstract + Section 1 (Introduction)</a></li>
+    <li><a href="#side-lm">Side concept: what is "language modeling"?</a></li>
+    <li><a href="#part2">Part 2 — Section 3.1 (Unsupervised Pre-training)</a></li>
+    <li><a href="#part3">Part 3 — Section 3.2 (Supervised Fine-tuning)</a></li>
+    <li><a href="#part4">Part 4 — Section 3.3 (Task-specific Input Transformations)</a></li>
+    <li><a href="#doubts-33">Doubt answered: how do delimiter embeddings get learned?</a></li>
+    <li><a href="#part5">Part 5 — Section 4 (Experiments)</a></li>
+    <li><a href="#side-batches">Side concept: what are batches and why do we train in them?</a></li>
+    <li><a href="#side-optimizers">Side concept: SGD vs Adam — the optimizer landscape</a></li>
+    <li><a href="#side-activations">Side concept: what is an "activation"?</a></li>
+    <li><a href="#part6">Part 6 — Section 5.1 (Impact of Number of Layers Transferred)</a></li>
+    <li><a href="#part7">Part 7 — Section 5.2 (Zero-shot Behaviors)</a></li>
+    <li><a href="#part8">Part 8 — Section 5.3 (Ablation Studies)</a></li>
+    <li><a href="#part9">Part 9 — Section 6 (Conclusion) <span class="badge new">NEW</span></a></li>
+    <li><a href="#bigpicture">🔭 Big-picture map: what GPT-1 actually was <span class="badge new">NEW</span></a></li>
+  </ul>
+</div>
+
+<!-- ============ ORIENTATION ============ -->
+<h2 id="orientation">Orientation — where this paper sits</h2>
+
+<p>Before we open the paper, a quick map. You already know <em>Attention Is All You Need</em>
+(Vaswani et al., June 2017). That paper introduced the Transformer architecture but used it
+for one specific task: machine translation, trained from scratch on parallel
+English↔German/French data.</p>
+
+<p>This paper (June 2018, exactly one year later) is the moment the field realized that the
+Transformer is not just a translation model — it's a general-purpose representation learner.
+The recipe it introduces is:</p>
+
+<ol>
+  <li><strong>Pre-train</strong> a Transformer on a huge amount of <em>unlabeled</em> text by
+    teaching it to predict the next word.</li>
+  <li><strong>Fine-tune</strong> the same model on a small labeled dataset for whatever task
+    you actually care about (classification, entailment, QA, etc.).</li>
+</ol>
+
+<p>That two-step recipe — <em>generative pre-training, then discriminative fine-tuning</em> —
+is the "GPT" in the title, and it's the lineage that leads to GPT-2, GPT-3, GPT-4, and
+ChatGPT. So in the broader story:</p>
+
+<div class="card">
+<table>
+  <tr><th>Year</th><th>Paper</th><th>Contribution</th></tr>
+  <tr><td>2013</td><td>word2vec</td><td>Learn word vectors from unlabeled text. But only word level.</td></tr>
+  <tr><td>2017</td><td>Attention Is All You Need</td><td>The Transformer. Trained per-task, from scratch.</td></tr>
+  <tr><td><strong>2018</strong></td><td><strong>GPT-1 (this paper)</strong></td><td><strong>Pre-train a Transformer LM on unlabeled text, then fine-tune.</strong></td></tr>
+  <tr><td>2018 (Oct)</td><td>BERT</td><td>Same recipe, but bidirectional + masked LM objective.</td></tr>
+  <tr><td>2019+</td><td>GPT-2, GPT-3, …</td><td>Same recipe, just scaled (more data, more params).</td></tr>
+</table>
+</div>
+
+<p>So when you read this paper, you're reading the moment the
+"pre-train + fine-tune" paradigm was first demonstrated to work broadly for NLP using a
+Transformer. The architecture itself is unchanged from Vaswani et al. — what's new is
+<em>how the model is trained and how it's reused</em>.</p>
+
+<blockquote>
+Mental model: think of this paper less as introducing a new architecture and more as
+introducing a new <em>training methodology</em> for an existing architecture.
+</blockquote>
+
+<hr>
+
+<!-- ============ PART 1 ============ -->
+<h2 id="part1">Part 1 — Abstract + Section 1 (Introduction)</h2>
+
+<h3>The problem the paper is attacking</h3>
+
+<p>NLP has tons of tasks: question answering, textual entailment, sentiment, semantic
+similarity, document classification. For each one, the standard pipeline in 2018 was:
+collect a labeled dataset for that task, design a custom neural architecture, train from
+scratch.</p>
+
+<p>Two pains with that:</p>
+
+<ul>
+  <li><strong>Labeled data is expensive.</strong> Each task needs its own annotated corpus,
+    and most tasks have only thousands to tens of thousands of examples. That's not enough
+    to train a high-capacity model.</li>
+  <li><strong>Unlabeled text is everywhere</strong> (books, web pages, Wikipedia), but the
+    field didn't know how to use it for anything beyond <em>word embeddings</em>. People
+    knew how to learn good vectors for individual words (word2vec, GloVe), but they didn't
+    know how to learn good representations of <em>sentences and longer passages</em> from
+    unlabeled text.</li>
+</ul>
+
+<h3>The two open questions they identify</h3>
+
+<p>The introduction frames this as two specific obstacles to using unlabeled text:</p>
+
+<div class="card">
+<strong>Question 1: What's the right optimization objective for unsupervised pre-training?</strong><br>
+There's no obvious "right" loss to use when you have no labels. Candidates floating
+around at the time: language modeling (predict next word), machine translation, discourse
+coherence, auto-encoding, etc. Different objectives had each worked on different sub-problems,
+but no consensus on which one transfers best.
+<br><br>
+<strong>Question 2: How do you transfer the learned representations to a downstream task?</strong><br>
+Once you've pre-trained <em>something</em>, how do you actually use it? Options at the time:
+<ul>
+  <li>Use the pre-trained vectors as <em>features</em> fed into a new task-specific model
+    (the "feature-based" approach — what ELMo did).</li>
+  <li>Modify the architecture per task and re-train.</li>
+  <li>Add auxiliary objectives during fine-tuning.</li>
+</ul>
+No agreement on which of these works best, and most approaches required custom architecture
+surgery for each task.
+</div>
+
+<h3>The paper's answer to both</h3>
+
+<ol>
+  <li><strong>Objective:</strong> Plain language modeling — predict the next token given
+    previous tokens. That's it. No fancy auxiliary loss for pre-training.</li>
+  <li><strong>Transfer:</strong> Take the <em>entire</em> pre-trained Transformer (not just
+    its outputs as frozen features) and fine-tune it end-to-end on the target task. Add only
+    a tiny linear classifier head on top. Keep the architecture identical across tasks; only
+    the <em>inputs</em> get reformatted via "traversal-style" transformations (we'll cover
+    these in §3.3).</li>
+</ol>
+
+<p>This is a stronger claim than it might sound. They're saying: <em>one</em> objective
+(LM), <em>one</em> architecture (decoder-only Transformer), <em>minimal</em> changes per
+task. And they show it works on 9 of 12 benchmarks.</p>
+
+<h3>Why a Transformer (not an LSTM)?</h3>
+
+<p>The paper makes a point of saying they chose the Transformer rather than an LSTM, which
+was the default sequence model at the time. Their argument:</p>
+
+<blockquote>
+"This model choice provides us with a more structured memory for handling long-term
+dependencies in text, compared to alternatives like recurrent networks, resulting in
+robust transfer performance across diverse tasks."
+</blockquote>
+
+<p>Translated: LSTMs compress all past context into a single fixed-size hidden state, so
+information from far back gets squeezed/forgotten. The Transformer's self-attention lets
+every token directly look at every previous token, so long-range dependencies survive
+intact. They suspect — and later confirm in the analysis section — that this is part of
+why pre-training transfers well: the model genuinely learns long-range structure during
+LM pre-training that turns out to be useful for entailment, QA, etc.</p>
+
+<h3>Headline results (just so you have a number in mind)</h3>
+
+<p>They evaluate on 12 datasets across 4 task families. They beat the previous SOTA on
+9 of 12. Absolute improvements include:</p>
+<ul>
+  <li>+8.9% on commonsense reasoning (Stories Cloze)</li>
+  <li>+5.7% on question answering (RACE)</li>
+  <li>+1.5% on textual entailment (MultiNLI)</li>
+</ul>
+
+<p>The point of these numbers is not the exact deltas; the point is that <em>one model
+recipe</em> beats 9 specialized, task-tuned baselines. That's the headline.</p>
+
+<div class="card">
+<strong>Mental model after Section 1:</strong>
+<ul>
+  <li>The bottleneck in NLP is labeled-data scarcity.</li>
+  <li>Unlabeled text is plentiful but underused beyond word embeddings.</li>
+  <li>This paper proposes a two-stage recipe: <em>LM pre-train on lots of text → fine-tune
+    end-to-end on the target task</em> with a Transformer.</li>
+  <li>Across-task generality comes from <em>keeping the architecture fixed</em> and
+    instead reformatting the <em>inputs</em> for each task.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on Section 1? Likely candidates: <em>what exactly is "language modeling" as an
+objective</em>, <em>why decoder-only (not encoder-decoder like Vaswani)</em>, <em>what
+does "feature-based vs fine-tuning" really mean</em>, <em>what's wrong with just using
+word embeddings as input</em>. Ask anything — I'll answer before moving on.
+</div>
+
+<hr>
+
+<!-- ============ SIDE: LANGUAGE MODELING ============ -->
+<h2 id="side-lm">Side concept — What is "language modeling"?</h2>
+
+<h3>The definition (probability-theoretic)</h3>
+
+<p>A <strong>language model</strong> is a probability distribution over sequences of tokens.
+Given any sequence $u_1, u_2, \ldots, u_n$, the model assigns it a probability
+$P(u_1, u_2, \ldots, u_n)$. That's the abstract definition. The interesting question is
+how the model <em>factorizes</em> that joint probability.</p>
+
+<p>By the chain rule of probability — which is just the definition of conditional
+probability applied repeatedly — any joint distribution can be written as:</p>
+
+<div class="formula">
+$$P(u_1, u_2, \ldots, u_n) \;=\; \prod_{i=1}^{n} P(u_i \mid u_1, u_2, \ldots, u_{i-1}).$$
+</div>
+
+<p>So predicting a whole sequence reduces to predicting <em>each token given all the
+previous tokens</em>. A "language model" in the modern sense is any model that produces,
+for every position $i$, a probability distribution over the next token conditioned on the
+prefix $u_1, \ldots, u_{i-1}$.</p>
+
+<blockquote>
+Mental model: a language model is a function $f_\Theta$ that takes a prefix of tokens and
+returns a probability over what comes next. Training it = adjusting $\Theta$ so the
+probabilities it assigns to <em>real</em> text are as high as possible.
+</blockquote>
+
+<h3>The training objective (what gets optimized)</h3>
+
+<p>You have a corpus of unlabeled text, tokenized: $\mathcal{U} = \{u_1, u_2, \ldots, u_n\}$.
+The training loss — really the <em>negative</em> of what gets maximized — is the sum of
+log-probabilities the model assigns to the actual next token at every position:</p>
+
+<div class="formula">
+$$L_1(\mathcal{U}) \;=\; \sum_{i} \log P\bigl(u_i \,\big|\, u_{i-k}, \ldots, u_{i-1};\, \Theta\bigr).$$
+</div>
+
+<p>This is exactly Equation (1) in the paper. Three things to notice:</p>
+
+<ul>
+  <li><strong>The sum is over every position</strong> — every token in the corpus is a
+    training example. That's why language modeling is so data-efficient: a corpus of
+    $n$ tokens gives you $n$ supervised prediction problems for free.</li>
+  <li><strong>$k$ is the context window.</strong> In principle you'd condition on
+    everything from $u_1$ to $u_{i-1}$, but practical models truncate to the last $k$
+    tokens. For GPT-1, $k = 512$.</li>
+  <li><strong>$\Theta$ are the model parameters.</strong> They're shared across all
+    positions — there isn't a separate model for predicting the 3rd token vs. the 100th.</li>
+</ul>
+
+<h3>Why this objective is "self-supervised"</h3>
+
+<p>The clever part: <em>no human had to label anything</em>. The "answer" for position
+$i$ is just "what token actually appears at position $i$", which you can read off the
+text itself. So the labels come <em>from the input data</em>. People sometimes call this
+"self-supervised" rather than "unsupervised" because there is technically a target — it
+just isn't a human-provided annotation.</p>
+
+<p>This is why GPT-1 can train on books, web pages, Wikipedia, whatever — any raw text
+becomes training data. Contrast with translation (needs aligned sentence pairs),
+classification (needs human labels), parsing (needs trees), etc.</p>
+
+<h3>Why this is a <em>good</em> pre-training objective (intuition)</h3>
+
+<p>"Predict the next word" sounds dumb. Why does it produce a model that's useful for
+sentiment, entailment, QA, etc.?</p>
+
+<p>Because to predict the next word well, the model has to <em>implicitly</em> learn:</p>
+<ul>
+  <li><strong>Syntax.</strong> After "the cat sat on the", a noun is more likely than a verb.</li>
+  <li><strong>Semantics / world knowledge.</strong> "The capital of France is" → "Paris" is
+    only predictable if you know geography.</li>
+  <li><strong>Coreference.</strong> "Alice gave Bob the book. He thanked …" — the model
+    has to track that "He" refers to Bob to predict what comes next.</li>
+  <li><strong>Long-range dependencies.</strong> If a paragraph starts with "Once upon a
+    time", a word like "happily" is much more likely than "the" hundreds of tokens later.</li>
+</ul>
+
+<p>So the LM objective is a sneaky way to force the model to learn essentially everything
+useful about language, just to do its one job. That's the bet of generative pre-training.</p>
+
+<div class="card">
+<strong>Why-not-other-objective check (since you'll ask):</strong>
+<ul>
+  <li><strong>Why not masked LM (BERT-style)?</strong> BERT didn't exist yet — it came
+    out four months later. Also, masked LM lets the model see future tokens, which is
+    great for representation learning but precludes <em>generation</em>. GPT-1 wants both
+    representation and generation from the same model, so it sticks with left-to-right LM.</li>
+  <li><strong>Why not autoencoding (reconstruct the input)?</strong> Trivially solved by
+    the identity function unless you corrupt the input; corruption schemes are arbitrary
+    and add hyperparameters.</li>
+  <li><strong>Why not translation as pre-training?</strong> Requires parallel data, which
+    is small. The whole point is to use the abundance of monolingual text.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on language modeling? If not, we'll move into Section 3.1 where we actually look at
+the architecture used to compute $P(u_i \mid u_{i-k}, \ldots, u_{i-1})$.
+</div>
+
+<hr>
+
+<!-- ============ PART 2 ============ -->
+<h2 id="part2">Part 2 — Section 3.1 (Unsupervised Pre-training)</h2>
+
+<p>Section 3 of the paper is called "Framework" and has three subsections:</p>
+<ul>
+  <li><strong>3.1</strong> — Unsupervised pre-training (this part).</li>
+  <li><strong>3.2</strong> — Supervised fine-tuning.</li>
+  <li><strong>3.3</strong> — Task-specific input transformations.</li>
+</ul>
+
+<p>We're doing 3.1 only. Then we'll stop and you can pull the next one.</p>
+
+<h3>Step 1 — Pick the objective (already covered)</h3>
+
+<p>The pre-training objective is the standard LM objective we just discussed:</p>
+
+<div class="formula">
+$$L_1(\mathcal{U}) \;=\; \sum_{i} \log P\bigl(u_i \,\big|\, u_{i-k}, \ldots, u_{i-1};\, \Theta\bigr).$$
+</div>
+
+<p>This is what gets <em>maximized</em> (equivalently, the negative log-likelihood is
+minimized). Trained with SGD.</p>
+
+<h3>Step 2 — Specify the model that computes $P(u_i \mid \text{context})$</h3>
+
+<p>This is where the Transformer enters. The paper uses a <strong>multi-layer
+Transformer decoder</strong>. Importantly: <em>decoder-only</em>. There's no encoder, no
+cross-attention, just a stack of decoder blocks doing masked self-attention on the input
+sequence.</p>
+
+<p>The paper writes it in three equations. Let $U = (u_{-k}, \ldots, u_{-1})$ be the
+context window of tokens (using negative indices because they're the tokens <em>before</em>
+the one we want to predict). Let $n$ be the number of decoder layers.</p>
+
+<div class="formula">
+$$
+\begin{aligned}
+h_0 &= U W_e + W_p \\[4pt]
+h_\ell &= \text{transformer\_block}(h_{\ell-1}) \quad \text{for } \ell = 1, \ldots, n \\[4pt]
+P(u) &= \text{softmax}(h_n W_e^\top)
+\end{aligned}
+$$
+</div>
+
+<p>Let's unpack each line carefully.</p>
+
+<h4>Line 1: input embedding</h4>
+
+<div class="formula">
+$$h_0 = U W_e + W_p$$
+</div>
+
+<table>
+<tr><th>Symbol</th><th>Shape</th><th>Meaning</th></tr>
+<tr><td>$U$</td><td>$k \times |V|$</td><td>The context as a one-hot matrix: $k$ tokens, each a one-hot row of length $|V|$ (vocabulary size).</td></tr>
+<tr><td>$W_e$</td><td>$|V| \times d$</td><td>The token embedding matrix. Row $j$ is the $d$-dimensional vector for vocab token $j$.</td></tr>
+<tr><td>$W_p$</td><td>$k \times d$</td><td>Learned positional embeddings — one $d$-vector per position in the window.</td></tr>
+<tr><td>$h_0$</td><td>$k \times d$</td><td>The embedded input: each row is "token vector + position vector".</td></tr>
+</table>
+
+<p>So $U W_e$ just looks up each token's embedding (one-hot times matrix = a row selection),
+and $W_p$ adds positional information.</p>
+
+<div class="card">
+<strong>Two design choices to note (and questions you might ask):</strong>
+<ul>
+  <li><strong>Learned positional embeddings, not sinusoidal.</strong> Vaswani et al. used
+    fixed sinusoidal positions. GPT-1 just learns them — a $k \times d$ matrix that's part
+    of $\Theta$. Empirically, learned positions work about as well as sinusoidal up to the
+    training context length, and they're simpler. The cost is no extrapolation past $k$,
+    but at $k = 512$ for this paper, that's fine.</li>
+  <li><strong>BPE tokenization.</strong> The vocabulary $V$ isn't whole words; it's
+    byte-pair encoding (BPE) subword units, 40,000 of them. This is mostly a practical
+    detail (handles rare words, keeps $|V|$ manageable) — call it out as a question if
+    you want me to dive deeper here.</li>
+</ul>
+</div>
+
+<h4>Line 2: stacked transformer blocks</h4>
+
+<div class="formula">
+$$h_\ell = \text{transformer\_block}(h_{\ell-1}) \quad \ell = 1, \ldots, n$$
+</div>
+
+<p>Each block is the standard Vaswani decoder block <em>without</em> the cross-attention
+sub-layer (since there's no encoder to attend to). So each block does:</p>
+
+<ol>
+  <li>Masked multi-head self-attention (the causal mask ensures position $i$ can only
+    look at positions $\le i$).</li>
+  <li>Position-wise feed-forward network.</li>
+  <li>Residual + LayerNorm around each of the two sub-layers.</li>
+</ol>
+
+<p>Concretely for GPT-1: $n = 12$ blocks, $d = 768$, 12 attention heads, feed-forward
+inner dimension $= 3072$. About 117M parameters total.</p>
+
+<div class="ascii-diagram">
+input tokens U  ──►  embed + position  ──►  h_0
+                                              │
+                          ┌───────────────────▼───────────────────┐
+                          │  Block 1: masked self-attn → FFN      │  ──►  h_1
+                          └───────────────────┬───────────────────┘
+                                              ▼
+                                            ...
+                          ┌───────────────────┬───────────────────┐
+                          │  Block 12: masked self-attn → FFN     │  ──►  h_12
+                          └───────────────────┬───────────────────┘
+                                              ▼
+                                       softmax(h_12 · W_e^T)
+                                              │
+                                              ▼
+                                  P(next token | context)
+</div>
+
+<h4>Line 3: output projection</h4>
+
+<div class="formula">
+$$P(u) = \text{softmax}(h_n W_e^\top)$$
+</div>
+
+<p>The final hidden states $h_n$ (shape $k \times d$) get multiplied by
+$W_e^\top$ (shape $d \times |V|$) to produce logits of shape $k \times |V|$, then
+softmax-normalized into probabilities over the vocabulary at every position.</p>
+
+<p>Notice they reuse $W_e$ — <strong>tied weights</strong> between input embedding and
+output projection. Same trick as Vaswani. The intuition: the input embedding maps
+$\text{token} \to \text{vector}$; the output projection asks "which token best matches
+this vector?" These are inverse problems and benefit from sharing parameters.
+$|V| \cdot d$ parameters saved.</p>
+
+<h3>Putting it together</h3>
+
+<div class="card">
+<strong>The whole pre-training procedure in one paragraph:</strong>
+Take a huge corpus of text (BooksCorpus, 7000 books, ~800M words). Tokenize with BPE.
+Slide a window of 512 tokens through it. For each window, feed it into a 12-layer
+decoder-only Transformer. At every position, the model outputs a probability distribution
+over the next token. Compare to the actual next token, take the log-loss, sum over
+positions, backprop. Repeat for 100 epochs with Adam. Out comes a set of parameters
+$\Theta$ that we'll reuse for every downstream task.
+</div>
+
+<div class="doubt">
+Doubts on Section 3.1? Likely candidates: <em>why decoder-only specifically</em>,
+<em>what does "masked" mean again in this context</em>, <em>why tie $W_e$ to the output
+projection</em>, <em>what's BPE</em>, <em>why 512 / 12 / 768 — is there theory behind
+the sizes</em>. Ask anything.
+</div>
+
+<hr>
+
+<!-- ============ PART 3 ============ -->
+<h2 id="part3">Part 3 — Section 3.2 (Supervised Fine-tuning)</h2>
+
+<p>Pre-training is done. We now have a 12-layer Transformer with parameters $\Theta$ that
+can predict the next token reasonably well on natural text. Now the question: <em>how do
+we adapt this thing to do classification, entailment, QA, etc.?</em></p>
+
+<h3>The setup</h3>
+
+<p>Assume we have a labeled dataset $\mathcal{C}$. Each example is:</p>
+<ul>
+  <li>An input sequence of tokens $x^1, x^2, \ldots, x^m$ — for instance, a sentence whose
+    sentiment we want to predict.</li>
+  <li>A label $y$ — say, "positive" or "negative" (encoded as an integer index).</li>
+</ul>
+
+<p>The dataset is small — maybe a few thousand examples. That's the whole point: we can
+afford small labeled datasets because pre-training already did the heavy lifting.</p>
+
+<h3>The forward pass during fine-tuning</h3>
+
+<p>Feed $x^1, \ldots, x^m$ through the pre-trained Transformer exactly the same way as
+during pre-training. You get hidden states at every layer and every position. The paper
+specifically uses the <strong>final layer's activation at the last position</strong>:</p>
+
+<div class="formula">
+$$h_\ell^m \;\;\;\text{— the layer-}\ell\text{ hidden state at position }m\text{ (the last input token)}.$$
+</div>
+
+<p>(Their notation is a little overloaded — they use $\ell$ for "the final layer" and $m$
+for "the last position". So $h_\ell^m \in \mathbb{R}^d$ is a single $d$-dimensional vector,
+not a matrix.)</p>
+
+<div class="card">
+<strong>Why the last position?</strong> Because the model uses causal (left-to-right)
+attention, the hidden state at position $m$ has attended to all of $x^1, \ldots, x^m$,
+i.e. <em>the entire input</em>. The hidden state at position 3, by contrast, has only
+seen the first 3 tokens. So the last position is the only one that's a function of the
+whole sequence — making it the natural place to read off a sequence-level decision.
+<br><br>
+(Contrast with BERT, which prepends a special <code>[CLS]</code> token and uses
+<em>its</em> hidden state because BERT's attention is bidirectional and any position
+sees everything. GPT-1 can't do that trick; it must use the last token.)
+</div>
+
+<h3>Adding the classification head</h3>
+
+<p>On top of the pre-trained model, we add a single new linear layer — that's the
+<em>only</em> new parameter introduced by fine-tuning. Call it $W_y \in \mathbb{R}^{d \times c}$,
+where $c$ is the number of classes (e.g. 2 for sentiment).</p>
+
+<div class="formula">
+$$P(y \mid x^1, \ldots, x^m) \;=\; \text{softmax}\bigl(h_\ell^m \, W_y\bigr).$$
+</div>
+
+<p>That's it. A pre-trained transformer + one linear layer = a classifier.</p>
+
+<h3>The fine-tuning objective</h3>
+
+<p>Maximize the log-likelihood of the correct label over the labeled set:</p>
+
+<div class="formula">
+$$L_2(\mathcal{C}) \;=\; \sum_{(x,y)} \log P(y \mid x^1, \ldots, x^m).$$
+</div>
+
+<p>This is the paper's Equation (3). Note that <em>all</em> parameters of the model get
+updated during fine-tuning — both the new $W_y$ and the entire pre-trained $\Theta$. The
+pre-trained weights act as a strong initialization rather than a frozen feature extractor.
+(This is the "fine-tuning" branch of the feature-vs-fine-tuning dichotomy from Section 1.)</p>
+
+<h3>The auxiliary language-modeling loss</h3>
+
+<p>Here's the subtler trick — and it matters. The authors found empirically that adding
+the language-modeling objective <em>as a side loss during fine-tuning</em> helps. The
+combined objective is:</p>
+
+<div class="formula">
+$$L_3(\mathcal{C}) \;=\; L_2(\mathcal{C}) \;+\; \lambda \cdot L_1(\mathcal{C}).$$
+</div>
+
+<p>That is: while you're fine-tuning to predict labels, you also keep predicting the next
+token of the input itself, weighted by a hyperparameter $\lambda$ (they use $\lambda = 0.5$).</p>
+
+<div class="card">
+<strong>Why does the auxiliary LM loss help?</strong> Two reasons the paper gives:
+<ul>
+  <li><strong>(a) Improves generalization of the supervised model.</strong> The auxiliary
+    loss acts as a regularizer — it pulls the parameters back toward configurations that
+    are good at modeling language in general, not just at minimizing the loss on the small
+    labeled set. This guards against overfitting on $\mathcal{C}$.</li>
+  <li><strong>(b) Accelerates convergence.</strong> The LM signal is dense (one prediction
+    per token) while the classification signal is sparse (one prediction per example), so
+    blending them gives more useful gradient at every step.</li>
+</ul>
+<br>
+Another way to read this: <em>fine-tuning has a destructive side</em> — it can erase
+pre-training knowledge by overfitting on a narrow labeled distribution
+("catastrophic forgetting"). Keeping $L_1$ active during fine-tuning prevents that drift.
+</div>
+
+<h3>What new parameters does fine-tuning introduce?</h3>
+
+<p>This is one of the cleanest design properties of the paper. The answer is:</p>
+
+<ul>
+  <li>$W_y$ — the classification head ($d \times c$, tiny).</li>
+  <li>Embeddings for any <em>special delimiter tokens</em> used in input transformations
+    (we'll see these in §3.3) — also tiny.</li>
+</ul>
+
+<p>Everything else — the embeddings, the 12 transformer blocks, the output projection — is
+inherited from pre-training. So the model adapts to <em>any</em> task by adding only a
+handful of parameters and re-using the rest.</p>
+
+<div class="ascii-diagram">
+                  ┌────────────────────────────────┐
+                  │   Pre-trained 12-layer         │
+   x^1 ... x^m ──►│   Transformer (frozen          │── h_ℓ^1, ..., h_ℓ^m
+                  │   architecture; weights        │
+                  │   updated during fine-tuning)  │
+                  └────────────────────────────────┘
+                                                       │
+                                            take last position only
+                                                       │
+                                                       ▼
+                                                     h_ℓ^m   (d-dimensional)
+                                                       │
+                                                       ▼
+                                                    × W_y  (d × c, NEW)
+                                                       │
+                                                       ▼
+                                                  softmax → P(y | x)
+
+   Combined loss:   L_3  =  L_2 (label NLL)  +  λ · L_1 (next-token NLL on input)
+</div>
+
+<h3>Hyperparameters they used</h3>
+
+<ul>
+  <li>3 epochs of fine-tuning (yes, only 3 — the pre-trained model converges fast).</li>
+  <li>Batch size 32.</li>
+  <li>Learning rate $6.25 \times 10^{-5}$ with linear warmup over 0.2% of training,
+    then linear decay.</li>
+  <li>$\lambda = 0.5$ for the auxiliary LM loss.</li>
+  <li>Dropout 0.1 on the classifier.</li>
+</ul>
+
+<div class="card">
+<strong>Mental model after Section 3.2:</strong>
+<ul>
+  <li>Fine-tuning = run input through the pre-trained Transformer, take the last
+    position's hidden state, project through a new linear head, softmax for the label.</li>
+  <li>The only new parameters are the classification head $W_y$ and delimiter token
+    embeddings.</li>
+  <li>All pre-trained parameters keep updating — the pre-training provides the
+    <em>initialization</em>, not a frozen feature.</li>
+  <li>Add the LM objective as an auxiliary loss during fine-tuning to regularize and
+    speed up convergence.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on Section 3.2? Likely candidates: <em>why not freeze the pre-trained weights
+and just train $W_y$</em>, <em>does the auxiliary LM loss not push the model back toward
+its pre-trained behavior and away from the task</em>, <em>how can you fine-tune all
+117M params on only thousands of labeled examples without overfitting</em>, <em>what
+exactly is "the last position" when input has padding</em>. Ask anything.
+</div>
+
+<hr>
+
+<!-- ============ PART 4 ============ -->
+<h2 id="part4">Part 4 — Section 3.3 (Task-specific Input Transformations)</h2>
+
+<p>So far we have a recipe that works for tasks where the input is a single sequence of
+tokens (e.g. sentiment classification on a sentence). But most NLP tasks have <em>structured</em>
+inputs:</p>
+
+<ul>
+  <li><strong>Entailment:</strong> a premise <em>and</em> a hypothesis. Two separate texts.</li>
+  <li><strong>Similarity:</strong> two sentences with no inherent order.</li>
+  <li><strong>Multiple choice / QA:</strong> a context, a question, and several candidate
+    answers. Three+ pieces.</li>
+</ul>
+
+<p>How do you feed structured inputs into a model that only consumes a single token stream?</p>
+
+<h3>The framing: input transformation, not architecture surgery</h3>
+
+<p>Previous work handled structure by <em>building task-specific architectures</em>:
+two-tower encoders for sentence pairs, attention over candidate spans for QA, and so on.
+Each task needed its own engineering, and the pre-trained representation often wasn't
+reusable end-to-end.</p>
+
+<p>GPT-1's move: <strong>keep the architecture identical for every task. Re-format the
+input instead.</strong></p>
+
+<p>They call this the "traversal-style" approach (borrowed from earlier work by Rocktäschel
+et al.): convert structured inputs into a single ordered sequence of tokens by inserting
+special delimiter tokens between the pieces. The pre-trained model just sees a stream of
+tokens like always; the delimiters teach it where one piece ends and the next begins.</p>
+
+<div class="card">
+<strong>Three special tokens get added to the vocabulary for fine-tuning:</strong>
+<ul>
+  <li><code>&lt;s&gt;</code> — start token, prepended to every input.</li>
+  <li><code>$</code> — delimiter, separates pieces.</li>
+  <li><code>&lt;e&gt;</code> — extract token, appended to every input. The classifier
+    reads the hidden state at <em>this</em> position. (Same idea as picking the "last
+    position" from §3.2, but now we have a dedicated token that we know is always last.)</li>
+</ul>
+Their embeddings are new parameters — randomly initialized at the start of fine-tuning,
+trained alongside everything else.
+</div>
+
+<h3>The four task templates</h3>
+
+<p>Figure 1 of the paper enumerates four input shapes. Let's go through each.</p>
+
+<h4>1. Classification</h4>
+
+<p>Single input sequence, single label. Easiest case. Format:</p>
+
+<div class="formula">
+<code>&lt;s&gt; &nbsp; text &nbsp; &lt;e&gt;</code> &nbsp;→&nbsp; Transformer &nbsp;→&nbsp; $h_\ell^{\langle e\rangle}$ &nbsp;→&nbsp; $W_y$ &nbsp;→&nbsp; softmax
+</div>
+
+<p>Used for: sentiment (SST-2), linguistic acceptability (CoLA).</p>
+
+<h4>2. Textual entailment</h4>
+
+<p>Two pieces with an inherent direction: a <em>premise</em> $p$ and a <em>hypothesis</em>
+$h$. The task: does $p$ entail $h$, contradict it, or are they neutral?</p>
+
+<div class="formula">
+<code>&lt;s&gt; &nbsp; premise &nbsp; $ &nbsp; hypothesis &nbsp; &lt;e&gt;</code>
+</div>
+
+<p>Concatenate the two with a delimiter $\$$ between them. Note this is <em>asymmetric</em> —
+premise comes first, hypothesis second — which is fine because entailment has an inherent
+direction. Used for: SNLI, MultiNLI, RTE, etc.</p>
+
+<h4>3. Semantic similarity</h4>
+
+<p>This is the most interesting one because it exposes a thoughtful design choice.
+Similarity has <em>no inherent order</em> between the two sentences: $\text{sim}(A, B) = \text{sim}(B, A)$.
+But a causal Transformer is inherently order-dependent — what comes first influences what
+comes later. So if you only feed <code>A $ B</code>, the model gets a biased view.</p>
+
+<p>Their fix: run <em>both</em> orderings through the model independently, then combine.</p>
+
+<div class="formula">
+<code>&lt;s&gt; &nbsp; sent_A &nbsp; $ &nbsp; sent_B &nbsp; &lt;e&gt;</code> &nbsp;→&nbsp; $h^{(1)}$<br><br>
+<code>&lt;s&gt; &nbsp; sent_B &nbsp; $ &nbsp; sent_A &nbsp; &lt;e&gt;</code> &nbsp;→&nbsp; $h^{(2)}$<br><br>
+$h^{(1)} + h^{(2)}$ &nbsp;→&nbsp; $W_y$ &nbsp;→&nbsp; softmax
+</div>
+
+<p>Two forward passes through the same model (shared weights), element-wise sum of the
+two final hidden states, then the classifier head. The sum is what enforces symmetry:
+$\text{sim}(A, B)$ and $\text{sim}(B, A)$ now produce identical outputs by construction.</p>
+
+<div class="card">
+<strong>Why <em>sum</em> the hidden states (and not concatenate or average)?</strong>
+<ul>
+  <li><strong>Concatenation</strong> would double the dimension of $h$ and lose symmetry
+    (concat is order-dependent). So no.</li>
+  <li><strong>Averaging</strong> is fine and gives the same result as summing up to a
+    constant scale factor that the classifier head can absorb. So sum ≡ average in
+    practice.</li>
+  <li><strong>Any commutative operation</strong> ($+$, $\max$, etc.) would enforce
+    symmetry; they pick the simplest one.</li>
+</ul>
+</div>
+
+<h4>4. Multiple choice / Question answering</h4>
+
+<p>Input: a context document $z$, a question $q$, and a set of $K$ candidate answers
+$\{a_1, a_2, \ldots, a_K\}$. Output: which $a_k$ is correct?</p>
+
+<p>For <em>each</em> candidate answer separately, build a sequence:</p>
+
+<div class="formula">
+<code>&lt;s&gt; &nbsp; context &nbsp; $ &nbsp; question &nbsp; $ &nbsp; a_k &nbsp; &lt;e&gt;</code>
+</div>
+
+<p>Run it through the Transformer. Take the final hidden state at <code>&lt;e&gt;</code>
+and project to a <em>scalar</em> logit via a linear head (a single number per candidate,
+not a probability distribution). After processing all $K$ candidates, you have $K$
+scalars. Softmax over those gives the probability of each candidate being correct:</p>
+
+<div class="formula">
+$$P(a_k \mid z, q) \;=\; \frac{\exp(s_k)}{\sum_{j=1}^{K} \exp(s_j)},$$
+</div>
+
+<p>where $s_k$ is the scalar from candidate $k$.</p>
+
+<div class="card">
+<strong>Why process each candidate independently?</strong>
+<ul>
+  <li>You don't need the model to <em>see all candidates at once</em>; you just need a
+    per-candidate score. Independence keeps sequence length bounded (it doesn't grow
+    with $K$).</li>
+  <li>It also makes the method trivially handle any number of candidates — entailment
+    treats it as binary (1 candidate), the Stories Cloze task has 2, RACE has 4. Same
+    code path.</li>
+  <li>The softmax over candidates is what couples them at the end: it normalizes the
+    scores so they compete for probability mass.</li>
+</ul>
+</div>
+
+<h3>Summary diagram</h3>
+
+<div class="ascii-diagram">
+   Task                     Input format                                    Output
+   ─────────────────────────────────────────────────────────────────────────────────
+   Classification           &lt;s&gt; text &lt;e&gt;                              softmax(h · W_y)
+   Entailment               &lt;s&gt; premise $ hypothesis &lt;e&gt;               softmax(h · W_y)
+   Similarity               &lt;s&gt; A $ B &lt;e&gt; ──┐
+                            &lt;s&gt; B $ A &lt;e&gt; ──┴─► sum ─► softmax(· W_y)
+   Multiple choice          &lt;s&gt; ctx $ q $ a_1 &lt;e&gt; ──► scalar s_1
+                            &lt;s&gt; ctx $ q $ a_2 &lt;e&gt; ──► scalar s_2     ──► softmax(s_1..K)
+                            ...                                            (over candidates)
+                            &lt;s&gt; ctx $ q $ a_K &lt;e&gt; ──► scalar s_K
+</div>
+
+<h3>Why this design wins</h3>
+
+<p>Take a step back. The achievement of §3.3 is that <em>none</em> of these tasks required
+modifying the architecture — no new attention mechanisms, no two-tower encoders, no span
+predictors. Everything happens via:</p>
+
+<ol>
+  <li>Concatenation with delimiters.</li>
+  <li>A choice of which token's hidden state to read out (always the <code>&lt;e&gt;</code>).</li>
+  <li>A small head: usually $W_y$ for classification logits, sometimes scalar projection
+    for ranking.</li>
+</ol>
+
+<p>So when you scale this up (GPT-2, GPT-3), you don't have to rewrite the model — you
+just invent new input templates. The seeds of "prompting" as a paradigm are visible
+here: <em>structure the input cleverly and let one fixed model do the work</em>.</p>
+
+<div class="card">
+<strong>Mental model after Section 3.3:</strong>
+<ul>
+  <li>Structured inputs → single ordered token stream, glued together with
+    <code>&lt;s&gt;</code> / <code>$</code> / <code>&lt;e&gt;</code>.</li>
+  <li>Classifier always reads the hidden state at <code>&lt;e&gt;</code>.</li>
+  <li>Symmetry constraints (similarity) are enforced by running both orderings and summing
+    hidden states.</li>
+  <li>Choice-style tasks score each option independently, then softmax over options.</li>
+  <li>Architecture stays fixed; <em>inputs</em> bend to the architecture, not the other
+    way around.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on Section 3.3? Likely candidates: <em>why use new special tokens rather than just
+reusing punctuation like periods</em>, <em>why does the scalar-per-candidate trick for MCQ
+work — wouldn't the model want to compare candidates against each other</em>, <em>are the
+delimiter embeddings learned from scratch or initialized from something</em>, <em>what
+about regression tasks (continuous output)</em>. Ask anything.
+</div>
+
+<hr>
+
+<!-- ============ DOUBT: DELIMITER EMBEDDINGS ============ -->
+<h2 id="doubts-33">Doubt answered — How do delimiter token embeddings get learned?</h2>
+
+<p><strong>Your question:</strong> The delimiter tokens $\langle s \rangle$, $\$$,
+$\langle e \rangle$ weren't in the pre-training data, so the model has never seen them.
+Their embeddings start as random vectors. How do they end up meaningful — and how does
+this not just produce garbage when injected into a model that's used to seeing only
+"natural" tokens?</p>
+
+<h3>The mechanism, step by step</h3>
+
+<p>Concretely, here's what happens:</p>
+
+<ol>
+  <li><strong>Before fine-tuning:</strong> Three new rows are appended to the embedding
+    matrix $W_e$. Each row is a fresh $d$-dimensional vector ($d = 768$), initialized
+    randomly (typically from $\mathcal{N}(0, \sigma^2)$ with small $\sigma$). Call these
+    rows $e_{\langle s\rangle}, e_\$, e_{\langle e\rangle}$.</li>
+  <li><strong>First forward pass:</strong> An example like
+    <code>&lt;s&gt; premise $ hypothesis &lt;e&gt;</code> is tokenized. The lookup pulls
+    out the random vectors for the new tokens and the pre-trained vectors for everything
+    else. They're all added to positional embeddings and fed into the Transformer stack.</li>
+  <li><strong>Loss computation:</strong> The model produces some prediction for the label
+    $y$; cross-entropy gives a loss. Plus the auxiliary LM loss $L_1$ on the input itself
+    (this matters — more below).</li>
+  <li><strong>Backprop:</strong> Gradients flow all the way back through the network into
+    the embedding table — specifically into the new rows
+    $e_{\langle s\rangle}, e_\$, e_{\langle e\rangle}$. Each is updated by SGD.</li>
+  <li><strong>Repeat:</strong> Every fine-tuning example contains <em>all three</em>
+    delimiters. So the new embeddings get a gradient update <em>at every single step</em>,
+    every batch, for the entire 3 epochs.</li>
+</ol>
+
+<h3>Why this works even with only thousands of labeled examples</h3>
+
+<p>Three things conspire to make this easy:</p>
+
+<h4>(a) Tiny number of parameters per new token</h4>
+
+<p>Each delimiter embedding is just $d = 768$ scalars. Across the three new tokens, that's
+$3 \times 768 = 2{,}304$ new parameters. Against ~117M total parameters and (say) 25,000
+labeled examples, this is a comically small fraction. The optimization problem "find a
+useful $\mathbb{R}^{768}$ vector" is dramatically easier than "train the whole network
+from scratch".</p>
+
+<h4>(b) Dense supervision: every example contains the delimiters</h4>
+
+<p>Contrast with a rare vocabulary word that might appear in 1 of every 1000 examples —
+its embedding gets updated maybe 25 times across a small dataset. The delimiters appear
+in <em>every</em> example, so by the end of fine-tuning they've been updated many thousands
+of times. They are the <em>most-supervised</em> tokens in the entire vocabulary during
+fine-tuning.</p>
+
+<h4>(c) The pre-trained model is robust to small perturbations</h4>
+
+<p>A pre-trained Transformer is a smooth (differentiable) function of its inputs. Injecting
+a random vector at one position is, locally, just a perturbation — it doesn't break the
+forward pass, it just produces somewhat-degraded predictions. Gradient descent then has a
+clear local signal: <em>"move $e_\$$ in the direction that reduces loss"</em>. There's no
+discontinuity or "needs to relearn the whole model from scratch" cliff — the optimization
+landscape around the random init is benign.</p>
+
+<h3>What the delimiter "becomes" in vector space</h3>
+
+<p>An interesting reframing: $e_\$$ doesn't need to encode rich semantic content like
+"this is a separator". It just needs to be a vector that, when injected at the right
+position, <em>triggers a useful change in downstream attention patterns</em>. The
+Transformer's attention layers will learn to <em>respond</em> to whatever $e_\$$ ends up
+being, the same way they responded to "ordinary" tokens during pre-training.</p>
+
+<p>In other words: the embedding and the rest of the model <em>co-adapt</em>. $e_\$$
+moves toward configurations the model can "see"; the model's attention biases shift
+slightly to respond to $e_\$$. The two meet in the middle.</p>
+
+<blockquote>
+Mental model: the delimiter isn't "learned to mean separator". It's learned to be a
+distinctive vector that <em>the attention heads downstream learn to react to as a
+separator</em>. The meaning is in the joint behavior, not in the token alone.
+</blockquote>
+
+<h3>The role of the auxiliary LM loss here</h3>
+
+<p>Recall the fine-tuning objective is $L_3 = L_2 + \lambda L_1$ — supervised loss plus
+auxiliary language-modeling loss. The LM loss includes the delimiters too: when the model
+is processing <code>&lt;s&gt; premise $ hypothesis &lt;e&gt;</code>, the LM loss asks it
+to predict $\$$ after the premise, and the first hypothesis token after $\$$, and so on.</p>
+
+<p>This is a second pressure on the delimiter embeddings: $e_\$$ must end up being
+<em>predictable from premise-like context</em> and must <em>enable predictions of
+hypothesis-like content that follows</em>. So even the LM side of the loss is shaping the
+delimiter into a sensible "boundary signal" — not just the supervised label loss. This is
+yet another reason the auxiliary LM loss helps during fine-tuning.</p>
+
+<h3>An almost-paradox to sit with</h3>
+
+<p>You started with: "the model has never seen this token, so its embedding starts as
+garbage." All of that is literally true. But by the end of fine-tuning, the delimiter
+embedding is <em>the most carefully-tuned token in the model</em> — updated more often
+than any other, pulled by two different losses, and embedded in a network whose
+attention heads have learned to wait for exactly that vector.</p>
+
+<p>The lesson: in deep learning, "never seen during pre-training" isn't a death sentence
+for an embedding. It just means fine-tuning has to do <em>all</em> the work for that
+particular vector — which, because it's only $d$ parameters and gets dense supervision,
+turns out to be cheap.</p>
+
+<div class="card">
+<strong>Compare with a related question:</strong> what if you skipped the delimiters
+entirely and just concatenated <code>premise hypothesis</code>? The paper has an
+ablation (§5.3) on this. Without delimiters performance drops measurably — the model
+struggles to tell where the premise ends and the hypothesis begins, especially when
+they're stylistically similar. So the delimiters do real work; their learned embeddings
+aren't decorative.
+</div>
+
+<div class="doubt">
+Doubts on this answer? Or proceed to §4 (Experiments) — datasets, pre-training corpus,
+and the headline result tables.
+</div>
+
+<hr>
+
+<!-- ============ PART 5 ============ -->
+<h2 id="part5">Part 5 — Section 4 (Experiments)</h2>
+
+<p>Section 4 splits into two halves: <strong>4.1 Setup</strong> (the corpus, model specs,
+training details) and <strong>4.2 Supervised fine-tuning</strong> (the actual benchmark
+results across 12 datasets).</p>
+
+<p>I'll skim the hyperparameter table and focus on the two parts that carry real
+intellectual content: the <em>choice of pre-training corpus</em> and the <em>pattern</em>
+of where they win on benchmarks.</p>
+
+<h3>4.1 — Setup</h3>
+
+<h4>The pre-training corpus, and why it matters</h4>
+
+<p>They use <strong>BooksCorpus</strong>: ~7,000 unpublished books across genres
+(adventure, fantasy, romance, etc.), totaling ~800M words. Important comparison they
+draw: an alternative they considered (and ELMo uses) is the <strong>1B Word Benchmark</strong>,
+which is bigger but is <em>sentence-shuffled</em> — sentences within each document are
+randomized.</p>
+
+<div class="card">
+<strong>Why BooksCorpus instead of 1B Word?</strong>
+<ul>
+  <li>Books contain <em>long stretches of contiguous text</em> — chapter-level coherence,
+    multi-paragraph arguments, plotlines that span hundreds of tokens.</li>
+  <li>The 1B Word Benchmark destroys exactly this structure by shuffling sentences within
+    documents.</li>
+  <li>If part of what makes pre-training useful is learning <em>long-range dependencies</em>,
+    you want a corpus that <em>has</em> them. The Transformer's whole advantage over LSTMs
+    is long-range modeling; pre-training on shuffled sentences would waste that capacity.</li>
+</ul>
+The paper later confirms (in §5.1) that the model genuinely benefits from this — its
+perplexity on the 1B Word Benchmark is competitive with prior models despite never
+training on shuffled data.
+</div>
+
+<p>This is the first principled "your data shapes what your model can learn" argument in
+the modern LM literature. It's a small note in the paper but a load-bearing one
+philosophically.</p>
+
+<h4>Model specs (the hyperparameter dump, condensed)</h4>
+
+<div class="card">
+<table>
+<tr><th>Spec</th><th>Value</th></tr>
+<tr><td>Transformer layers ($n$)</td><td>12 (decoder-only)</td></tr>
+<tr><td>Hidden dimension ($d$)</td><td>768</td></tr>
+<tr><td>Attention heads</td><td>12</td></tr>
+<tr><td>FFN inner dimension</td><td>3072</td></tr>
+<tr><td>Context window ($k$)</td><td>512 tokens</td></tr>
+<tr><td>Vocabulary</td><td>40,000 BPE merges</td></tr>
+<tr><td>Total parameters</td><td>~117M</td></tr>
+<tr><td>Optimizer</td><td>Adam, max lr $2.5 \times 10^{-4}$, cosine schedule</td></tr>
+<tr><td>Batch size</td><td>64 sequences × 512 tokens</td></tr>
+<tr><td>Pre-training duration</td><td>100 epochs over BooksCorpus</td></tr>
+<tr><td>Activation</td><td>GELU (Gaussian Error Linear Unit) instead of ReLU</td></tr>
+<tr><td>Positional embeddings</td><td>Learned (not sinusoidal)</td></tr>
+</table>
+</div>
+
+<p>Most of this is unsurprising — it's standard 2018 Transformer practice. Two things
+worth flagging:</p>
+
+<ul>
+  <li><strong>GELU, not ReLU.</strong> A subtle but persistent choice. GELU is a smoother
+    activation: $\text{GELU}(x) = x \cdot \Phi(x)$ where $\Phi$ is the standard-normal CDF.
+    It's roughly ReLU near $x \gg 0$ and roughly 0 near $x \ll 0$, but with a smooth
+    transition. Empirically slightly better than ReLU for Transformers, and every GPT
+    descendant has kept it.</li>
+  <li><strong>Adam with cosine LR schedule.</strong> Cosine decay from a peak value down
+    to 0 over training. Became the default for large pre-training runs after this paper.</li>
+</ul>
+
+<h3>4.2 — Results across 12 datasets</h3>
+
+<p>They evaluate on four task families. I'll give you the headline pattern for each
+rather than recite every number.</p>
+
+<h4>(a) Natural Language Inference — 5 datasets</h4>
+
+<p>NLI = given premise $p$ and hypothesis $h$, classify the relationship as
+<em>entailment</em>, <em>contradiction</em>, or <em>neutral</em>. Datasets: SNLI, MNLI,
+QNLI, SciTail, RTE.</p>
+
+<div class="card">
+<strong>Result:</strong> SOTA on 4 of 5 (loses only on RTE, which has 2,490 training
+examples — the smallest dataset). Biggest gain: <strong>+5.8% on SciTail</strong>
+(scientific reasoning), <strong>+1.5% on MNLI</strong>.
+<br><br>
+<strong>What it suggests:</strong> Pre-training transfers especially well to tasks that
+benefit from <em>long-range reasoning</em> across multiple sentences. SciTail and MNLI
+have diverse, multi-domain premises; the model's exposure to varied book text helps.
+</div>
+
+<h4>(b) Question Answering & Commonsense Reasoning — 2 datasets</h4>
+
+<p>Datasets: RACE (English exam-style reading comprehension) and Story Cloze (pick the
+right ending of a 4-sentence story).</p>
+
+<div class="card">
+<strong>Result:</strong> SOTA on both, by a wide margin.
+<ul>
+  <li>RACE: <strong>+5.7%</strong> over previous SOTA.</li>
+  <li>Story Cloze: <strong>+8.9%</strong> — the single biggest jump in the paper.</li>
+</ul>
+<strong>What it suggests:</strong> These tasks require integrating information across
+long passages (RACE) or modeling narrative coherence (Story Cloze). These are exactly
+the things you'd expect a model pre-trained on whole books to be good at. The size of
+these gains is the paper's strongest evidence that <em>the long-range structure of the
+pre-training corpus matters</em>.
+</div>
+
+<h4>(c) Semantic Similarity — 3 datasets</h4>
+
+<p>Datasets: MRPC (paraphrase), QQP (Quora question pairs), STS-B (continuous similarity
+score 0–5).</p>
+
+<div class="card">
+<strong>Result:</strong> SOTA on 2 of 3 (MRPC and STS-B). Modest loss on QQP. Gains are
+smaller here than on NLI/QA — perhaps because similarity is a more "local" task that
+benefits less from long-context pre-training.
+</div>
+
+<h4>(d) Classification — 2 datasets</h4>
+
+<p>Datasets: CoLA (linguistic acceptability) and SST-2 (binary sentiment).</p>
+
+<div class="card">
+<strong>Result:</strong>
+<ul>
+  <li>CoLA: <strong>+10.4 points</strong> in Matthews correlation (45.4 → 55.4). A huge
+    jump on a notoriously hard "is this sentence grammatical?" task.</li>
+  <li>SST-2: 91.3% vs. SOTA 93.2%. Slight loss. Sentiment is a saturated benchmark — hard
+    to beat task-specific architectures that have been tuned for years.</li>
+</ul>
+<strong>What it suggests:</strong> Pre-training delivers very large gains where prior
+methods had little to work with (CoLA: tiny labeled data, requires deep linguistic
+intuition), and competitive but not always winning numbers where prior methods are mature.
+</div>
+
+<h3>Overall scorecard</h3>
+
+<div class="ascii-diagram">
+   Task family               Datasets     SOTA wins       Average gain
+   ─────────────────────────────────────────────────────────────────────
+   NLI                       5            4               ~+2.5%
+   QA / Commonsense          2            2               ~+7%   (biggest)
+   Semantic similarity       3            2               ~+1%
+   Classification            2            1               ~+5%
+   ─────────────────────────────────────────────────────────────────────
+   Total                    12            9               clear wins
+</div>
+
+<h3>The interpretive thread running through 4.2</h3>
+
+<p>Step back from the individual numbers. The pattern is:</p>
+
+<ol>
+  <li>Largest gains on tasks needing <strong>multi-sentence integration</strong> (Story
+    Cloze, RACE, MNLI).</li>
+  <li>Substantial gains on tasks with <strong>small labeled datasets</strong> (CoLA,
+    SciTail, RTE) — pre-training does the work that small labeled sets can't.</li>
+  <li>Smaller gains (sometimes losses) on tasks that are <strong>local</strong> and have
+    <strong>large mature baselines</strong> (SST-2, QQP).</li>
+</ol>
+
+<p>That tells a coherent story: pre-training contributes most where the structure of the
+pre-training data (long, coherent text) most overlaps with the structure of the downstream
+task. It's not a magic universal boost; it's specifically a boost to long-range linguistic
+competence.</p>
+
+<div class="card">
+<strong>Mental model after Section 4:</strong>
+<ul>
+  <li>Pre-training corpus choice matters: BooksCorpus → long-range structure → transfer to
+    tasks needing long-range reasoning.</li>
+  <li>117M-parameter decoder-only Transformer, 12 layers, $d = 768$, GELU activations.</li>
+  <li>SOTA on 9 of 12 benchmarks, biggest wins on commonsense/QA where long-context
+    matters most.</li>
+  <li>Losses concentrate where prior methods are mature or tasks are local.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on Section 4? Or move to <strong>§5 (Analysis)</strong>, which is the most
+interesting section in the paper — it has the ablations (does layer count matter? does
+the auxiliary LM loss matter? does pre-training matter at all?), the zero-shot behaviors
+exhibit, and the LSTM-vs-Transformer comparison.
+</div>
+
+<hr>
+
+<!-- ============ SIDE: BATCHES ============ -->
+<h2 id="side-batches">Side concept — What are batches, and why train in them?</h2>
+
+<p>A <strong>batch</strong> is a subset of training examples that you process together for
+one gradient update. The training loop looks like:</p>
+
+<pre>for each batch in training_data:
+    1. forward-pass the batch through the model
+    2. compute the average loss over the batch
+    3. backprop to get the gradient
+    4. take one optimizer step (e.g. Adam update)</pre>
+
+<p>So "training" really means: chop the dataset into batches → loop → one step per batch.
+Why this particular structure? To answer that, look at the two extremes and see why each
+is bad.</p>
+
+<h3>The two extremes (and why neither wins)</h3>
+
+<h4>Extreme A: batch size = 1 (pure stochastic gradient descent)</h4>
+
+<p>Take one training example, compute its loss, compute the gradient, update parameters,
+move on. Repeat for every example.</p>
+
+<ul>
+  <li><strong>Pro:</strong> Each step is cheap — only one forward and one backward pass.</li>
+  <li><strong>Con (math):</strong> The gradient of a single example is a very noisy
+    estimate of the true gradient of the full loss. The optimizer ends up taking lots of
+    steps in random-ish directions, partly cancelling each other out.</li>
+  <li><strong>Con (hardware):</strong> Modern GPUs are <em>vector processors</em> — they
+    multiply a $1024 \times 1024$ matrix in roughly the same wall time as a
+    $1 \times 1024$ matrix. Processing one example at a time leaves ~99% of GPU compute
+    idle.</li>
+</ul>
+
+<h4>Extreme B: batch size = entire dataset (full-batch gradient descent)</h4>
+
+<p>Compute the loss summed over <em>every</em> training example, get the exact gradient,
+take one step. Repeat.</p>
+
+<ul>
+  <li><strong>Pro:</strong> Each step uses the true gradient of the loss — no noise, in
+    principle the fastest path toward a minimum (per step).</li>
+  <li><strong>Con (memory):</strong> To backprop, you have to hold the forward-pass
+    activations of every example in memory. For BooksCorpus this would be tens of GB of
+    activations per layer per step. Doesn't fit in any GPU.</li>
+  <li><strong>Con (steps):</strong> One parameter update per pass over the entire dataset.
+    On 800M tokens, that's catastrophically few updates. Models converge by total number
+    of updates, not wall-clock time.</li>
+  <li><strong>Con (generalization):</strong> Empirically, full-batch GD tends to converge
+    to <em>sharp</em> minima that don't generalize well. Some gradient noise is actually
+    useful — more on this below.</li>
+</ul>
+
+<h3>Mini-batch: the sweet spot</h3>
+
+<p>Take a batch of $B$ examples — somewhere between 1 and "the whole dataset" — and do
+gradient descent on the average loss over the batch.</p>
+
+<div class="formula">
+$$\nabla L_{\text{batch}}(\theta) \;=\; \frac{1}{B} \sum_{i=1}^{B} \nabla \ell(\theta, x_i).$$
+</div>
+
+<p>This single design choice does four useful things at once.</p>
+
+<h4>1. Variance reduction (the math reason)</h4>
+
+<p>If each per-example gradient $\nabla \ell(\theta, x_i)$ is an unbiased estimator of the
+true gradient $\nabla L(\theta) = \mathbb{E}_x[\nabla \ell(\theta, x)]$ with variance
+$\sigma^2$, then the batch-average gradient is also unbiased, with variance:</p>
+
+<div class="formula">
+$$\operatorname{Var}\bigl(\nabla L_{\text{batch}}\bigr) \;=\; \frac{\sigma^2}{B}.$$
+</div>
+
+<p>So increasing $B$ from 1 to 32 cuts gradient-direction variance by 32×. Less noise →
+the optimizer takes more useful steps → you can use a larger learning rate without
+diverging.</p>
+
+<p>This is also why diminishing returns kick in: going from $B = 1$ to $B = 32$ cuts
+variance by 32×, but going from $B = 32$ to $B = 1024$ only cuts the <em>remaining</em>
+noise. Cost grows linearly in $B$; gradient-quality benefit grows as $1/\sqrt{B}$ in
+standard deviation. Past some point you're paying more compute for tiny quality gains.</p>
+
+<h4>2. Hardware efficiency (the GPU reason)</h4>
+
+<p>GPUs do matrix multiplications in parallel via thousands of cores. Multiplying a
+$B \times d$ matrix by a $d \times d$ matrix takes <em>almost the same wall time</em> for
+$B = 1$ as for $B = 64$, up to the point where you saturate the GPU's parallelism. So if
+processing 64 examples is ~free compared to processing 1, you should always batch up to
+that saturation point.</p>
+
+<p>This is what people mean by "GPUs love batches": the per-example cost shrinks
+dramatically with batching, because the same matmul amortizes over more rows.</p>
+
+<h4>3. Memory budget (the constraint that picks the actual number)</h4>
+
+<p>Memory cost of one batch scales as $O(B \cdot \text{model activations})$. For a 117M-parameter
+Transformer with 512-token contexts, that activation footprint per example is already
+hundreds of MB. So in practice, batch size is set by:</p>
+
+<div class="formula">
+$$B_{\max} \;=\; \left\lfloor \frac{\text{available GPU memory} - \text{model size}}{\text{activations per example}} \right\rfloor.$$
+</div>
+
+<p>For GPT-1, this lands at <strong>64 sequences × 512 tokens = 32,768 tokens per batch</strong>
+during pre-training, and <strong>32 examples per batch</strong> during fine-tuning. Both
+are picked to maximize GPU utilization without OOM-ing.</p>
+
+<h4>4. Implicit regularization (the surprising one)</h4>
+
+<p>Empirically, the noise injected by mini-batching <em>helps generalization</em>. Two
+heuristic stories:</p>
+
+<ul>
+  <li><strong>Flat-vs-sharp minima.</strong> The loss landscape has many local minima.
+    Sharp minima (narrow valleys) typically generalize worse than flat minima (wide
+    basins). Noisy gradients can't "settle into" sharp minima — they get bounced out —
+    so SGD with smaller batches preferentially finds flat minima.</li>
+  <li><strong>Stochastic exploration.</strong> Each batch sees slightly different
+    examples, so the model can't memorize one particular gradient direction; it has to
+    find parameters that work across many batches.</li>
+</ul>
+
+<p>This is why, in practice, very large batch sizes sometimes <em>hurt</em> downstream
+performance even though they have more accurate gradients — the noise was doing useful
+regularization work.</p>
+
+<h3>What "1 epoch" means in this picture</h3>
+
+<p>Once you've fixed batch size $B$, you can count steps:</p>
+
+<div class="formula">
+$$\text{steps per epoch} \;=\; \frac{\text{dataset size}}{B}, \qquad \text{total steps} \;=\; \text{epochs} \times \frac{\text{dataset size}}{B}.$$
+</div>
+
+<p>For GPT-1: ~800M tokens / 32,768 tokens-per-batch ≈ 24,400 steps per epoch, × 100
+epochs ≈ 2.4M total parameter updates. That's the real "training duration" — the number
+of times $\theta$ gets nudged.</p>
+
+<div class="card">
+<strong>Tying it back to the paper:</strong>
+<ul>
+  <li><em>Attention Is All You Need</em> also trained in batches (~25k source tokens per
+    batch). Vaswani et al. just didn't make a thing of it because it's universal practice.</li>
+  <li>GPT-1's batch sizes (64 pre-training / 32 fine-tuning) are picked by GPU memory.</li>
+  <li>Modern LLMs (GPT-3, etc.) use much larger batches — millions of tokens — because
+    they're sharded across thousands of GPUs. Same math, just more hardware.</li>
+</ul>
+</div>
+
+<div class="card">
+<strong>Mental model — three roles of "batch size":</strong>
+<ol>
+  <li><strong>Statistical:</strong> larger $B$ → lower gradient variance ($\sigma^2/B$) →
+    can use larger learning rates.</li>
+  <li><strong>Computational:</strong> $B$ is picked to maximize GPU utilization without
+    OOM-ing. Hardware sets the ceiling.</li>
+  <li><strong>Regularization:</strong> some gradient noise is useful for generalization,
+    so the optimal $B$ is bounded above by more than just memory.</li>
+</ol>
+The "right" batch size is a balance of all three. The 32–64 range was a typical 2018
+single-GPU sweet spot.
+</div>
+
+<div class="doubt">
+Doubts on batches? Or back to the paper — §5 (Analysis) next.
+</div>
+
+<hr>
+
+<!-- ============ SIDE: OPTIMIZERS ============ -->
+<h2 id="side-optimizers">Side concept — SGD vs Adam, and the broader optimizer landscape</h2>
+
+<p>Best way to understand this is as a <em>sequence of fixes</em>: SGD is the foundation,
+and each subsequent optimizer (momentum, AdaGrad, RMSProp, Adam, AdamW, …) was invented
+to address a specific failure mode of the one before. None of them are "outdated" —
+they're each appropriate in different regimes.</p>
+
+<p>Notation throughout: let $g_t = \nabla L(\theta_t)$ be the mini-batch gradient at step
+$t$, and $\eta$ be the learning rate.</p>
+
+<h3>1. SGD — the baseline</h3>
+
+<div class="formula">
+$$\theta_{t+1} \;=\; \theta_t \;-\; \eta \, g_t.$$
+</div>
+
+<p>Just walk in the direction of steepest descent of the batch loss. Simple, well-understood,
+provably converges under standard conditions.</p>
+
+<p><strong>Failure mode:</strong> in a loss landscape with a long narrow valley (a "ravine"
+— one direction has a steep slope, an orthogonal direction has a shallow slope), SGD
+oscillates wildly across the steep direction while making slow progress along the shallow
+one. It's also slow on directions where the gradient is consistently small.</p>
+
+<h3>2. SGD + momentum — fix oscillation in ravines</h3>
+
+<p>Add a "velocity" term that's an exponential moving average of past gradients:</p>
+
+<div class="formula">
+$$v_{t+1} \;=\; \beta \, v_t \;+\; g_t, \qquad
+\theta_{t+1} \;=\; \theta_t \;-\; \eta \, v_{t+1}.$$
+</div>
+
+<p>Typical $\beta = 0.9$. Intuition: in oscillating directions, successive $g_t$ point
+opposite ways and cancel in the EMA; in consistent directions, they accumulate. So
+momentum <em>dampens noise across iterations</em> and <em>accelerates along consistent
+gradient directions</em>.</p>
+
+<p>Physical analogy: think of a ball rolling down a hill (rather than a point teleporting
+in the gradient direction). The ball has inertia; it can't reverse instantly.</p>
+
+<h3>3. AdaGrad — fix the "different parameters need different learning rates" problem</h3>
+
+<p>A second failure of SGD: some parameters have large gradients (they get updated a lot),
+some have small ones (barely move). One global $\eta$ is too small for small-gradient
+parameters and too large for large-gradient parameters.</p>
+
+<p>AdaGrad gives each parameter its own learning rate, inversely scaled by the
+<em>cumulative</em> squared gradient seen so far:</p>
+
+<div class="formula">
+$$G_t \;=\; G_{t-1} + g_t^2 \qquad \text{(elementwise)}, \qquad
+\theta_{t+1} \;=\; \theta_t \;-\; \frac{\eta}{\sqrt{G_t} + \epsilon} \, g_t.$$
+</div>
+
+<p>Parameters that have received large gradients in the past get smaller effective
+learning rates; parameters that have rarely been updated get larger ones.</p>
+
+<p><strong>Failure mode:</strong> $G_t$ grows monotonically. As training progresses, all
+effective learning rates decay toward zero and training stalls — even when there's still
+loss to be reduced.</p>
+
+<h3>4. RMSProp — fix AdaGrad's vanishing learning rate</h3>
+
+<p>Replace the cumulative sum with an exponential moving average, which doesn't grow
+unboundedly:</p>
+
+<div class="formula">
+$$G_t \;=\; \beta_2 \, G_{t-1} + (1-\beta_2) \, g_t^2, \qquad
+\theta_{t+1} \;=\; \theta_t \;-\; \frac{\eta}{\sqrt{G_t} + \epsilon} \, g_t.$$
+</div>
+
+<p>Typical $\beta_2 = 0.999$. Now $G_t$ tracks the <em>recent</em> magnitude of squared
+gradients, so the effective learning rate stays adapted to current conditions instead of
+collapsing.</p>
+
+<h3>5. Adam — combine momentum + RMSProp</h3>
+
+<p>Adam (2014) is the most-used optimizer in deep learning because it just combines the
+two ideas above. It tracks both a first moment (EMA of gradients = momentum) and a second
+moment (EMA of squared gradients = RMSProp):</p>
+
+<div class="formula">
+$$
+\begin{aligned}
+m_t &= \beta_1 \, m_{t-1} + (1-\beta_1)\, g_t \\[2pt]
+v_t &= \beta_2 \, v_{t-1} + (1-\beta_2)\, g_t^2 \\[6pt]
+\hat{m}_t &= \frac{m_t}{1 - \beta_1^t}, \qquad \hat{v}_t = \frac{v_t}{1 - \beta_2^t} \quad \text{(bias correction)} \\[6pt]
+\theta_{t+1} &= \theta_t - \frac{\eta}{\sqrt{\hat{v}_t} + \epsilon}\, \hat{m}_t.
+\end{aligned}
+$$
+</div>
+
+<p>Defaults: $\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}$.</p>
+
+<div class="card">
+<strong>Why the bias correction?</strong>
+At step 1, $m_1 = (1 - \beta_1) g_1$, which is much smaller than $g_1$ (since
+$\beta_1 = 0.9$ → $m_1 = 0.1 g_1$). The EMA "starts at zero" and takes many steps to
+warm up. Dividing by $1 - \beta_1^t$ undoes this — for $t=1$, divide by $0.1$ →
+$\hat{m}_1 = g_1$, exactly the gradient. As $t \to \infty$, $\beta_1^t \to 0$ and the
+correction factor vanishes. So $\hat{m}_t$ is an <em>unbiased</em> estimate of the EMA
+at every step.
+</div>
+
+<p><strong>Why Adam dominates deep learning:</strong></p>
+<ul>
+  <li><strong>Adaptive:</strong> per-parameter learning rates handle the wildly different
+    gradient magnitudes across millions of parameters.</li>
+  <li><strong>Robust to hyperparameters:</strong> the default $(\beta_1, \beta_2, \epsilon)$
+    work for almost everything; you only really need to tune $\eta$.</li>
+  <li><strong>Fast convergence:</strong> works well on noisy, non-stationary objectives
+    (which language modeling absolutely is).</li>
+</ul>
+
+<h3>6. AdamW — fix Adam's weight decay bug</h3>
+
+<p>Adam has a subtle issue with L2 regularization. The "standard" way of adding L2 is to
+augment the loss: $L'(\theta) = L(\theta) + \frac{\lambda}{2}\|\theta\|^2$. This adds
+$\lambda \theta$ to the gradient. But Adam then <em>scales that term</em> by
+$1 / \sqrt{\hat{v}_t}$, so parameters with large second-moment estimates get
+<em>less</em> weight decay applied — which isn't what you want.</p>
+
+<p>AdamW (Loshchilov & Hutter, 2017) fixes this by <em>decoupling</em> weight decay from
+the gradient:</p>
+
+<div class="formula">
+$$\theta_{t+1} \;=\; \theta_t \;-\; \eta \left( \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} \;+\; \lambda \, \theta_t \right).$$
+</div>
+
+<p>Now weight decay is applied uniformly regardless of gradient history. This is
+<strong>the optimizer GPT-2, GPT-3, GPT-4, LLaMA, and basically every modern LLM uses</strong>.
+GPT-1 itself just uses Adam (this paper predates AdamW by a few months).</p>
+
+<h3>Where SGD is still alive</h3>
+
+<p>SGD (with momentum) is <em>not</em> outdated. It's still the standard in:</p>
+
+<ul>
+  <li><strong>Computer vision / ConvNets.</strong> ResNets, EfficientNets, etc. are
+    typically trained with SGD+momentum + a careful learning rate schedule. SGD tends to
+    find flatter minima that generalize better on image tasks.</li>
+  <li><strong>Reinforcement learning</strong> often uses SGD or RMSProp for the policy
+    network.</li>
+  <li><strong>Small-scale or fine-tuning</strong> sometimes prefers SGD for its
+    regularization properties.</li>
+</ul>
+
+<p>So the rule of thumb is: <strong>transformers and LLMs → AdamW; convnets → SGD+momentum;
+everything else → try both</strong>.</p>
+
+<h3>What's beyond Adam? (the current frontier)</h3>
+
+<p>Several newer optimizers are seeing real adoption for large-scale training:</p>
+
+<div class="card">
+<table>
+<tr><th>Optimizer</th><th>Year</th><th>Idea</th><th>Status</th></tr>
+<tr><td><strong>LAMB</strong></td><td>2019</td><td>Layer-wise adaptive LRs; designed for very large batches (BERT was trained with LAMB at 32k batch size)</td><td>Used for large-batch pretraining</td></tr>
+<tr><td><strong>Shampoo</strong></td><td>2018+</td><td>Approximate second-order method (uses curvature, not just gradient). Much more memory-hungry but faster per step.</td><td>Used at Google for some large models</td></tr>
+<tr><td><strong>Lion</strong></td><td>2023</td><td>Discovered by symbolic search. Just uses the <em>sign</em> of an EMA of gradients — no second moment, simpler than Adam, often matches or beats AdamW with less memory.</td><td>Gaining traction</td></tr>
+<tr><td><strong>SOAP</strong></td><td>2024</td><td>Hybrid of Shampoo and Adam — Shampoo's curvature info applied in a transformed basis where Adam works well.</td><td>Research, promising</td></tr>
+<tr><td><strong>Muon</strong></td><td>2024</td><td>Matrix-aware update: applies an orthogonalization step to gradient matrices before stepping. Beats AdamW on transformer training, particularly at scale.</td><td>Hot, being adopted in production training (e.g. Kimi K2)</td></tr>
+</table>
+</div>
+
+<p>None of these have replaced AdamW as <em>the</em> default, but they're real
+competitors. The story is that the optimizer landscape is still active research — there's
+no reason to think Adam is the endpoint.</p>
+
+<h3>Big picture</h3>
+
+<div class="ascii-diagram">
+          SGD                 (raw gradient descent)
+            │
+            ▼  + EMA of gradient
+       SGD + momentum         (smoother trajectory, faster in ravines)
+            │
+            ▼  + per-parameter LR ÷ √(cumsum of g²)
+         AdaGrad               (adaptive but LR collapses)
+            │
+            ▼  cumsum → EMA
+         RMSProp               (adaptive LR that doesn't die)
+            │
+            ▼  + momentum + bias correction
+          Adam                 (deep learning's workhorse, 2014)
+            │
+            ▼  decouple weight decay
+         AdamW                 (the LLM default, 2017)
+            │
+            ▼  matrix-aware updates, sign-based, curvature, etc.
+   Lion / Muon / SOAP / …      (active research, 2023–)
+</div>
+
+<div class="card">
+<strong>Mental model:</strong>
+<ul>
+  <li>An optimizer is just a rule for turning gradients into parameter updates.</li>
+  <li>SGD is the simplest such rule. Everything else adds one of two things:
+    <em>history</em> (momentum / EMAs) or <em>per-parameter scaling</em>.</li>
+  <li>Adam = both of those at once. AdamW = Adam done correctly with weight decay.</li>
+  <li>"Outdated" is the wrong frame — different optimizers suit different problems.
+    Modern LLMs use AdamW; convnets often still use SGD+momentum.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on optimizers? Or back to §5 (Analysis) of the paper.
+</div>
+
+<hr>
+
+<!-- ============ SIDE: ACTIVATIONS ============ -->
+<h2 id="side-activations">Side concept — What is an "activation"?</h2>
+
+<h3>Definition</h3>
+
+<p>An <strong>activation</strong> is any intermediate value computed during the forward
+pass of a neural network. Concretely: the output of every layer, sub-layer, and
+operation. Anything that isn't a fixed model parameter and isn't the input — it's an
+activation.</p>
+
+<p>The name is historical: in the early days of neural networks, the canonical operation
+was "compute $\sigma(Wx + b)$" where $\sigma$ was a sigmoid "activation function". The
+output of that function was the neuron's "activation level". The term stuck and now
+covers <em>any</em> intermediate tensor, even ones that don't involve an explicit
+nonlinearity.</p>
+
+<div class="card">
+<strong>Three categories of tensors in a neural network — keep these straight:</strong>
+<table>
+<tr><th>Category</th><th>Examples</th><th>Memory role</th></tr>
+<tr><td><strong>Parameters</strong></td><td>$W_e$, attention weights $W_Q, W_K, W_V$, FFN weights</td><td>Fixed cost — one copy regardless of batch size or sequence length</td></tr>
+<tr><td><strong>Inputs</strong></td><td>The token IDs you feed in</td><td>Tiny — just integers</td></tr>
+<tr><td><strong>Activations</strong></td><td>Embedding outputs, attention scores, softmax outputs, layer outputs, FFN intermediate values</td><td>Scales with batch size × sequence length × hidden dim</td></tr>
+</table>
+</div>
+
+<h3>Why activations must be stored (the backprop reason)</h3>
+
+<p>You might wonder: why not just compute activations, use them, and throw them away? The
+answer is <em>backpropagation needs them</em>. The chain rule for derivatives requires
+intermediate values.</p>
+
+<p>Take the simplest example: a linear layer $y = W x$. During the backward pass, you want
+$\partial L / \partial W$. The chain rule gives:</p>
+
+<div class="formula">
+$$\frac{\partial L}{\partial W} \;=\; \frac{\partial L}{\partial y} \, x^\top.$$
+</div>
+
+<p>To compute this gradient, you need $x$ — the <em>input</em> to that layer, which is the
+<em>activation</em> of the previous layer. So during the forward pass, you must save $x$.
+You can't recompute it on demand without re-running the forward pass.</p>
+
+<p>For an entire network with $L$ layers, you must save the activations at <em>every</em>
+layer, because each layer's gradient computation needs that layer's input. This is the
+fundamental reason activation memory is huge.</p>
+
+<h3>What activations actually live inside a Transformer block</h3>
+
+<p>Let's enumerate them for one Transformer block, processing one batch of shape
+$B \times T \times d$ (batch, sequence length, hidden dim).</p>
+
+<div class="ascii-diagram">
+   For each Transformer block:
+
+   input x                            ──►  shape  B × T × d         saved
+     │
+     ├─ LayerNorm(x)                  ──►  shape  B × T × d         saved
+     │
+     ├─ Q = · W_Q                     ──►  shape  B × T × d         saved
+     ├─ K = · W_K                     ──►  shape  B × T × d         saved
+     ├─ V = · W_V                     ──►  shape  B × T × d         saved
+     │
+     ├─ attn scores = Q K^T / √d_k    ──►  shape  B × H × T × T     saved  ★
+     ├─ attn probs  = softmax(scores) ──►  shape  B × H × T × T     saved  ★
+     ├─ context = attn · V            ──►  shape  B × T × d         saved
+     │
+     ├─ residual + LayerNorm          ──►  shape  B × T × d         saved
+     │
+     ├─ FFN hidden = · W_1 (+ GELU)   ──►  shape  B × T × 4d        saved  ★
+     ├─ FFN output = · W_2            ──►  shape  B × T × d         saved
+     │
+     └─ residual + LayerNorm          ──►  shape  B × T × d         saved
+                                          (output of block)
+</div>
+
+<p>The three starred tensors are the big ones:</p>
+<ul>
+  <li><strong>Attention scores / probs ($B \times H \times T \times T$)</strong> — these
+    are <em>quadratic</em> in sequence length. For $T = 512$ this is $262{,}144$ entries
+    per head per example; for $T = 2048$ it's 4.2M. This is the famous "$O(T^2)$ attention
+    memory" problem that motivates Flash Attention, sliding-window attention, etc.</li>
+  <li><strong>FFN intermediate ($B \times T \times 4d$)</strong> — Transformers
+    conventionally use an FFN expansion of 4× the hidden dim, so this is the
+    widest-per-position tensor in the network.</li>
+</ul>
+
+<h3>Concrete memory math for GPT-1</h3>
+
+<p>GPT-1: $L = 12$ layers, $T = 512$, $d = 768$, $H = 12$, FFN inner = $3072$. Per example
+(setting $B = 1$ for now), the activation footprint per layer is roughly:</p>
+
+<table>
+<tr><th>Tensor</th><th>Shape (per example)</th><th>Float count</th></tr>
+<tr><td>Hidden states (a few of them)</td><td>$T \times d = 512 \times 768$</td><td>~0.4M each</td></tr>
+<tr><td>Attention scores + probs</td><td>$H \times T^2 = 12 \times 512^2$</td><td>~3.1M total</td></tr>
+<tr><td>FFN intermediate</td><td>$T \times 4d = 512 \times 3072$</td><td>~1.6M</td></tr>
+<tr><td><strong>Total per layer</strong></td><td></td><td><strong>~6–8M floats</strong></td></tr>
+</table>
+
+<p>Across 12 layers: ~80M floats per example, × 4 bytes (FP32) = ~320 MB per example.</p>
+
+<p>Now multiply by batch size 64: <strong>~20 GB of activations</strong>. (FP16/bfloat16
+halves this to ~10 GB.) That's why batch size is memory-constrained — and why "activations
+per example" is the term used when you do the memory budget arithmetic for picking a
+batch size.</p>
+
+<div class="card">
+<strong>For comparison, what does parameter memory look like?</strong>
+117M params × 4 bytes = ~470 MB for the weights themselves. Adam stores two extra moments
+($m$ and $v$) per parameter, so optimizer state adds another ~940 MB. Total parameter +
+optimizer memory: ~1.4 GB. <em>Constant</em> regardless of batch size.
+<br><br>
+So in GPT-1: parameters are ~1.4 GB (fixed), activations are ~20 GB (scales with batch).
+Activations dominate. This is true for almost every Transformer training run.
+</div>
+
+<h3>The trick: gradient checkpointing</h3>
+
+<p>Worth knowing because it's universal in modern LLM training. The memory cost above
+comes from saving every activation during forward so backprop can use them. What if you
+saved only <em>some</em> activations and recomputed the rest during backward?</p>
+
+<p>That's <strong>gradient checkpointing</strong> (a.k.a. activation checkpointing). You
+checkpoint every $k$ layers; during backward, you redo $k-1$ forward passes from the
+nearest checkpoint to reconstruct the needed activations. You trade <em>compute</em> for
+<em>memory</em> — typically saving 5–10× memory at the cost of ~33% extra compute.</p>
+
+<p>This is how GPT-2, GPT-3, etc. fit into GPU memory at all despite having billions of
+parameters and 1000+ token contexts. Worth knowing the term exists.</p>
+
+<h3>Back to where the term came up</h3>
+
+<p>When I said "memory cost of one batch scales as $O(B \cdot \text{activations per
+example})$", what I meant was:</p>
+<ul>
+  <li>Each example contributes its own set of intermediate tensors (hidden states,
+    attention matrices, FFN intermediates).</li>
+  <li>These tensors must all be kept around for backprop.</li>
+  <li>Total memory = batch size × per-example activation footprint.</li>
+  <li>So batch size is set by: <em>(available GPU memory − parameter+optimizer memory) ÷
+    activations per example</em>.</li>
+</ul>
+
+<div class="card">
+<strong>Mental model:</strong>
+<ul>
+  <li>An activation = any intermediate tensor produced by the forward pass (not a
+    parameter, not a raw input).</li>
+  <li>They <em>must</em> be saved because backprop's chain rule needs them.</li>
+  <li>Their memory cost scales with batch size and sequence length — unlike parameters,
+    which are fixed.</li>
+  <li>In Transformers, the biggest activations are the $T \times T$ attention matrices
+    (quadratic in sequence length) and the $T \times 4d$ FFN intermediates.</li>
+  <li>Gradient checkpointing trades extra compute for less activation memory.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on activations? Or back to the paper — §5 (Analysis) is still on deck.
+</div>
+
+<hr>
+
+<!-- ============ PART 6 ============ -->
+<h2 id="part6">Part 6 — Section 5.1 (Impact of Number of Layers Transferred)</h2>
+
+<p>Section 5 is the paper's "why does this work?" section. It runs three investigations,
+each answering a different question:</p>
+
+<ul>
+  <li><strong>5.1</strong> — How much do the <em>deep</em> layers of the pre-trained
+    Transformer contribute? Is pre-training learning rich representations at every layer,
+    or just at the embedding layer (like word2vec)?</li>
+  <li><strong>5.2</strong> — Can the pre-trained model do tasks <em>without any
+    fine-tuning at all</em>? (Spoiler: yes, somewhat — this is the seed of GPT-2/3-style
+    zero-shot prompting.)</li>
+  <li><strong>5.3</strong> — Ablations: which design choices actually matter? Auxiliary
+    LM loss? Transformer vs LSTM? Pre-training at all?</li>
+</ul>
+
+<p>We're doing §5.1 only. Then you pull the next.</p>
+
+<h3>The question</h3>
+
+<p>Pre-training produces 12 layers of weights. Are <em>all</em> of them useful when
+transferred? Or does most of the benefit come from just the embedding layer (which is all
+that word2vec / GloVe gave you)?</p>
+
+<p>This matters because there are two possible stories about why pre-training helps:</p>
+
+<ol>
+  <li><strong>"It's just better embeddings."</strong> Pre-training learns good token
+    vectors at the input; the deeper layers don't carry transferable knowledge, they just
+    get re-purposed by fine-tuning.</li>
+  <li><strong>"Every layer is doing real work."</strong> Each pre-trained layer encodes
+    progressively more abstract linguistic structure (syntax → semantics → discourse),
+    and all of it transfers usefully to downstream tasks.</li>
+</ol>
+
+<p>The experiment in §5.1 is designed to distinguish these.</p>
+
+<h3>The experiment</h3>
+
+<p>Vary how many of the 12 pre-trained layers you transfer. For each setting $k \in
+\{0, 1, 2, \ldots, 12\}$:</p>
+
+<ul>
+  <li>Initialize the bottom $k$ layers from pre-training.</li>
+  <li>Initialize the remaining $12 - k$ layers <em>randomly</em>.</li>
+  <li>Fine-tune the whole thing on the target task.</li>
+  <li>Measure performance.</li>
+</ul>
+
+<p>$k = 0$ means "no pre-training transfer at all" — equivalent to training a Transformer
+from scratch on the labeled task. $k = 12$ means "transfer everything" — the standard
+setup.</p>
+
+<p>They run this for two tasks: <strong>MultiNLI</strong> (entailment, 393k examples) and
+<strong>RACE</strong> (reading comprehension, 88k examples).</p>
+
+<h3>The result (Figure 2, left panel)</h3>
+
+<p>Performance increases roughly <em>monotonically</em> with the number of transferred
+layers. Each additional pre-trained layer adds measurable performance.</p>
+
+<div class="ascii-diagram">
+   Performance (accuracy) vs. number of pre-trained layers transferred
+   (sketch of Figure 2, left)
+
+        ▲
+   88   │                                              ●  MultiNLI
+        │                                          ●
+        │                                      ●
+   84   │                                  ●
+        │                              ●
+        │                          ●
+   80   │                      ●
+        │                  ●               ●  RACE
+        │              ●               ●
+   76   │          ●               ●
+        │      ●               ●
+        │  ●               ●
+   72   │              ●
+        │          ●
+        │  k=0: random ───►       ◄─── k=12: fully transferred
+        └────────────────────────────────────────────────►
+            0    2    4    6    8   10   12
+                  # pre-trained layers transferred
+
+   MultiNLI: transferring all 12 layers gives ~9% absolute gain over k=0.
+   RACE:     transferring all 12 layers gives ~5.5% absolute gain over k=0.
+</div>
+
+<p>(Sketch numbers from Figure 2, left. The actual numbers reported in the paper text:
+"each transformer layer provides further benefits up to 9% on MultiNLI for full transfer".)</p>
+
+<h3>What this tells us</h3>
+
+<div class="card">
+<strong>Story 2 wins.</strong> Every pre-trained layer contributes — not just the
+embedding. This is the empirical evidence that pre-training is learning
+<em>hierarchical</em> linguistic structure across the depth of the Transformer, not just
+better word vectors.
+<br><br>
+In other words: GPT-1's pre-training is genuinely a deeper kind of representation learning
+than word2vec. word2vec gave you one vector per word; GPT-1 gives you 12 layers of
+context-dependent representations, each of which is independently useful for downstream
+tasks.
+</div>
+
+<h3>Why this matters for the bigger story</h3>
+
+<p>Three corollaries fall out of this finding:</p>
+
+<ul>
+  <li><strong>Scaling depth should keep helping.</strong> If every layer adds value, then
+    deeper models should transfer even better. This logic directly motivates GPT-2 (48
+    layers) and GPT-3 (96 layers).</li>
+  <li><strong>You can't shortcut pre-training.</strong> You can't just take the embedding
+    matrix from a pre-trained model and call it a day — you need the full stack of layers.
+    Frozen feature extraction from any single layer leaves performance on the table.</li>
+  <li><strong>Different layers probably encode different things.</strong> The paper
+    doesn't probe this here, but the monotonic gain hints that early layers learn
+    "surface" features (morphology, local syntax) and later layers learn more abstract
+    structure (semantics, coreference, discourse). Subsequent papers (Tenney et al. 2019,
+    "BERT Rediscovers the NLP Pipeline") confirmed this picture experimentally.</li>
+</ul>
+
+<div class="card">
+<strong>Mental model after §5.1:</strong>
+<ul>
+  <li>Pre-training produces useful weights at <em>every</em> layer, not just the
+    embedding.</li>
+  <li>Performance scales roughly monotonically with the number of pre-trained layers
+    transferred.</li>
+  <li>This validates the "hierarchical representation learning" interpretation of
+    pre-training — and motivates the future strategy of scaling depth.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on §5.1? Likely candidates: <em>why monotonic — couldn't a randomly-initialized
+top layer actually be better than a pre-trained one given that fine-tuning data is
+different from pre-training data</em>, <em>how do they decide which layers are
+"transferred" vs randomly initialized — bottom-up always?</em>, <em>does this contradict
+the "auxiliary LM loss regularizes against forgetting" claim from §3.2</em>. Ask anything,
+or pull §5.2 (Zero-shot Behaviors).
+</div>
+
+<hr>
+
+<!-- ============ PART 7 ============ -->
+<h2 id="part7">Part 7 — Section 5.2 (Zero-shot Behaviors)</h2>
+
+<p>This is the most prescient section of the paper. With hindsight you can see GPT-2 and
+GPT-3 starting to form here.</p>
+
+<h3>The question being asked</h3>
+
+<p>So far we know pre-training helps when followed by fine-tuning. But <em>why</em> does
+it help? Two possible explanations:</p>
+
+<ol>
+  <li><strong>"Better initialization."</strong> Pre-training just puts the parameters in
+    a useful starting region; the actual task-relevant work happens during fine-tuning.</li>
+  <li><strong>"Capabilities emerge from the LM objective directly."</strong> While
+    learning to predict the next word, the model already learns task-relevant skills —
+    sentiment understanding, entailment reasoning, etc. Fine-tuning just exposes these
+    skills via a small classifier head.</li>
+</ol>
+
+<p>The authors hypothesize <em>(2)</em>. To test it, they need to show that the
+pre-trained model can <strong>perform downstream tasks without any fine-tuning at all</strong> —
+just by using the language model itself in clever ways.</p>
+
+<h3>The setup: tasks via heuristics on the raw LM</h3>
+
+<p>For each task, design a procedure that uses <em>only</em> the pre-trained
+$P(u_i \mid u_{<i}; \Theta)$ to produce an answer. No classifier head $W_y$, no
+fine-tuning, no labeled data ever shown to the model.</p>
+
+<div class="card">
+<table>
+<tr><th>Task</th><th>Heuristic using only the LM</th></tr>
+<tr><td><strong>CoLA</strong><br>(grammatical acceptability)</td>
+    <td>Score a sentence by its average log-probability per token. Grammatical sentences
+    should be more probable. Threshold and predict.</td></tr>
+<tr><td><strong>SST-2</strong><br>(binary sentiment)</td>
+    <td>Append the word "<code>very</code>" to the sentence. Then compare
+    $P(\text{"positive"} \mid \text{sentence + very})$ vs.
+    $P(\text{"negative"} \mid \text{sentence + very})$. Pick whichever is higher.</td></tr>
+<tr><td><strong>RACE</strong><br>(reading comprehension)</td>
+    <td>For each candidate answer $a_k$, compute the average log-probability of $a_k$
+    conditioned on the passage + question. Pick the highest.</td></tr>
+<tr><td><strong>DPRD</strong><br>(Winograd-style pronoun resolution)</td>
+    <td>For each candidate antecedent, substitute it for the pronoun and score the
+    resulting sentence. Pick the candidate that produces the more probable sentence.</td></tr>
+<tr><td><strong>Stories Cloze</strong></td>
+    <td>For each candidate ending, score average log-probability conditioned on the 4
+    sentences of context. Pick highest.</td></tr>
+</table>
+</div>
+
+<p>Notice the family resemblance: every heuristic reduces to "<em>compute the LM's score
+of some sequence and rank candidates by that score</em>". Nothing fancy. No training
+involved.</p>
+
+<h3>The result (Figure 2, right panel)</h3>
+
+<p>They evaluate these heuristics at intervals during pre-training and plot zero-shot
+performance vs. number of pre-training updates. Two findings:</p>
+
+<ol>
+  <li><strong>Zero-shot performance increases steadily as pre-training proceeds.</strong>
+    Not just a little — meaningfully. By the end of pre-training, the LM-only heuristics
+    achieve respectable performance on all five tasks (well above random baselines,
+    though below fine-tuned numbers).</li>
+  <li><strong>The trajectory is smooth and consistent across tasks.</strong> Capabilities
+    emerge gradually and in parallel, suggesting the LM objective is doing genuine
+    representation work — not just memorizing surface statistics.</li>
+</ol>
+
+<div class="ascii-diagram">
+   Zero-shot performance vs pre-training updates (sketch of Figure 2, right)
+
+       ▲
+       │
+       │                                              ●●●●●  CoLA
+       │                                       ●●●●●●         (best signal)
+   relative│                                ●●●●●
+   perf    │                          ●●●●●●          ●●●●●  Sentiment
+       │                       ●●●●●●          ●●●●●●         (SST-2)
+       │                ●●●●●●          ●●●●●●
+       │           ●●●●●          ●●●●●●                ●●●  RACE
+       │      ●●●●●         ●●●●●●                ●●●●●
+       │  ●●●●           ●●●                ●●●●●●            ●●●  Stories
+       │              ●●●●                ●●●                       ●●  DPRD
+       │           ●●●●              ●●●●●●            ●●●●●●
+       │       ●●●●              ●●●               ●●●●
+       │   ●●●●              ●●●●●           ●●●●●
+       └──────────────────────────────────────────────────►
+            pre-training updates (0  ────►  500k)
+</div>
+
+<h3>The Transformer-vs-LSTM control</h3>
+
+<p>To check whether this is something special about the Transformer (vs. just "any LM
+trained on a lot of text"), they run the same experiment with an LSTM language model in
+place of the Transformer. The result:</p>
+
+<ul>
+  <li>The LSTM's zero-shot performance has <strong>much higher variance</strong> across
+    tasks — sometimes works, sometimes doesn't.</li>
+  <li>The LSTM's average zero-shot performance is <strong>worse</strong>.</li>
+</ul>
+
+<p>The authors interpret this as evidence that the Transformer's inductive bias
+(self-attention, long-range memory) is what allows the LM objective's "implicit task
+learning" to actually stick and transfer.</p>
+
+<h3>Why this section is the seed of GPT-2 and GPT-3</h3>
+
+<p>Look at what they just demonstrated:</p>
+<ul>
+  <li>An LM trained <em>without ever seeing labeled task data</em>...</li>
+  <li>can do classification, QA, and reasoning tasks...</li>
+  <li>at progressively higher performance as the LM gets better.</li>
+</ul>
+
+<p>This is the same thesis GPT-2 (2019) would later put in its title — "Language Models
+are Unsupervised Multitask Learners" — and that GPT-3 (2020) would scale into the famous
+"few-shot learning" demonstrations. The mechanism is identical to what's in §5.2: use
+the raw LM to score completions / rank candidates / measure likelihoods. The only
+difference is scale.</p>
+
+<div class="card">
+<strong>What's missing in 2018 that would come later:</strong>
+<ul>
+  <li>The heuristics here are <em>task-specific</em> (different procedure per task).
+    GPT-3's "in-context learning" generalizes this: you give the model a natural-language
+    description of the task plus a few examples, and the same heuristic — "predict the
+    next token" — works for everything.</li>
+  <li>GPT-1's zero-shot results are well below fine-tuned numbers. GPT-3 closes much of
+    that gap purely through scale.</li>
+  <li>The framing in this paper is "evidence that pre-training transfers useful
+    skills". The framing in GPT-2/3 would become "this <em>is</em> the way to use these
+    models — fine-tuning is optional".</li>
+</ul>
+</div>
+
+<h3>What §5.2 establishes</h3>
+
+<div class="card">
+<strong>Mental model after §5.2:</strong>
+<ul>
+  <li>Pre-training doesn't just produce a good initialization. It produces a model that
+    can <em>directly</em> perform many tasks via clever use of its next-token
+    probabilities.</li>
+  <li>This capability grows smoothly and predictably with more pre-training compute —
+    the first empirical hint that "more LM training → more downstream capability" is a
+    real curve, not a saturation point.</li>
+  <li>The Transformer architecture is necessary for this — an LSTM with the same training
+    setup doesn't show the same behavior.</li>
+  <li>The conceptual seeds of prompting, in-context learning, and the "language models
+    are general task solvers" thesis are all visible here, in mid-2018.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on §5.2? Or pull §5.3 (Ablation Studies) — the final analysis section, which
+quantifies how much each design choice (aux LM loss, Transformer vs LSTM, pre-training at
+all) actually contributes.
+</div>
+
+<hr>
+
+<!-- ============ PART 8 ============ -->
+<h2 id="part8">Part 8 — Section 5.3 (Ablation Studies)</h2>
+
+<p>Ablation = "kill one component, retrain, see how much performance drops". This is how
+you isolate which design choices are actually carrying the work.</p>
+
+<p>The paper runs three ablations to answer three questions:</p>
+
+<ol>
+  <li>Does the <strong>auxiliary LM loss</strong> during fine-tuning ($\lambda L_1$ in
+    Eq. 5) actually help?</li>
+  <li>Does the <strong>Transformer architecture</strong> matter, or would an LSTM with
+    the same pre-training recipe work as well?</li>
+  <li>Does <strong>pre-training</strong> matter at all, or could a randomly-initialized
+    Transformer fine-tuned on the labeled task do just as well?</li>
+</ol>
+
+<h3>Ablation 1 — without the auxiliary LM loss</h3>
+
+<p>Set $\lambda = 0$ during fine-tuning (i.e. drop $L_1$, keep only $L_2$). Re-run every
+benchmark.</p>
+
+<div class="card">
+<strong>Result:</strong> The effect of the auxiliary loss is <em>dataset-size-dependent</em>.
+<ul>
+  <li>On <strong>large datasets</strong> (NLI tasks, QQP — hundreds of thousands of
+    examples): auxiliary LM <em>helps</em>. Removing it costs ~0.5–1 point on average.</li>
+  <li>On <strong>small datasets</strong> (CoLA, MRPC, RTE — thousands of examples):
+    auxiliary LM <em>hurts</em>. Including it actually <em>lowers</em> performance.</li>
+</ul>
+</div>
+
+<h4>Why dataset-size-dependent? (interpretation)</h4>
+
+<p>This is initially counterintuitive — you'd expect a regularizer to help <em>more</em>
+on smaller datasets (where overfitting is the bigger worry). But think about it this way:</p>
+
+<ul>
+  <li><strong>On large datasets:</strong> The supervised loss $L_2$ is dense (many label
+    examples per parameter), so the model has lots of label signal but risks overfitting
+    to the labeled distribution and drifting away from the pre-trained LM. The auxiliary
+    $L_1$ acts as an anchor — "stay close to behaviors that predict natural text well" —
+    which improves generalization.</li>
+  <li><strong>On small datasets:</strong> The supervised loss $L_2$ is already <em>weak</em>
+    (few examples). Adding $\lambda L_1$ as a second loss <em>dilutes</em> that already-weak
+    signal further. The model spends gradient budget on predicting next tokens instead of
+    on learning the task. With $\lambda = 0.5$, half the gradient is doing LM stuff — too
+    much when you only have 2,500 labeled examples.</li>
+</ul>
+
+<p>So the rule of thumb that emerges: auxiliary LM loss helps when you have <em>enough
+data that overfitting is the threat</em>, hurts when you have <em>so little data that
+underfitting / signal dilution is the threat</em>.</p>
+
+<h3>Ablation 2 — Transformer vs LSTM (with the same pre-train + fine-tune recipe)</h3>
+
+<p>Replace the Transformer with a 2048-unit single-layer LSTM. Same pre-training corpus,
+same LM objective, same fine-tuning procedure with input transformations. Then evaluate
+on the same benchmarks.</p>
+
+<div class="card">
+<strong>Result:</strong> <strong>−5.6 average score</strong> across all tasks compared to
+the Transformer. The LSTM wins on exactly one dataset (MRPC, paraphrase identification);
+the Transformer wins everywhere else.
+</div>
+
+<h4>What this tells us</h4>
+
+<p>This is the key control. It says: <em>the pre-train + fine-tune recipe alone isn't
+enough — the architecture matters too</em>. Specifically, the Transformer's ability to
+attend to long-range context is what allows the pre-training signal to actually be
+captured and transferred.</p>
+
+<p>You can read this as confirming the intuition from Section 1: "We chose the Transformer
+because it provides more structured memory for long-term dependencies." This ablation is
+the empirical receipt for that claim.</p>
+
+<div class="card">
+<strong>Sub-implication for the broader field:</strong> at the time of publication,
+ELMo (Peters et al., Feb 2018) was using deep LSTMs for pre-training and doing well. This
+ablation argues that ELMo could likely be improved just by swapping in a Transformer
+backbone — which is essentially what BERT (Oct 2018) would soon demonstrate.
+</div>
+
+<h3>Ablation 3 — no pre-training (Transformer trained from scratch)</h3>
+
+<p>Take the same 12-layer Transformer, skip pre-training entirely, and train it
+<em>directly</em> on each downstream task's labeled data with the same fine-tuning
+procedure.</p>
+
+<div class="card">
+<strong>Result:</strong> <strong>−14.8% average score</strong> compared to the full
+pre-train + fine-tune model. This is the largest gap of any ablation — by far.
+</div>
+
+<h4>The dominant signal</h4>
+
+<p>This is the headline ablation. It says <em>pre-training is the single most important
+ingredient</em>. Without it:</p>
+
+<ul>
+  <li>Same architecture (12-layer Transformer).</li>
+  <li>Same fine-tuning procedure (input transformations, classifier head).</li>
+  <li>Same labeled data.</li>
+</ul>
+
+<p>...and performance collapses by ~15 absolute points. That's not a marginal effect.
+That's the difference between a system that works and one that doesn't.</p>
+
+<h3>Combined picture: ranking the design choices by impact</h3>
+
+<div class="ascii-diagram">
+   Performance drop when each component is removed
+   (larger drop = component contributes more)
+
+   ──────────────────────────────────────────────────────────────
+   No pre-training              ──────────────────────►  −14.8%
+   LSTM instead of Transformer  ────────►                −5.6%
+   No auxiliary LM loss         ─►                       −0.5% (avg, varies by data size)
+   ──────────────────────────────────────────────────────────────
+</div>
+
+<h3>What this section establishes about the whole paper</h3>
+
+<p>Pull everything from §5 together:</p>
+
+<ul>
+  <li>§5.1 told us: pre-training contributes <em>at every layer</em>, not just the
+    embedding.</li>
+  <li>§5.2 told us: pre-training produces <em>directly usable task capabilities</em>,
+    not just a better initialization.</li>
+  <li>§5.3 told us: pre-training is <em>by far the dominant contributor</em>, the
+    Transformer architecture is a meaningful secondary contributor, and the auxiliary
+    LM loss is a small contextual contributor (helps on big data, hurts on small).</li>
+</ul>
+
+<p>This three-piece story is what justifies the paper's whole framing. Pre-training isn't
+a clever trick — it's the main event, supported by an architecture that lets the
+pre-training signal stick.</p>
+
+<div class="card">
+<strong>Mental model after §5.3:</strong>
+<ul>
+  <li>Pre-training accounts for ~15 points of average performance — the dominant effect.</li>
+  <li>The Transformer architecture accounts for ~5.6 points beyond what an LSTM gives.</li>
+  <li>The auxiliary LM loss is a small, conditional regularizer — useful on large datasets,
+    counterproductive on small ones.</li>
+  <li>Together these explain why GPT-1 wins on 9/12 benchmarks despite using almost no
+    task-specific engineering: the heavy lifting is being done by the pre-training, and
+    that's transferable across tasks by design.</li>
+</ul>
+</div>
+
+<div class="doubt">
+Doubts on §5.3? After this, all that's left in the paper is §6 (Conclusion) — short, just
+restates contributions and gestures at future work. I can do a quick wrap-up + big-picture
+synthesis pass through the whole paper, or move to §6, or whatever you'd like next.
+</div>
+
+<hr>
+
+<!-- ============ PART 9 ============ -->
+<h2 id="part9">Part 9 — Section 6 (Conclusion)</h2>
+
+<p>The conclusion is short. Three paragraphs that restate the framework and close with
+two forward-looking gestures.</p>
+
+<h3>What they claim to have introduced</h3>
+
+<p>In their own framing, the contributions are:</p>
+<ul>
+  <li>A <strong>framework</strong> for achieving strong NLU through generative
+    pre-training followed by discriminative fine-tuning.</li>
+  <li>A <strong>single task-agnostic model</strong> (one Transformer) reused across 12
+    benchmarks, with task-specific behavior coming from <em>input transformations</em>
+    rather than architecture changes.</li>
+  <li><strong>SOTA on 9 of 12 datasets</strong>, often by significant margins.</li>
+</ul>
+
+<h3>What they say they've shown about <em>why</em> it works</h3>
+
+<p>Two interpretive claims, both grounded in §5:</p>
+<ul>
+  <li>Pre-training on a diverse corpus with long contiguous text learns <em>significant
+    world knowledge and long-range dependencies</em>.</li>
+  <li>These get transferred to downstream tasks effectively because the pre-trained
+    Transformer is <em>used end-to-end</em>, not as frozen features.</li>
+</ul>
+
+<h3>Two gestures toward future work</h3>
+
+<p>They explicitly call out two follow-ups, both of which would become enormous research
+programs over the next 5 years:</p>
+
+<ol>
+  <li><strong>Push unsupervised learning further.</strong> Both for NLP generally and
+    "for other domains" — foreshadowing that this same pre-train + fine-tune recipe would
+    spread beyond text (vision, speech, code, biology, etc.).</li>
+  <li><strong>Improve the understanding of <em>how and why</em> unsupervised pre-training
+    works.</strong> An honest admission that they have empirical evidence (§5) but not a
+    theory.</li>
+</ol>
+
+<div class="card">
+<strong>What's notably <em>absent</em> from the conclusion:</strong>
+<ul>
+  <li>No mention of <em>scaling</em> as a future direction. They don't say "and what
+    happens if we make this 100× bigger" — that insight comes in GPT-2 (2019) and is the
+    central thesis of GPT-3 (2020).</li>
+  <li>No mention of <em>zero-shot / prompting</em> as the actual deployment paradigm.
+    §5.2 demonstrates the phenomenon but it's framed as evidence-for-pretraining-quality,
+    not as a usage recipe.</li>
+  <li>No mention of <em>chat / instruction following</em>. The framing is "this is good
+    for NLP benchmarks", not "this is a general-purpose assistant".</li>
+</ul>
+The shape of the future is visible in §5.2, but in 2018 nobody — including the authors —
+saw quite how far this would go.
+</div>
+
+<hr>
+
+<!-- ============ BIG PICTURE ============ -->
+<h2 id="bigpicture">🔭 Big-picture map — what GPT-1 actually was</h2>
+
+<p>Now that we've walked through everything, here's the consolidation. Three views.</p>
+
+<h3>View 1 — The whole paper in one diagram</h3>
+
+<div class="ascii-diagram">
+   ┌──────────────────────────────────────────────────────────────────┐
+   │  STAGE 1 — UNSUPERVISED PRE-TRAINING                             │
+   │                                                                  │
+   │     800M words of BooksCorpus  ──►  Tokenize (BPE, |V|=40k)      │
+   │                                                                  │
+   │     For 100 epochs, batch 64 × 512 tokens:                       │
+   │       maximize  L_1 = Σ log P(u_i | u_{i-k}..u_{i-1}; Θ)         │
+   │                                                                  │
+   │     Model:  12-layer decoder-only Transformer                    │
+   │             d=768, 12 heads, GELU, learned positions             │
+   │             ~117M parameters                                     │
+   │                                                                  │
+   │  ──►  out: pre-trained Θ  (ready to reuse for any NLP task)      │
+   └──────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+   ┌──────────────────────────────────────────────────────────────────┐
+   │  STAGE 2 — SUPERVISED FINE-TUNING (per downstream task)          │
+   │                                                                  │
+   │     Labeled dataset C  ──►  Reformat with delimiters             │
+   │                              &lt;s&gt; ... $ ... &lt;e&gt;                   │
+   │                                                                  │
+   │     Forward through pre-trained Transformer                      │
+   │     Read out  h_l^&lt;e&gt;  at the &lt;e&gt; position                       │
+   │     Add a tiny new head W_y                                      │
+   │                                                                  │
+   │     For 3 epochs, batch 32:                                      │
+   │       maximize  L_3 = L_2(labels) + λ · L_1(LM on input)         │
+   │       all 117M params updated; +W_y, +delimiter embeddings new   │
+   │                                                                  │
+   │  ──►  out: task-specific classifier (best of 9/12 benchmarks)    │
+   └──────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>View 2 — What was new (vs prior work) and what wasn't</h3>
+
+<table>
+<tr><th>Component</th><th>New in GPT-1?</th><th>Prior art</th></tr>
+<tr><td>Transformer architecture</td><td>No</td><td>Vaswani et al. (June 2017)</td></tr>
+<tr><td>Decoder-only LM training</td><td>No</td><td>Standard, but at smaller scales</td></tr>
+<tr><td>Self-supervised pre-training</td><td>No (concept)</td><td>word2vec (2013), ELMo (Feb 2018)</td></tr>
+<tr><td>End-to-end fine-tuning of a pre-trained LM</td><td><strong>Yes</strong></td><td>ELMo used frozen features, not fine-tuning</td></tr>
+<tr><td>Single architecture across 12 NLP tasks</td><td><strong>Yes</strong></td><td>Most prior work used per-task architectures</td></tr>
+<tr><td>Input transformations (delimiters, traversal-style)</td><td><strong>Yes</strong> (in this combination)</td><td>Drew from Rocktäschel et al. on entailment</td></tr>
+<tr><td>Empirical evidence of "implicit task learning" via LM</td><td><strong>Yes</strong></td><td>None at this scale before</td></tr>
+<tr><td>BooksCorpus as the long-context pre-training data choice</td><td>Notable</td><td>Existed (Zhu et al. 2015) but not used this way for transformers</td></tr>
+</table>
+
+<p>So GPT-1's contribution wasn't a new architecture — it was a <em>methodology</em> that
+put together known pieces (Transformer, LM objective, fine-tuning) in a configuration
+that worked beautifully and was reusable.</p>
+
+<h3>View 3 — The lineage forward</h3>
+
+<table>
+<tr><th>Model</th><th>Year</th><th>What changed from GPT-1</th></tr>
+<tr><td><strong>GPT-1</strong> (this paper)</td><td>2018</td><td>117M params, BooksCorpus, fine-tune per task</td></tr>
+<tr><td>BERT</td><td>Oct 2018</td><td>Bidirectional encoder + masked LM objective; same pre-train+fine-tune recipe. Won most benchmarks GPT-1 had set SOTA on.</td></tr>
+<tr><td>GPT-2</td><td>2019</td><td>1.5B params, WebText. <em>No fine-tuning</em> — entirely zero-shot via prompting. The §5.2 phenomenon becomes the product.</td></tr>
+<tr><td>GPT-3</td><td>2020</td><td>175B params, Common Crawl. Few-shot in-context learning becomes a usage paradigm. Same architecture lineage, just dramatically scaled.</td></tr>
+<tr><td>InstructGPT / ChatGPT</td><td>2022</td><td>RLHF added on top of GPT-3-style pre-training. Same backbone, plus instruction tuning + human feedback.</td></tr>
+<tr><td>GPT-4 / Claude / Gemini / LLaMA</td><td>2023+</td><td>Same recipe + multimodal inputs, longer contexts, MoE variants, etc.</td></tr>
+</table>
+
+<p>Every model in this lineage uses the same fundamental loop GPT-1 introduced:
+generative pre-training on next-token prediction with a decoder-only Transformer. What
+changed is scale, data, and what gets bolted on at the end (fine-tuning → prompting →
+RLHF). The core that this paper introduced has held up for 7+ years.</p>
+
+<h3>The one-sentence summary of the paper</h3>
+
+<blockquote>
+<em>Take a Transformer decoder, pre-train it on lots of natural text using the
+language-modeling objective, then fine-tune it on each downstream task by reformatting
+the input with delimiters and reading off the last position — and this beats the
+specialized state of the art on 9 of 12 NLP benchmarks while requiring almost no
+task-specific engineering.</em>
+</blockquote>
+
+<h3>What I'd flag as the most underrated insights</h3>
+
+<ol>
+  <li><strong>The BooksCorpus argument (§4.1).</strong> "Choose your corpus to preserve
+    the structure your model can learn from." Tiny note in the paper, foundational
+    insight for everything since.</li>
+  <li><strong>Input transformations over architecture surgery (§3.3).</strong> The mental
+    move from "design a new model for each task" to "bend the input to fit a fixed model"
+    is the seed of prompting.</li>
+  <li><strong>Zero-shot capability trajectories (§5.2).</strong> The first evidence that
+    LM pre-training itself produces useful capabilities, smoothly improving with compute.
+    This is the scaling-laws idea before scaling laws were a thing.</li>
+  <li><strong>The ablation magnitudes (§5.3).</strong> Pre-training contributes 3× more
+    than architecture, and ~30× more than auxiliary loss. The community correctly read
+    this as "scale up pre-training" — which is exactly what GPT-2/3/4 did.</li>
+</ol>
+
+<h3>Where the paper is honestly weak</h3>
+
+<ul>
+  <li><strong>Doesn't anticipate scaling.</strong> No mention of "what if we made this
+    1000× bigger". Took GPT-2/3 to make this explicit.</li>
+  <li><strong>The zero-shot heuristics are task-specific.</strong> A different procedure
+    per task. GPT-3's "just give it natural-language instructions" generalizes this.</li>
+  <li><strong>Pre-training cost not discussed.</strong> 100 epochs on 7000 books took
+    weeks on 8 GPUs. The scaling math (compute, data, params) that became central in
+    later years is mostly absent.</li>
+  <li><strong>No safety / behavior considerations.</strong> Pure capability paper. The
+    alignment-era concerns are nowhere in sight.</li>
+</ul>
+
+<div class="card">
+<strong>Mental model — the final synthesis:</strong>
+<br><br>
+GPT-1 is the paper that showed <em>language modeling is enough</em>. You don't need
+clever task-specific architectures, custom losses, or sentence-level objectives.
+Pre-train a Transformer to predict the next word on a lot of real text, and the
+resulting model has — sitting inside it — the building blocks of essentially every
+high-level NLP capability. Fine-tuning lets you draw them out. Later papers showed
+you don't even need to fine-tune.
+<br><br>
+Everything since has been the same idea at larger scale with better polish. This paper
+is where the modern era of NLP genuinely starts.
+</div>
+
+<div class="checkin">
+That's the whole paper. If you want, I can:
+<ul>
+  <li>Sit with any subsection you want to revisit.</li>
+  <li>Compare GPT-1 ↔ BERT side-by-side (they came out four months apart and define the
+    two main pre-training paradigms).</li>
+  <li>Walk through any of the lineage papers (GPT-2, GPT-3, BERT, InstructGPT, etc.).</li>
+  <li>Pick the next paper to teach.</li>
+</ul>
+Otherwise — that's the lesson. Ratings, anything you want re-explained, or next move?
+</div>
+
+</body>
+</html>
