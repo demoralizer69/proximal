@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GPT-2 — Language Models are Unsupervised Multitask Learners — Lesson</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --accent: #c44536;
+    --accent2: #2e5c8a;
+    --card: #ffffff;
+    --border: #e3e3df;
+    --code-bg: #f3f1ec;
+  }
+  body {
+    font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; color: var(--accent); }
+  h3 { font-size: 1.2rem; margin-top: 1.6rem; color: var(--accent2); }
+  h4 { font-size: 1.05rem; margin-top: 1.2rem; color: var(--fg); }
+  code {
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .checkin {
+    background: #eef5ff;
+    border-left: 4px solid var(--accent2);
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin: 1.5rem 0;
+  }
+  .doubt {
+    background: #fff0f0;
+    border-left: 4px solid #c44536;
+    padding: 0.8rem 1.25rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    font-style: italic;
+  }
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .toc ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+  .toc a { color: var(--accent2); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .timestamp {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+  }
+  .formula {
+    text-align: center;
+    margin: 1.5rem 0;
+    font-size: 1.1em;
+  }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    color: var(--muted);
+    margin-left: 0;
+    font-style: italic;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.6em;
+    background: var(--accent);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-left: 0.5em;
+    vertical-align: middle;
+  }
+  .badge.new { background: #2c9d4a; }
+  hr {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 2.5rem 0;
+  }
+  .ascii-diagram {
+    background: #1a1a1a;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    width: 100%;
+    font-size: 0.95em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.8rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); }
+</style>
+</head>
+<body>
+
+<h1>GPT-2 — Language Models are Unsupervised Multitask Learners</h1>
+<div class="timestamp">Radford, Wu, Child, Luan, Amodei, Sutskever (OpenAI, February 2019). Lesson generated: 2026-05-29.</div>
+
+<div class="toc">
+  <strong>Table of Contents</strong>
+  <ul>
+    <li><a href="#orientation">Orientation — where this paper sits</a></li>
+    <li><a href="#part1">Part 1 — The "unsupervised multitask learner" thesis (Section 1)</a></li>
+    <li><a href="#part2">Part 2 — The Approach (Section 2)</a></li>
+    <li><a href="#part2-1">Part 2.1 — WebText: building a quality corpus</a></li>
+    <li><a href="#part2-2">Part 2.2 — Input representation: byte-level BPE</a></li>
+    <li><a href="#part2-3">Part 2.3 — Model: what changed from GPT-1</a></li>
+    <li><a href="#part3">Part 3 — Zero-shot Experiments (Section 3)</a></li>
+    <li><a href="#part3-lm">Part 3.1 — Language modeling benchmarks</a></li>
+    <li><a href="#part3-cbt">Part 3.2 — CBT and LAMBADA: the mechanics of prompting</a></li>
+    <li><a href="#part3-wsc">Part 3.3 — Winograd Schema</a></li>
+    <li><a href="#part3-rc">Part 3.4 — Reading comprehension (CoQA)</a></li>
+    <li><a href="#part3-sum">Part 3.5 — Summarization (TL;DR)</a></li>
+    <li><a href="#part3-mt">Part 3.6 — Translation (the bilingual prompt trick)</a></li>
+    <li><a href="#part3-qa">Part 3.7 — Question Answering (Natural Questions)</a></li>
+    <li><a href="#part4">Part 4 — Generalization vs Memorization (Section 4)</a></li>
+    <li><a href="#part5">Part 5 — Related Work + Discussion (Sections 5–6)</a></li>
+    <li><a href="#bigpicture">Big-picture synthesis</a></li>
+  </ul>
+</div>
+
+<!-- ============ ORIENTATION ============ -->
+<h2 id="orientation">Orientation — where this paper sits</h2>
+
+<p>You already have GPT-1 fully internalized: pre-train a 12-layer decoder-only Transformer on
+BooksCorpus with next-token prediction, then <em>fine-tune</em> on each downstream task with
+input transformations and a tiny classification head. The result was SOTA on 9 of 12
+benchmarks. The recipe was: <strong>pre-train + fine-tune</strong>.</p>
+
+<p>This paper, written eight months later, makes a sharp turn. The recipe becomes:
+<strong>pre-train + <em>prompt</em></strong>. No fine-tuning. No labeled data for any of the
+downstream tasks. The same Transformer, scaled up, is asked to do summarization, translation,
+question answering, reading comprehension, and language modeling on eight different
+benchmarks — all by formatting the input as a string of text and letting the model continue.</p>
+
+<div class="card">
+<table>
+<tr><th>Date</th><th>Paper</th><th>Recipe</th><th>Scale</th></tr>
+<tr><td>Jun 2018</td><td>GPT-1</td><td>Pre-train + fine-tune per task</td><td>117M, 5 GB BooksCorpus</td></tr>
+<tr><td>Oct 2018</td><td>BERT</td><td>Pre-train (bidirectional, masked) + fine-tune per task</td><td>340M, BooksCorpus + Wikipedia</td></tr>
+<tr><td><strong>Feb 2019</strong></td><td><strong>GPT-2 (this paper)</strong></td><td><strong>Pre-train + zero-shot prompting</strong></td><td><strong>1.5B, 40 GB WebText</strong></td></tr>
+<tr><td>2020</td><td>Kaplan et al. (scaling laws)</td><td>Formalizes the loss-vs-scale curves visible in GPT-2</td><td>—</td></tr>
+<tr><td>May 2020</td><td>GPT-3</td><td>Same recipe, few-shot prompting added</td><td>175B</td></tr>
+</table>
+</div>
+
+<p>So GPT-2 is the pivot point. The architecture is essentially the same Transformer decoder
+as GPT-1; the changes are mostly stability-at-depth tweaks plus a much larger context window.
+What's new isn't the model — it's the <em>thesis</em>: that with enough data quality and
+enough capacity, the LM objective alone teaches enough that <em>fine-tuning is no longer
+required</em> to perform many downstream tasks.</p>
+
+<blockquote>
+Mental model: GPT-1 was "language modeling is a good initialization for supervised learning."
+GPT-2 is "language modeling is a good initialization for <em>itself</em> — the LM is the
+downstream system, and the task gets encoded into the prompt."
+</blockquote>
+
+<h4>Why this is the seed of the scaling-laws era</h4>
+
+<p>The paper trains four model sizes and plots perplexity vs parameters. The curve is smooth
+and monotonically improving — no diminishing returns visible at the largest size they test.
+That single empirical observation, when later formalized by Kaplan et al. (2020) and acted on
+at the 175B scale (GPT-3), is the entire engine of the modern LLM industry. GPT-2 doesn't
+write down a scaling law, but it shows you the curve.</p>
+
+<hr>
+
+<!-- ============ PART 1 ============ -->
+<h2 id="part1">Part 1 — The "unsupervised multitask learner" thesis (Section 1)</h2>
+
+<p>The introduction is short but the title is doing heavy lifting. Let's unpack it.</p>
+
+<h3>The framing they explicitly attack</h3>
+
+<p>The dominant ML paradigm of 2018 was: collect a labeled dataset for a specific narrow task,
+train a model on it, deploy that model. The authors point out the failure mode:</p>
+
+<ul>
+  <li>Models trained this way are <em>brittle</em>: change the input distribution slightly
+    and performance falls off a cliff.</li>
+  <li>They generalize poorly across tasks. A SQuAD model can't translate, a translation
+    model can't summarize.</li>
+  <li>Even the GPT-1 / BERT recipe — pre-train then fine-tune — produces $T$ different
+    fine-tuned models for $T$ different tasks. You still need labels for each.</li>
+</ul>
+
+<p>Their proposal: instead of $T$ task-specific systems, train a single system that does all
+$T$ tasks <em>as a side effect</em> of one unified objective.</p>
+
+<h3>The "task" framing — $P(\text{output} \mid \text{input}, \text{task})$</h3>
+
+<p>Standard supervised learning estimates $P(\text{output} \mid \text{input})$. Multitask
+learning generalizes that to $P(\text{output} \mid \text{input}, \text{task})$, where the
+task is an explicit signal (a one-hot vector, a learned task embedding, etc.). McCann et al.'s
+"decaNLP" had floated the idea of specifying the task in natural language. GPT-2's claim is
+the next step:</p>
+
+<blockquote>
+Since the (input, task, output) triple is itself just a sequence of symbols, a sufficiently
+general language model — trained to model the joint distribution of all such symbol sequences
+that occur naturally — should already approximate $P(\text{output} \mid \text{input}, \text{task})$.
+</blockquote>
+
+<h4>Doubt: what does "task" mean when there's no task supervision?</h4>
+
+<p>Sitting with this question is important because the title leans on it. Their answer is
+subtle. The "task" is not a label given to the model. It's encoded in the <em>input format</em>
+itself. Consider four sentences that might appear in WebText:</p>
+
+<ul>
+  <li><code>"The translation of 'cat' in French is chat."</code> — embeds an English→French
+    translation task.</li>
+  <li><code>"Q: Who wrote Hamlet? A: William Shakespeare."</code> — embeds a QA task.</li>
+  <li><code>"... [long article] TL;DR: the new policy aims to reduce emissions ..."</code> —
+    embeds a summarization task.</li>
+  <li><code>"The Spanish word for water is agua."</code> — embeds a definition task.</li>
+</ul>
+
+<p>Each is just a string of tokens. But each contains both a task <em>description</em> (the
+phrase "translation of X in French is", or "TL;DR:") and an example output (the answer that
+follows). When the model learns to predict next tokens on the whole web, it implicitly learns
+the conditional distribution of <em>answers given task-formatted prompts</em>. At test time,
+you give it the prompt; it generates the answer because that's the most likely continuation.</p>
+
+<p>So the title's claim — "language models are unsupervised multitask learners" — is the
+hypothesis that a sufficiently strong LM, trained on a sufficiently rich corpus, will
+implicitly learn many task-specific conditionals because those conditionals are <em>literally
+present in the training distribution</em>.</p>
+
+<h4>Doubt: is this the methodological argument or the practical one?</h4>
+
+<p>Both, and the paper is explicit. The methodological argument: by refusing to fine-tune,
+you measure the LM's <em>intrinsic</em> capacity. Any number you report is purely a function
+of pre-training, not of test-task data fitting. The practical argument: if it works, you've
+built one model that does everything, no labels required.</p>
+
+<p>The paper leans more on the methodological argument throughout, because the zero-shot
+numbers are not actually competitive with fine-tuned SOTA on most tasks. The point is the
+<em>trajectory</em>: zero-shot capability emerges and grows with scale.</p>
+
+<div class="card">
+<strong>Mental model after Section 1:</strong>
+<ul>
+  <li>Standard ML is brittle and per-task. Multitask learning offers a way out.</li>
+  <li>Tasks can be encoded into the input as natural-language prompts. So the multitask
+    distribution $P(y \mid x, \text{task})$ is a marginal of $P(\text{text})$.</li>
+  <li>A good language model trained on natural text should therefore already do tasks
+    zero-shot — no labels, no fine-tuning. The paper sets out to show that this happens at
+    sufficient scale.</li>
+</ul>
+</div>
+
+<hr>
+
+<!-- ============ PART 2 ============ -->
+<h2 id="part2">Part 2 — The Approach (Section 2)</h2>
+
+<p>Section 2 is divided into three parts: the corpus (2.1 WebText), the tokenizer (2.2 Input
+representation), and the model (2.3). I'll cover each — but the corpus and tokenizer get
+disproportionate attention because that's where most of the GPT-2 → GPT-1 delta lives.</p>
+
+<!-- ============ PART 2.1: WEBTEXT ============ -->
+<h2 id="part2-1">Part 2.1 — WebText: building a quality corpus</h2>
+
+<p>GPT-1 used BooksCorpus (~800M words, ~5 GB). GPT-2 needs more data <em>and</em> data that
+contains task-like structure in its natural form (translations, QA pairs, summaries, etc.).
+Books are good for narrative but light on task-formatted text. So the authors construct a new
+corpus, WebText. The construction recipe matters.</p>
+
+<h3>The construction pipeline</h3>
+
+<div class="ascii-diagram">
+   Reddit (all outbound links, Dec 2017)
+                  │
+                  ▼
+   Filter: only links from posts with karma ≥ 3
+                  │   (a human-curation signal)
+                  ▼
+   Scrape the linked web pages       (~45 million links)
+                  │
+                  ▼
+   Extract main text with Dragnet + Newspaper libraries
+                  │
+                  ▼
+   Deduplicate (near-duplicate documents removed)
+                  │
+                  ▼
+   Heuristic cleanup
+                  │
+                  ▼
+   Drop all Wikipedia pages
+                  │
+                  ▼
+   Final corpus: ~8 million documents, ~40 GB of text
+</div>
+
+<h4>Doubt: why scrape Reddit outbound links specifically?</h4>
+
+<p>This is one of the most interesting design choices in the paper, and worth sitting with.
+The alternatives the authors considered (and the field used) were:</p>
+
+<ul>
+  <li><strong>Common Crawl</strong> — a snapshot of much of the web. Huge (terabytes), but the
+    quality is famously poor. Lots of SEO spam, machine-generated content, navigation menus,
+    cookie banners, etc. Earlier work (Trinh & Le 2018) reported that raw Common Crawl was
+    almost unusable for LM pre-training.</li>
+  <li><strong>More books</strong> — books are clean but there are only so many. And books
+    underrepresent the task-formatted text the authors want.</li>
+  <li><strong>Curated lists like Wikipedia</strong> — clean but stylistically narrow. And
+    Wikipedia is used as a <em>test set</em> for many of the LM benchmarks they want to
+    evaluate on.</li>
+</ul>
+
+<p>The Reddit-outbound-with-karma trick threads the needle:</p>
+
+<div class="card">
+<strong>What the karma filter is implicitly doing:</strong> a Reddit submission gets karma
+when humans upvote it. So a link with karma ≥ 3 is one where multiple humans saw the linked
+page, judged it worth reading, and signaled that judgment. The filter is, effectively, a
+<em>distributed human quality rating</em> — far cheaper than paying annotators, far more
+diverse than a curated list, and applied at web scale.
+<br><br>
+You're not getting the median web page; you're getting pages that humans actively chose to
+share. The result skews toward articles, essays, tutorials, news, technical writeups, and
+discussion threads — exactly the kind of structured text that contains task-like patterns.
+</div>
+
+<h4>Doubt: why the threshold of 3 specifically?</h4>
+
+<p>The authors don't ablate the threshold. Three is "low enough to keep volume up" — Reddit's
+karma distribution is heavily right-skewed, so 3 is barely above noise. But it filters out
+spam links posted to dead subreddits, automated bot posts, etc. Higher thresholds (say 100)
+would collapse the dataset to a few popular subreddits and skew it stylistically. Three is
+the lowest meaningful signal.</p>
+
+<h4>Doubt: why exclude Wikipedia?</h4>
+
+<p>This is a methodological decision. Several of the LM benchmarks they'll evaluate
+zero-shot — WikiText-103, WikiText-2 — are <em>derived from Wikipedia</em>. If WebText
+contained Wikipedia text, the test set would partially overlap with the training set,
+inflating perplexity numbers via memorization rather than generalization. By dropping
+Wikipedia entirely, they make the zero-shot evaluation honest.</p>
+
+<p>(This is the same concern that motivates Section 4's 8-gram bloom filter analysis. The
+authors take train-test contamination seriously throughout the paper.)</p>
+
+<h4>Doubt: why not just use much more BooksCorpus?</h4>
+
+<p>BooksCorpus is what BooksCorpus is — there isn't a 10× version sitting around. More
+importantly, books contain very little task-formatted text. There's no <code>"TL;DR:"</code>
+in chapter 3 of a novel. No <code>"Q: ... A: ..."</code>. No interlinear translations. To get
+zero-shot performance on summarization, translation, and QA, you need a corpus where those
+patterns actually occur. The open web has all of them.</p>
+
+<h3>The result</h3>
+
+<div class="card">
+<strong>WebText final stats:</strong>
+<ul>
+  <li>~8 million documents</li>
+  <li>~40 GB of cleaned plain text</li>
+  <li>~8× larger (by byte count) than BooksCorpus</li>
+  <li>Stylistically diverse (essays, news, technical writing, fan content, forums)</li>
+  <li>Contains naturally-occurring task patterns (TL;DRs, translations, Q&As)</li>
+  <li>No Wikipedia, no GPT-2's own Reddit posts (just outbound links)</li>
+</ul>
+</div>
+
+<blockquote>
+The corpus is the experiment. The paper isn't really claiming "Transformers can do zero-shot
+tasks." It's claiming "Transformers trained on a corpus that <em>contains</em> task patterns
+can do zero-shot tasks." Pre-training data quality is doing a lot of the work.
+</blockquote>
+
+<hr>
+
+<!-- ============ PART 2.2: BPE ============ -->
+<h2 id="part2-2">Part 2.2 — Input representation: byte-level BPE</h2>
+
+<p>GPT-1 used standard BPE with a 40k vocabulary. GPT-2 uses <strong>byte-level BPE</strong>
+with a 50,257-token vocabulary. The change looks small. It isn't.</p>
+
+<h3>What standard BPE does, briefly</h3>
+
+<p>BPE (byte-pair encoding) starts from a base alphabet (e.g. Unicode characters) and
+iteratively merges the most-frequent adjacent pair into a new symbol. After $N$ merges, you
+have a vocabulary of $|\text{base}| + N$ tokens — the original characters plus $N$
+multi-character "subword" units. Common substrings (<code>"ing"</code>, <code>"tion"</code>,
+<code>"the"</code>) become single tokens; rare words decompose into character-like pieces.
+The result is open-vocabulary (any string can be encoded) and efficient (common stuff is one
+token).</p>
+
+<h3>The problem with character-level BPE on the open web</h3>
+
+<p>If your base alphabet is Unicode characters, you have ~143,000 base symbols just to cover
+every character that might appear on the web (emoji, Chinese, Cyrillic, mathematical
+operators, control characters, ...). The embedding table for the base alone is huge, and most
+of those base tokens get almost zero training signal because they appear maybe once in
+gigabytes of text.</p>
+
+<p>You'd <em>like</em> a small fixed base alphabet that's guaranteed to cover every possible
+input — but Unicode is too big.</p>
+
+<h3>The byte-level trick</h3>
+
+<p>Bytes are the smallest unit. There are exactly <strong>256 of them</strong>. Every string,
+in any language, ultimately encodes as a sequence of UTF-8 bytes. So if you make bytes your
+base alphabet:</p>
+
+<ul>
+  <li>The base is small (256) and fully covered with no rare-symbol problem.</li>
+  <li>The vocabulary is closed: every possible input string is representable, including
+    emoji, code, non-Latin scripts, garbled HTML.</li>
+  <li>No <code>&lt;UNK&gt;</code> token is ever needed.</li>
+</ul>
+
+<p>Then you run BPE merges on top of bytes. The merges will mostly produce ASCII subword
+units (because English dominates the corpus), but byte-level multi-byte sequences for non-Latin
+characters get represented faithfully too. With 50,000 merges plus the 256 base bytes plus
+a single end-of-text token, you land on a vocabulary of exactly <strong>50,257</strong>.</p>
+
+<h4>Doubt: doesn't this make non-Latin text use way more tokens per character?</h4>
+
+<p>Yes — a Chinese character, which is one Unicode character, becomes 3 UTF-8 bytes and
+therefore up to 3 GPT-2 tokens. For an English-dominated corpus and English-dominated
+evaluations, that's a fine trade: English is efficient, other languages are inefficient but
+representable. For a paper whose training data is mostly English, this is the right
+optimization.</p>
+
+<h4>Doubt: GPT-1 was already BPE — so what's the actual delta?</h4>
+
+<p>Two things:</p>
+<ol>
+  <li><strong>Closed vocabulary, no UNK.</strong> GPT-1 had occasional unknown-token issues.
+    GPT-2 never does — every byte sequence is representable.</li>
+  <li><strong>One regularity: prevent BPE from merging across character categories.</strong>
+    The paper explicitly notes that they prevent merges that span byte ranges from different
+    categories (letter/digit/punctuation/whitespace), with one exception for whitespace. This
+    avoids weird tokens like <code>"dog."</code> being one symbol while <code>"dog!"</code> is
+    another; tokenization stays predictable.</li>
+</ol>
+
+<div class="card">
+<strong>Why this matters downstream:</strong> A robust, closed-vocabulary tokenizer is a
+prerequisite for the "tasks live inside the input" thesis. If translation requires the model
+to emit French, and French uses accented characters, those characters need to be
+representable. Byte-level BPE guarantees this. The same applies to code, math, formatting,
+URLs — anything you might want a future LLM to handle ends up just working.
+</div>
+
+<hr>
+
+<!-- ============ PART 2.3: MODEL ============ -->
+<h2 id="part2-3">Part 2.3 — The model: what changed from GPT-1</h2>
+
+<p>Architecturally, GPT-2 is the same decoder-only Transformer as GPT-1. There are <em>four</em>
+specific changes the paper calls out, plus a context-length increase and a vocab-size
+increase. All five are stability/scale fixes, not capability changes.</p>
+
+<h3>Change 1 — Pre-LayerNorm (the most important change)</h3>
+
+<p>In the original Vaswani Transformer and GPT-1, LayerNorm sits <em>after</em> each
+sub-layer's residual addition: this is "post-LN." The block looks like:</p>
+
+<div class="formula">
+$h' = \text{LayerNorm}(h + \text{Attn}(h)),\quad h'' = \text{LayerNorm}(h' + \text{FFN}(h')).$
+</div>
+
+<p>GPT-2 moves LayerNorm to <em>before</em> each sub-layer, with the residual addition coming
+after, unnormalized: this is "pre-LN."</p>
+
+<div class="formula">
+$h' = h + \text{Attn}(\text{LayerNorm}(h)),\quad h'' = h' + \text{FFN}(\text{LayerNorm}(h')).$
+</div>
+
+<div class="ascii-diagram">
+   POST-LN  (GPT-1, Vaswani)            PRE-LN  (GPT-2)
+
+      x                                    x
+      │                                    │
+      ├──────────┐                          ├──────────┐
+      │      Attention                       │     LayerNorm
+      │          │                           │          │
+      │          ▼                           │      Attention
+      │       (add) ◄────────────            │          │
+      │          │                           │          ▼
+      │       LayerNorm                       └─────► (add)
+      │          │                                      │
+      ▼          ▼                                      ▼
+   (same pattern for FFN)                  (LN inside, residual outside)
+</div>
+
+<h4>Why pre-LN matters specifically at depth</h4>
+
+<p>Consider the gradient flow through a stack of $L$ blocks. The residual connection
+$h_{\ell+1} = h_\ell + f(h_\ell)$ means that, ignoring the function $f$, the identity gradient
+flows uninterrupted from layer $L$ back to layer $0$. This is exactly why residual networks
+train at depth in the first place.</p>
+
+<p>But in post-LN, the LayerNorm sits <em>on the residual stream itself</em>: every layer's
+output passes through a LayerNorm, which is not the identity. So the gradient at layer $\ell$
+gets multiplied by the Jacobian of LayerNorm $L - \ell$ times before reaching the embedding.
+LayerNorm is well-conditioned but not a pure identity, and the accumulated rescaling causes
+either gradient explosion or vanishing as $L$ grows. Empirically this is why post-LN
+Transformers need careful learning-rate warmup and become unstable past ~12 layers without
+tricks.</p>
+
+<p>In pre-LN, the residual stream is <em>untouched</em>:
+$h_{\ell+1} = h_\ell + f(\text{LayerNorm}(h_\ell))$. The identity path from input to output
+is genuinely an identity. The LayerNorm only normalizes the input to $f$, not the residual
+itself. Gradients flow through the residual stream essentially unchanged, and the network
+trains stably at arbitrary depth.</p>
+
+<blockquote>
+Pre-LN is what makes the 48-layer, 1.5B-parameter GPT-2 trainable without the heroics that
+post-LN at that depth would require. It's the single most important architectural change.
+</blockquote>
+
+<h4>Doubt: why didn't the original Transformer use pre-LN?</h4>
+
+<p>At Vaswani's depth (6 encoder + 6 decoder layers) post-LN worked fine with a warmup
+schedule. The instability only matters at the depths GPT-2 explores. Modern Transformers
+essentially all use pre-LN, and that convention starts here.</p>
+
+<h3>Change 2 — Residual weight scaling by $1/\sqrt{N}$</h3>
+
+<p>At initialization, every block adds something to the residual stream. After $N$ blocks,
+the residual stream has accumulated $N$ contributions. If each is initialized from
+$\mathcal{N}(0, \sigma^2)$, the variance of the residual stream grows as $N \sigma^2$, which
+blows up at depth.</p>
+
+<p>GPT-2's fix: scale the initialization of the output projection of each residual block by
+$1/\sqrt{N}$, where $N$ is the number of residual layers. Now each block contributes variance
+$\sigma^2 / N$, and the sum across $N$ layers has total variance $\sigma^2$ — independent of
+depth.</p>
+
+<div class="formula">
+$\text{Var}\left[\sum_{\ell=1}^{N} f_\ell(h_\ell)\right] \;\approx\; N \cdot \frac{\sigma^2}{N} \;=\; \sigma^2.$
+</div>
+
+<p>This is a small, principled change that combines with pre-LN to keep activations
+well-scaled at initialization regardless of depth. Without it, the larger models would either
+saturate or explode in the first few steps.</p>
+
+<h3>Change 3 — An extra LayerNorm after the final block</h3>
+
+<p>Because pre-LN leaves the residual stream un-normalized between blocks, the activations
+flowing out of the last block aren't normalized either. GPT-2 adds a single LayerNorm after
+the final block (before the output projection to logits) to normalize the final hidden state.
+This is a one-liner, but it's the natural completion of the pre-LN choice.</p>
+
+<h3>Change 4 — Context length doubled to 1024</h3>
+
+<p>GPT-1 used a context window of 512 tokens. GPT-2 uses <strong>1024</strong>. This costs
+4× the attention compute (attention is quadratic in sequence length, so doubling the window
+quadruples the per-block attention cost), but gives the model meaningfully more context to
+exploit. For long-document tasks like CoQA and summarization, this matters.</p>
+
+<h3>Change 5 — Vocabulary 50,257 (vs 40,000)</h3>
+
+<p>Direct consequence of byte-level BPE, covered above. Slightly larger embedding tables;
+slightly more output classes to softmax over. Negligible compute cost.</p>
+
+<h3>Change 6 (implicit) — Batch size 512</h3>
+
+<p>The paper trains with a batch size of 512 sequences (of 1024 tokens each), so each
+optimizer step sees ~524k tokens. This is much larger than GPT-1's batches and is part of the
+scaling story.</p>
+
+<h3>The four model sizes</h3>
+
+<p>This is the table you should commit to memory. The four sizes the paper trains:</p>
+
+<table>
+<tr><th>Name</th><th>Parameters</th><th>$n_{\text{layers}}$</th><th>$d_{\text{model}}$</th><th>$d_{\text{ff}}$</th><th>Heads</th><th>Note</th></tr>
+<tr><td>GPT-2 Small</td><td>117M</td><td>12</td><td>768</td><td>3072</td><td>12</td><td>Same size as GPT-1.</td></tr>
+<tr><td>GPT-2 Medium</td><td>345M</td><td>24</td><td>1024</td><td>4096</td><td>16</td><td>Same size as BERT-Large.</td></tr>
+<tr><td>GPT-2 Large</td><td>762M</td><td>36</td><td>1280</td><td>5120</td><td>20</td><td>—</td></tr>
+<tr><td>GPT-2 XL ("GPT-2")</td><td>1542M</td><td>48</td><td>1600</td><td>6400</td><td>25</td><td>The headline model.</td></tr>
+</table>
+
+<h4>Doubt: why scale specifically to 1.5B? Is there a principled reason or pure engineering?</h4>
+
+<p>This is mostly engineering, with one principled choice on top. The principled part:
+having decided to study how zero-shot capability scales with model size, you need a wide range
+of model sizes to see the trend. So they build 4 models spanning ~13× in parameters. The
+117M and 345M sizes anchor against GPT-1 and BERT-Large respectively; the 762M and 1542M sizes
+extend into territory nobody had trained before.</p>
+
+<p>The engineering part: 1.5B parameters at fp32, with optimizer state, is about 24 GB of
+memory — feasible on a small TPU or GPU cluster of the era. The authors didn't go higher
+because they ran out of practical memory headroom on their training setup. GPT-3 will go ~115×
+bigger because the infrastructure catches up.</p>
+
+<p>So 1.5B isn't a magical number. It's the biggest the authors could fit. The interesting
+fact is that even at 1.5B, the perplexity curve hadn't bottomed out — which is the empirical
+seed of "scaling laws say we should keep going."</p>
+
+<h3>Comparison: GPT-1 vs GPT-2 XL</h3>
+
+<table>
+<tr><th>Property</th><th>GPT-1</th><th>GPT-2 XL</th><th>Ratio</th></tr>
+<tr><td>Parameters</td><td>117M</td><td>1542M</td><td>~13×</td></tr>
+<tr><td>Layers</td><td>12</td><td>48</td><td>4×</td></tr>
+<tr><td>$d_{\text{model}}$</td><td>768</td><td>1600</td><td>2.08×</td></tr>
+<tr><td>$d_{\text{ff}}$</td><td>3072</td><td>6400</td><td>2.08×</td></tr>
+<tr><td>Context</td><td>512</td><td>1024</td><td>2×</td></tr>
+<tr><td>Vocabulary</td><td>40,000 (char-level BPE)</td><td>50,257 (byte-level BPE)</td><td>1.26×</td></tr>
+<tr><td>Pre/Post LN</td><td>Post-LN</td><td>Pre-LN + final LN</td><td>—</td></tr>
+<tr><td>Residual init</td><td>Standard</td><td>Scaled by $1/\sqrt{N}$</td><td>—</td></tr>
+<tr><td>Training corpus</td><td>BooksCorpus (~5 GB)</td><td>WebText (~40 GB)</td><td>~8×</td></tr>
+<tr><td>Downstream usage</td><td>Fine-tune per task</td><td>Zero-shot prompting</td><td>—</td></tr>
+</table>
+
+<h4>Doubt: why drop fine-tuning entirely?</h4>
+
+<p>Three interleaved reasons, in increasing order of how strongly the paper leans on them:</p>
+
+<ol>
+  <li><strong>Methodological purity.</strong> Zero-shot is the cleanest measurement of LM
+    capability. Any number you report is purely about pre-training, not about test-task data
+    fitting. This lets you make claims about <em>scaling pre-training</em> rather than
+    <em>scaling fine-tuning.</em></li>
+  <li><strong>Multitask claim.</strong> If the thesis is "a sufficiently good LM does many
+    tasks," then evaluating fine-tuned-per-task would invalidate the claim — you'd be
+    showing one model trained for each task, not one model doing all tasks.</li>
+  <li><strong>Forward-looking.</strong> Fine-tuning requires labeled data and per-task
+    training infrastructure. Prompting requires neither. If you can show prompting works,
+    you've described a paradigm that is dramatically more usable in practice. (This
+    foreshadows GPT-3 and ChatGPT.)</li>
+</ol>
+
+<p>Note what they're <em>not</em> saying: they're not saying fine-tuning is bad. The
+appendix and later work confirm GPT-2 fine-tuned beats zero-shot on every task. The
+methodological choice is "this paper is about zero-shot," not "fine-tuning has been
+deprecated."</p>
+
+<hr>
+
+<!-- ============ PART 3: EXPERIMENTS ============ -->
+<h2 id="part3">Part 3 — Zero-shot Experiments (Section 3)</h2>
+
+<p>This is the body of the paper. Eight task domains, each evaluated zero-shot. For each
+domain, two things matter: (a) the result, and (b) the <em>prompting mechanism</em> — how the
+authors phrase the task so a vanilla LM can attempt it.</p>
+
+<p>The unifying trick across all of these: the model is never told what task to do. It is
+given a string and asked to continue, just like during pre-training. The "task signal" is
+buried in the format of the string. If the model has seen enough strings of that format
+during pre-training, it will continue in a way that constitutes solving the task.</p>
+
+<!-- ============ PART 3.1: LM BENCHMARKS ============ -->
+<h2 id="part3-lm">Part 3.1 — Language modeling benchmarks</h2>
+
+<p>The first set of evaluations is the most natural: how well does the LM model text from
+distributions it didn't train on? Eight LM benchmarks:</p>
+
+<table>
+<tr><th>Benchmark</th><th>What it is</th><th>Metric</th></tr>
+<tr><td>WikiText-2</td><td>Curated Wikipedia, small split</td><td>Perplexity</td></tr>
+<tr><td>WikiText-103</td><td>Curated Wikipedia, large split</td><td>Perplexity</td></tr>
+<tr><td>Penn Treebank</td><td>WSJ news articles</td><td>Perplexity</td></tr>
+<tr><td>1 Billion Word</td><td>Sentence-shuffled news</td><td>Perplexity</td></tr>
+<tr><td>enwik8</td><td>First 100M bytes of English Wikipedia</td><td>Bits per byte</td></tr>
+<tr><td>text8</td><td>enwik8 with markup stripped</td><td>Bits per character</td></tr>
+<tr><td>LAMBADA</td><td>Predict the last word of a passage</td><td>Accuracy / perplexity</td></tr>
+<tr><td>CBT</td><td>Cloze on children's books</td><td>Accuracy</td></tr>
+</table>
+
+<p>GPT-2 achieves SOTA on <strong>7 of 8</strong>. The one it doesn't beat is 1 Billion Word
+(more on why below).</p>
+
+<h3>What are perplexity and bits-per-character?</h3>
+
+<p>Both are direct functions of the same thing: the average log-loss the model achieves on
+the test corpus.</p>
+
+<p>Perplexity is the exponential of the per-token cross-entropy:</p>
+
+<div class="formula">
+$$\text{PPL} \;=\; \exp\!\left(-\frac{1}{N}\sum_{i=1}^{N}\log P(u_i \mid u_{<i})\right).$$
+</div>
+
+<p>Intuitively, perplexity is "the effective branching factor": a perplexity of 30 means the
+model is, on average, as uncertain about the next token as if there were 30 equiprobable
+choices. Lower is better.</p>
+
+<p>Bits-per-character converts the same quantity into bits and normalizes by characters
+instead of tokens (so it's directly comparable across tokenization schemes):</p>
+
+<div class="formula">
+$$\text{BPC} \;=\; \frac{1}{N_{\text{chars}}}\sum_{i=1}^{N}-\log_2 P(u_i \mid u_{<i}).$$
+</div>
+
+<p>For enwik8, GPT-2 achieves about <strong>0.93 BPC</strong>, beating the prior SOTA of
+~1.05. For WikiText-103, perplexity drops from ~18 (prior SOTA) to ~17.5.</p>
+
+<h4>Doubt: why does GPT-2 do well on these despite never training on them?</h4>
+
+<p>Two reasons:</p>
+<ul>
+  <li>The benchmarks measure how well the model predicts <em>generic English text</em>. WebText
+    contains plenty of generic English text, including content stylistically similar to news
+    articles (Penn Treebank), curated articles (WikiText), and prose (CBT). Performance
+    transfers.</li>
+  <li>Crucially, the authors excluded Wikipedia from WebText. So the WikiText benchmarks
+    aren't testing memorization — they're testing genuine LM transfer.</li>
+</ul>
+
+<h4>Doubt: why does GPT-2 <em>not</em> beat SOTA on 1 Billion Word?</h4>
+
+<p>The 1 Billion Word Benchmark is a sentence-shuffled corpus. Sentences within each document
+are randomly permuted. So the long-range structure that GPT-2's 1024-token context is built
+to exploit <em>doesn't exist</em> in that test distribution. The model is forced to do
+isolated-sentence prediction, where smaller models trained directly on shuffled data have an
+advantage. This is a clean illustration of the BooksCorpus argument from GPT-1: the corpus
+shapes what the model learns, and benchmarks that destroy structure don't reward models
+that learn structure.</p>
+
+<h4>Doubt: what does this perplexity improvement tell us about generalization vs memorization?</h4>
+
+<p>The fact that perplexity improves on benchmarks GPT-2 has never seen (and whose sources
+were specifically excluded from WebText) is direct evidence that pre-training is producing
+<em>generalizable</em> language modeling capability, not just memorization of training data.
+The bloom-filter analysis in Section 4 reinforces this by measuring n-gram overlap directly.</p>
+
+<hr>
+
+<!-- ============ PART 3.2: CBT + LAMBADA ============ -->
+<h2 id="part3-cbt">Part 3.2 — CBT and LAMBADA: the mechanics of prompting</h2>
+
+<h3>Children's Book Test (CBT)</h3>
+
+<p>CBT presents a passage of children's literature with one word removed, plus a list of 10
+candidate words. The task: pick the correct word.</p>
+
+<p>Prompting mechanism: for each candidate $c$, substitute it into the blank, then compute
+$P(\text{full passage with } c) = \prod_i P(u_i \mid u_{<i})$ under the LM. Pick the candidate
+with highest probability.</p>
+
+<div class="ascii-diagram">
+   Passage:  "The cat sat on the ____ and watched the rain fall."
+   Candidates:  [mat, dog, sky, table, cloud, ...]
+
+   For each candidate c:
+     reconstructed = "The cat sat on the " + c + " and watched the rain fall."
+     score(c) = sum_i log P(token_i | token_{&lt;i})  under the LM
+   Pick argmax_c score(c).
+</div>
+
+<p>Notice: the model isn't told "this is a multiple-choice task." It scores each completion
+by language-model likelihood, and we pick the best. The model's <em>preference</em> over
+plausible continuations is the answer.</p>
+
+<p>CBT comes in two versions: <strong>CBT-CN</strong> (common nouns, what we just described)
+and <strong>CBT-NE</strong> (named entities, where the blank is a character name and the
+candidates are characters from the book). GPT-2 reaches ~93.3% on CBT-CN and ~89.1% on CBT-NE
+at the 1.5B size — both new SOTA.</p>
+
+<h3>LAMBADA</h3>
+
+<p>LAMBADA is harder. Each example is a passage of ~5 sentences, with the final word removed.
+The passages are specifically selected so that the final word is <em>unpredictable from the
+last sentence alone</em> but <em>predictable given the full context</em>. So you can't cheat
+by looking only at local syntax — you have to track long-range entities.</p>
+
+<p>Example structure:</p>
+
+<div class="ascii-diagram">
+   "She had been thinking about that day for weeks. Her grandmother had told
+   her stories about it. The painting depicted a young girl, painted by her
+   great-aunt who had lived in Paris during the war. The girl was holding a
+   small bouquet of ____."
+
+   The final word ("flowers", "violets", whichever the original was) is
+   guessable only because the passage set up "bouquet" context. A local
+   bigram model would have no chance.
+</div>
+
+<p>Prompting: simply compute $P(w \mid \text{passage})$ under the LM for the candidate word
+$w$. Or, in accuracy mode, take the most likely next-word completion and check whether it
+matches the target.</p>
+
+<h4>The "stop-word filter" trick</h4>
+
+<p>One subtle issue: a naive LM will often predict common words ("the", "and", ".") rather
+than committing to a content word. The authors find that filtering out stop-word predictions
+(restricting to tokens that could plausibly end a sentence) improves LAMBADA accuracy
+substantially. This is one of the few task-specific tweaks in the paper, and it's worth
+noting as an honest disclosure that pure zero-shot is sometimes brittle.</p>
+
+<p>GPT-2 1.5B reaches ~63.2% accuracy on LAMBADA, vs prior SOTA of ~59.2%. The perplexity
+metric (~8.6) is also new SOTA, dropping from ~99 (yes, two-orders-of-magnitude improvement
+on this metric — it's that hard for older models).</p>
+
+<div class="card">
+<strong>Mechanism summary for LM benchmarks (CBT, LAMBADA, perplexity tasks):</strong>
+<ul>
+  <li>No special prompt — feed the passage in directly.</li>
+  <li>The "task" is encoded by what gets <em>scored</em>: either a probability over a fixed
+    last token (LAMBADA), or a comparison of likelihoods across candidates (CBT), or a
+    sum of token log-probs over the whole test set (perplexity).</li>
+  <li>The model is just being asked "how likely is this text?" The task framing happens
+    outside the model.</li>
+</ul>
+</div>
+
+<hr>
+
+<!-- ============ PART 3.3: WINOGRAD ============ -->
+<h2 id="part3-wsc">Part 3.3 — Winograd Schema Challenge</h2>
+
+<p>The Winograd Schema is a commonsense-reasoning benchmark. Each example is a sentence with
+an ambiguous pronoun and two possible referents:</p>
+
+<blockquote>
+"The trophy doesn't fit in the brown suitcase because <strong>it</strong> is too large.
+What does <em>it</em> refer to?  (a) the trophy   (b) the suitcase"
+</blockquote>
+
+<p>Prompting: substitute each referent for the pronoun, and pick the substitution that yields
+a higher LM probability.</p>
+
+<div class="ascii-diagram">
+   Sentence A: "The trophy doesn't fit in the brown suitcase because the trophy is too large."
+   Sentence B: "The trophy doesn't fit in the brown suitcase because the suitcase is too large."
+
+   score_A = sum_i log P(token_i in A | prefix)
+   score_B = sum_i log P(token_i in B | prefix)
+
+   Predict the referent corresponding to whichever sentence the LM finds more probable.
+</div>
+
+<p>The intuition: if the model has learned commonsense ("trophies that are too large don't
+fit in suitcases"), the trophy-substitution should produce a more coherent sentence and
+therefore higher likelihood. GPT-2 reaches ~70.7% on Winograd, a clear improvement over the
+~63.7% prior SOTA — but still well below human (~92%).</p>
+
+<hr>
+
+<!-- ============ PART 3.4: COQA ============ -->
+<h2 id="part3-rc">Part 3.4 — Reading comprehension (CoQA)</h2>
+
+<p>CoQA is a conversational QA benchmark: you're given a document plus a multi-turn dialogue
+of questions about it. Each new question may refer back to previous questions ("Who was the
+first president?" → "George Washington." → "When was <em>he</em> born?").</p>
+
+<p>Prompting: format the entire history as a string, then ask the model to continue with the
+next answer.</p>
+
+<div class="ascii-diagram">
+   [document text]
+   Q: Who was the first president?
+   A: George Washington.
+   Q: When was he born?
+   A:  ← model continues here
+
+   Greedy decoding from the model continues with "1732", which is the correct answer.
+</div>
+
+<p>The key prompting elements:</p>
+<ul>
+  <li>The <code>Q:</code> and <code>A:</code> markers tell the model "this is a Q&A
+    format" — those exact tokens occur frequently in WebText (interviews, FAQ pages, Q&A
+    forums).</li>
+  <li>Listing prior Q-A turns gives the model in-context examples of <em>how to answer</em> —
+    a kind of accidental few-shot prompting before few-shot was a named concept.</li>
+  <li>The trailing <code>A:</code> primes the model to emit an answer next.</li>
+</ul>
+
+<p>GPT-2 zero-shot reaches an F1 of ~55 on CoQA's dev set, compared to ~89 for a BERT-based
+supervised system. The gap is large — but the supervised system was fine-tuned on 127k labeled
+QA pairs, and GPT-2 used zero. The fact that zero-shot reaches more than half of supervised
+performance via prompt formatting alone is the striking result.</p>
+
+<hr>
+
+<!-- ============ PART 3.5: SUMMARIZATION ============ -->
+<h2 id="part3-sum">Part 3.5 — Summarization (the "TL;DR:" trick)</h2>
+
+<p>Summarization is the most famous prompting trick in the paper. Given a news article, the
+authors append the literal string <code>"TL;DR:"</code> and ask the model to continue.</p>
+
+<div class="ascii-diagram">
+   [article text, possibly thousands of tokens long]
+
+   TL;DR:  ← model continues with what it believes is a summary
+
+   Decode 100 tokens via top-k sampling (k=2). The output is taken as the summary.
+</div>
+
+<h4>Why this works</h4>
+
+<p>"TL;DR" — "too long; didn't read" — is an internet convention. Bloggers, journalists, and
+Reddit users routinely place a short summary after a "TL;DR:" tag at the end of a long
+post. In WebText, every <code>"TL;DR:"</code> token is followed by a human-written summary
+of preceding content. The model has therefore learned, as part of next-token prediction, the
+conditional distribution $P(\text{summary} \mid \text{article} + \text{"TL;DR:"})$.</p>
+
+<p>The benchmark used is CNN/Daily Mail. Quantitative results: GPT-2 zero-shot scores
+ROUGE-L of ~26.6, which is below specialized supervised models (~37+) but well above a
+random-3-sentence baseline (~24) and above a "first-3-sentences" lead baseline (~22.7).</p>
+
+<h4>Doubt: how do we know the "TL;DR" really matters?</h4>
+
+<p>The authors ablate this. Without the <code>"TL;DR:"</code> tag, performance drops by a few
+ROUGE points to roughly the lead-3 baseline. With it, performance is meaningfully higher.
+This is direct evidence that the format-as-task-encoding thesis holds: the model isn't
+summarizing because it's been "told to" in any direct sense — it's summarizing because the
+prompt induces a context in which summarization is the most likely continuation.</p>
+
+<blockquote>
+"TL;DR:" is doing a lot of work. The model has effectively been pre-trained on millions of
+TL;DR pairs. The "task" is fully encoded by four ASCII characters.
+</blockquote>
+
+<hr>
+
+<!-- ============ PART 3.6: TRANSLATION ============ -->
+<h2 id="part3-mt">Part 3.6 — Translation (the bilingual prompt trick)</h2>
+
+<p>This is the most surprising experiment in the paper. WebText was filtered to be mostly
+English. There was no explicit parallel-corpus collection. And yet GPT-2 can translate, in a
+limited way, between English and French.</p>
+
+<h3>The prompt format</h3>
+
+<p>For English→French, the authors construct a prompt that looks like a bilingual dictionary
+entry:</p>
+
+<div class="ascii-diagram">
+   "english sentence 1" = "french sentence 1"
+   "english sentence 2" = "french sentence 2"
+   ...
+   "english sentence k" = "french sentence k"
+   "input english sentence" =  ← model continues here
+
+   The continuation is taken as the French translation.
+</div>
+
+<p>(The authors actually use a slightly different format with the words "translates to" or
+similar — but the essence is the same: examples of the form $\langle$English$\rangle$ =
+$\langle$French$\rangle$ followed by an English input.)</p>
+
+<p>Note this is technically <em>few-shot</em> in the sense of using $k$ exemplar pairs in
+context, but the model was never trained on labeled translation pairs. From the LM's
+perspective, the prompt is just a continuation problem: "I see a pattern of English = French
+lines; what comes next?"</p>
+
+<h3>The numbers</h3>
+
+<p>GPT-2 reaches ~5 BLEU on WMT-14 En→Fr. For comparison: dedicated supervised systems were
+already at ~33+ BLEU. So GPT-2 is bad at translation in an absolute sense. But it's <em>not
+zero</em>, and it's better than a word-by-word unsupervised baseline.</p>
+
+<h4>Doubt: where does the French come from if WebText is mostly English?</h4>
+
+<p>This is the right question. Three explanations, all real:</p>
+
+<ol>
+  <li><strong>WebText isn't 100% English.</strong> The filtering was "loose" — pages with
+    primarily English content but some French were included. The authors estimate ~10 MB of
+    French text snuck in via mixed-language pages, language-learning sites, code-switched
+    forum posts, etc. That's tiny compared to a real translation corpus, but it's nonzero.</li>
+  <li><strong>WebText contains "bilingual context" in the wild.</strong> Pages that discuss
+    French words, French-themed travel content, Wikipedia-style "the French translation of
+    X is Y" patterns (Wikipedia was excluded but Wikipedia-style content from other sources
+    wasn't), Reddit threads about French translations, language-learning resources, etc. The
+    model sees enough English-French co-occurrence to associate vocabulary across the two
+    languages.</li>
+  <li><strong>The prompt amplifies the signal.</strong> By using $k$ exemplar pairs in
+    context, the model is reminded what task structure it should be operating in. The
+    in-context examples constrain the output distribution far more than a single English
+    input would.</li>
+</ol>
+
+<p>So translation works at all because (a) the training data contains a small but nonzero
+amount of bilingual signal, and (b) the prompt format extracts that signal effectively. The
+result is poor by translation-system standards but striking by "this model never saw a
+translation dataset" standards. It is concrete evidence that capability can emerge from
+content the data accidentally contains.</p>
+
+<hr>
+
+<!-- ============ PART 3.7: NATURAL QUESTIONS ============ -->
+<h2 id="part3-qa">Part 3.7 — Question answering (Natural Questions)</h2>
+
+<p>Natural Questions tests open-domain factoid QA: given a question with no context document,
+produce the answer.</p>
+
+<p>Prompting: $k$ example QA pairs in context, then the test question with a trailing
+<code>A:</code>.</p>
+
+<div class="ascii-diagram">
+   Q: When was Marie Curie born?
+   A: 7 November 1867.
+   Q: What is the capital of Australia?
+   A: Canberra.
+   ...
+   Q: [test question]
+   A:  ← model continues here
+</div>
+
+<p>The result is striking in the opposite direction from translation: GPT-2 1.5B reaches only
+~4.1% accuracy on the most popular slice of Natural Questions. Supervised systems were at
+~30%+. So the model has clearly memorized some factual knowledge from WebText, but its
+factoid recall is unreliable.</p>
+
+<h4>What this tells us</h4>
+
+<p>The pattern <em>across all the zero-shot tasks</em> is: prompting works partially, but the
+gap to supervised SOTA varies enormously by task. Tasks closer to language modeling itself
+(LAMBADA, CBT, perplexity) reach SOTA. Tasks requiring narrow factual recall (NQ) are
+far below. Tasks requiring world knowledge plus light generation (summarization,
+Winograd) are in between.</p>
+
+<div class="card">
+<strong>The pattern of zero-shot success in the paper:</strong>
+<table>
+<tr><th>Task</th><th>Zero-shot GPT-2 1.5B</th><th>Supervised SOTA at the time</th><th>Notes</th></tr>
+<tr><td>WikiText-103 PPL</td><td>17.48</td><td>~18 (worse)</td><td>SOTA</td></tr>
+<tr><td>LAMBADA accuracy</td><td>63.24%</td><td>59.23% (worse)</td><td>SOTA</td></tr>
+<tr><td>CBT-CN accuracy</td><td>93.30%</td><td>85.7% (worse)</td><td>SOTA</td></tr>
+<tr><td>CBT-NE accuracy</td><td>89.05%</td><td>82.3% (worse)</td><td>SOTA</td></tr>
+<tr><td>Winograd accuracy</td><td>70.70%</td><td>63.7% (worse)</td><td>SOTA</td></tr>
+<tr><td>enwik8 BPC</td><td>0.93</td><td>0.99 (worse)</td><td>SOTA</td></tr>
+<tr><td>CoQA F1</td><td>55</td><td>89 (BERT)</td><td>Behind</td></tr>
+<tr><td>CNN/DM ROUGE-L</td><td>26.6</td><td>37+</td><td>Behind</td></tr>
+<tr><td>WMT-14 En→Fr BLEU</td><td>~5</td><td>~33</td><td>Far behind</td></tr>
+<tr><td>Natural Questions</td><td>4.1%</td><td>~30%</td><td>Far behind</td></tr>
+</table>
+</div>
+
+<p>So the headline "7 of 8 SOTA" applies to the language-modeling benchmarks specifically.
+For everything else, zero-shot is interesting but not competitive. The paper is careful about
+this distinction.</p>
+
+<hr>
+
+<!-- ============ PART 4: GENERALIZATION ============ -->
+<h2 id="part4">Part 4 — Generalization vs Memorization</h2>
+
+<p>A natural objection to the zero-shot results: maybe the model isn't generalizing, it's
+just memorizing? WebText was scraped from the open web, which contains lots of text, including
+possibly contaminating snippets of the test sets. If the test sets are leaking into training,
+the perplexity improvements are inflated and don't reflect real generalization.</p>
+
+<p>The authors take this seriously and run an 8-gram overlap analysis using a
+<strong>Bloom filter</strong>.</p>
+
+<h3>The mechanism, step by step</h3>
+
+<ol>
+  <li>Build a Bloom filter containing every 8-gram (8 consecutive tokens) from WebText. Bloom
+    filters give probabilistic membership queries: "is this 8-gram in WebText?" with a tunable
+    false-positive rate but no false negatives.</li>
+  <li>For each test corpus, compute the fraction of test 8-grams that appear in WebText. This
+    upper-bounds the overlap.</li>
+  <li>Compare overlap rates to the overlap between standard <em>train</em> and <em>test</em>
+    splits of those same datasets, to give a baseline expectation of normal overlap.</li>
+</ol>
+
+<h3>Results</h3>
+
+<table>
+<tr><th>Dataset</th><th>WebText test-8gram overlap</th><th>Native train-test overlap</th></tr>
+<tr><td>WikiText-103</td><td>~2.4%</td><td>~6%</td></tr>
+<tr><td>1 Billion Word</td><td>~13.2%</td><td>~14%</td></tr>
+<tr><td>Penn Treebank</td><td>~0.6%</td><td>~3%</td></tr>
+<tr><td>enwik8</td><td>~7.6%</td><td>—</td></tr>
+<tr><td>CoQA dev</td><td>~15% of docs (~3% of unique 8-grams)</td><td>—</td></tr>
+</table>
+
+<p>The takeaway: WebText overlap with these test sets is comparable to or <em>less than</em>
+the contamination already present in the datasets' own train splits. The model is not
+benefiting unduly from leakage. The perplexity improvements reflect real generalization, not
+memorized regurgitation.</p>
+
+<h4>Doubt: why is this concern bigger for GPT-2 than for GPT-1?</h4>
+
+<p>Three reasons:</p>
+<ul>
+  <li><strong>WebText was scraped from the open web</strong>, where benchmark test sets often
+    appear in some form (forum copies, mirrors, derivative works, the original web sources
+    that the benchmark was built from). BooksCorpus is a closed collection of novels and is
+    much less likely to contain academic test sets.</li>
+  <li><strong>Zero-shot evaluation means the model is evaluated on the exact test
+    distribution.</strong> Fine-tuned evaluation (GPT-1) means the model's behavior on the
+    test set is mediated by task-specific fine-tuning, so even some contamination during
+    pre-training might not directly translate into inflated test scores. Zero-shot has no
+    such mediation.</li>
+  <li><strong>Scale amplifies memorization.</strong> A 1.5B model has the capacity to
+    memorize verbatim more of its training set than a 117M model. So memorization-as-failure-mode
+    is a more pressing concern at scale.</li>
+</ul>
+
+<p>This is the first paper in the GPT lineage to explicitly run contamination analysis. Every
+later paper (GPT-3, Llama, etc.) does the same.</p>
+
+<div class="card">
+<strong>What the contamination analysis really establishes:</strong> the perplexity numbers
+are honest. Whatever the model is doing, it isn't cheating. This is necessary infrastructure
+for the broader claim of the paper — without it, every result is suspect.
+</div>
+
+<hr>
+
+<!-- ============ PART 5: RELATED WORK + DISCUSSION ============ -->
+<h2 id="part5">Part 5 — Related Work + Discussion (Sections 5–6)</h2>
+
+<p>Section 5 surveys related work — McCann et al.'s multitask "decaNLP" framework, ELMo,
+BERT, Universal Language Model Fine-tuning (ULMFiT), CoVe. The throughline they pick out:
+prior work either kept tasks supervised (decaNLP) or required fine-tuning (everything else).
+GPT-2 sits in the unique position of <em>no labels, no fine-tuning</em>.</p>
+
+<h3>Section 6 — Discussion</h3>
+
+<p>Three points the discussion emphasizes:</p>
+
+<h4>1. The scaling trend</h4>
+
+<p>Across all eight LM benchmarks, plotting test perplexity (log scale) against parameter
+count (log scale) gives a roughly straight, downward-sloping line. The 1.5B model is no worse
+on this curve than the trend predicts — meaning there is no visible saturation. If you keep
+scaling, you should keep getting better.</p>
+
+<div class="ascii-diagram">
+   log-perplexity                                                 (sketch)
+       │
+       │ ●  117M
+       │
+       │       ●  345M
+       │
+       │             ●  762M
+       │
+       │                   ●  1542M
+       │                          \
+       │                           \
+       │                            \   ← trend keeps going
+       │                             \
+       │
+       └──────────────────────────────────► log(params)
+</div>
+
+<p>This single picture is the seed of the scaling-laws era. The paper doesn't formalize it —
+Kaplan et al. (2020) does that, and GPT-3 (2020) acts on it at 175B. But the empirical
+curve here is what motivated everything that came next.</p>
+
+<h4>2. Underfitting at all scales</h4>
+
+<p>The authors note that even the 1.5B model is <em>underfitting</em> WebText — held-out
+perplexity is still improving when training stops, the train/test gap is small. So the
+bottleneck at the time of writing wasn't generalization; it was that they didn't have enough
+compute to fully train even the biggest model on the data they had. This is a clean message:
+"bigger models, more compute, would help."</p>
+
+<h4>3. The methodological claim</h4>
+
+<p>The discussion is careful to repeat that zero-shot is not the goal in any practical sense —
+it's a measurement. The paper sets a lower bound on what a language model trained this way
+can do on each task. Real applications might fine-tune, prompt more carefully, or stack on
+other techniques. The point is that the LM itself, in its raw form, already does <em>so much
+of the work</em> that the additional task-specific machinery contributes less than people
+thought.</p>
+
+<hr>
+
+<!-- ============ BIG PICTURE ============ -->
+<h2 id="bigpicture">Big-picture synthesis</h2>
+
+<h3>View 1 — GPT-1 vs GPT-2 in one comparison</h3>
+
+<table>
+<tr><th>Axis</th><th>GPT-1 (Jun 2018)</th><th>GPT-2 (Feb 2019)</th></tr>
+<tr><td>Architecture family</td><td>Decoder-only Transformer</td><td>Decoder-only Transformer</td></tr>
+<tr><td>Parameters</td><td>117M</td><td>117M / 345M / 762M / <strong>1542M</strong></td></tr>
+<tr><td>Layers</td><td>12</td><td>12 / 24 / 36 / <strong>48</strong></td></tr>
+<tr><td>$d_{\text{model}}$</td><td>768</td><td>768 / 1024 / 1280 / <strong>1600</strong></td></tr>
+<tr><td>Context window</td><td>512</td><td>1024</td></tr>
+<tr><td>Vocabulary</td><td>40k char-level BPE</td><td>50,257 byte-level BPE</td></tr>
+<tr><td>LayerNorm placement</td><td>Post-LN</td><td>Pre-LN + final LN</td></tr>
+<tr><td>Residual init</td><td>Standard</td><td>Scaled by $1/\sqrt{N}$</td></tr>
+<tr><td>Training data</td><td>BooksCorpus (~5 GB)</td><td>WebText (~40 GB)</td></tr>
+<tr><td>Downstream usage</td><td>Fine-tune + delimiter tokens</td><td>Zero-shot prompting</td></tr>
+<tr><td>Per-task new params</td><td>$W_y$ + delimiter embeddings</td><td>None</td></tr>
+<tr><td>Headline result</td><td>SOTA on 9/12 (fine-tuned)</td><td>SOTA on 7/8 LM benchmarks (zero-shot)</td></tr>
+</table>
+
+<h3>View 2 — The philosophical shift: pre-train + fine-tune → pre-train + prompt</h3>
+
+<div class="ascii-diagram">
+   GPT-1 / BERT paradigm:                  GPT-2 paradigm:
+
+   pre-train ──► fine-tune for task A ──►  pre-train ──► prompt for task A
+            └──► fine-tune for task B ──►            └──► prompt for task B
+            └──► fine-tune for task C ──►            └──► prompt for task C
+                                                      └──► prompt for task D
+                                                      └──► prompt for task E
+                                                      └──► ...
+   (one model per task)                     (one model, infinitely many tasks)
+</div>
+
+<p>Why this shift matters:</p>
+
+<ul>
+  <li><strong>It changes who "uses" the model.</strong> Fine-tuning requires ML engineers
+    with labeled data. Prompting requires anyone who can write English. The user interface
+    of AI fundamentally changes.</li>
+  <li><strong>It changes how models are deployed.</strong> One deployed model can serve
+    arbitrary tasks. No need to maintain $T$ fine-tuned checkpoints.</li>
+  <li><strong>It changes what the model is for.</strong> A fine-tuned model is a classifier
+    for a specific task. A prompted LM is a <em>general-purpose text continuation system</em>
+    that, by virtue of what humans write, accidentally does everything.</li>
+  <li><strong>It changes the bottleneck.</strong> Under fine-tuning, the bottleneck is
+    labeled data. Under prompting, the bottleneck is pre-training scale and corpus quality.
+    These are scalable in completely different ways.</li>
+</ul>
+
+<blockquote>
+GPT-1 was about transfer learning. GPT-2 is about <em>the LM itself becoming the product</em>.
+The fine-tuning step disappears. What's left is just a really good language model and the
+prompts you wrap around it.
+</blockquote>
+
+<h3>View 3 — The lineage forward</h3>
+
+<table>
+<tr><th>Model</th><th>Year</th><th>What changed from GPT-2</th></tr>
+<tr><td><strong>GPT-2 (this paper)</strong></td><td>2019</td><td>1.5B params, WebText, zero-shot prompting</td></tr>
+<tr><td>Kaplan et al. scaling laws</td><td>2020</td><td>Formalizes the loss-vs-scale curve GPT-2 sketched empirically. Establishes that loss ∝ (params)<sup>−α</sup>, with measurable exponent.</td></tr>
+<tr><td>GPT-3</td><td>2020</td><td>175B params (~115× larger). Same architecture lineage. Adds explicit few-shot in-context learning. Same prompting paradigm, much sharper because of scale.</td></tr>
+<tr><td>InstructGPT</td><td>2022</td><td>Adds RLHF — fine-tuning on human preference data to align the LM with user intent. Same backbone.</td></tr>
+<tr><td>ChatGPT</td><td>Nov 2022</td><td>InstructGPT packaged as a chat interface. The prompting paradigm of GPT-2 becomes the default way humans interact with computers.</td></tr>
+<tr><td>GPT-4 / Claude / Gemini / Llama</td><td>2023+</td><td>Multimodal inputs, longer contexts, mixture-of-experts, tool use. All same fundamental loop: pre-train a decoder Transformer, prompt at inference.</td></tr>
+</table>
+
+<h3>The one-sentence summary</h3>
+
+<blockquote>
+<em>Train a 1.5B-parameter Transformer LM on 40 GB of human-curated web text, and it will,
+without any task-specific fine-tuning, do reading comprehension, summarization, translation,
+and question answering at non-trivial levels — purely by continuing prompts whose format
+encodes the task — and the perplexity-vs-scale curve doesn't bend, suggesting the recipe is
+nowhere near its ceiling.</em>
+</blockquote>
+
+<h3>Honest weaknesses of the paper (in 2026 hindsight)</h3>
+
+<ul>
+  <li><strong>Zero-shot is well below fine-tuned SOTA on most non-LM tasks.</strong> The
+    headline "7 of 8 LM benchmarks" hides that QA, translation, and summarization remain
+    far behind specialized systems. The paper is honest about this; later readers sometimes
+    aren't.</li>
+  <li><strong>No instruction-following or chat.</strong> The "task" is encoded in subtle
+    format conventions (TL;DR, Q:/A:, bilingual pairs). The model has not learned to follow
+    natural-language instructions per se. InstructGPT (2022) is what closes that gap.</li>
+  <li><strong>No formal scaling law.</strong> The curves are empirical and suggestive but
+    not quantified. Kaplan et al. (2020) does this; without that formalization, GPT-3's bet
+    is hard to justify.</li>
+  <li><strong>The strongest tasks are essentially LM tasks.</strong> CBT and LAMBADA and
+    Winograd are all reducible to "score completions by LM likelihood." It's not clear how
+    far this generalizes to tasks that aren't expressible as next-token prediction over
+    natural-language candidates.</li>
+  <li><strong>Performance distribution is far from training distribution.</strong> The
+    model's failures concentrate exactly where the corpus is light: factual recall (no
+    Wikipedia means weaker factoid QA), non-English content (mostly English corpus), and
+    technical specialization (no domain corpora). Capabilities are downstream of corpus.</li>
+  <li><strong>No discussion of compute or training cost.</strong> Training the 1.5B model
+    took a non-trivial fraction of a TPU pod's time for weeks. The paper doesn't engage with
+    the compute economics that will become central in later work.</li>
+  <li><strong>No safety considerations.</strong> Famously, OpenAI initially withheld the 1.5B
+    weights citing misuse concerns — but the paper itself contains essentially no discussion
+    of the failure modes (toxic generation, hallucination, prompt injection) that would
+    become the dominant concerns of the LLM era.</li>
+</ul>
+
+<h3>What's notably absent from the paper that would have been obvious in hindsight</h3>
+
+<ul>
+  <li><strong>"Emergence" framing.</strong> Later work (Wei et al. 2022) describes how some
+    capabilities appear suddenly at a particular scale. GPT-2 doesn't frame its scaling
+    curves that way — partly because at the scales tested, no qualitative emergence happens.
+    Most improvements are smooth.</li>
+  <li><strong>In-context learning as a named phenomenon.</strong> GPT-3 will identify "few-shot
+    in-context learning" as a distinct capability. GPT-2 uses it (translation with bilingual
+    pairs; QA with prior Q-A turns) but doesn't name it or center it.</li>
+  <li><strong>The token-budget framing.</strong> Chinchilla (2022) will argue that for a
+    given compute budget, GPT-2 (and GPT-3) were undertrained — too many parameters, not
+    enough tokens. The paper doesn't engage with this trade-off because the concept doesn't
+    yet exist.</li>
+</ul>
+
+<div class="card">
+<strong>Final mental model:</strong>
+<br><br>
+GPT-2 is the paper that showed <em>language modeling is sufficient</em> — at sufficient
+scale, on sufficient data, a vanilla LM does many of the things people had been building
+specialized supervised systems to do, simply because the supervised tasks are special cases
+of the natural distribution of text.
+<br><br>
+The architectural changes (pre-LN, $1/\sqrt{N}$ init, final LN, larger context, byte-level
+BPE) are stability and scope fixes that let the same architecture train at depth. The
+corpus changes (WebText, Reddit-karma filter, Wikipedia excluded) make the training
+distribution contain the task patterns the model will later be prompted with. The
+methodological choice (zero-shot only) isolates the LM's intrinsic capability from any
+test-task data fitting.
+<br><br>
+Out of those three deliberate moves comes the philosophical shift from <em>pre-train + fine-tune</em>
+to <em>pre-train + prompt</em>. Every modern LLM follows GPT-2's recipe, just bigger and on
+more data. The instructions and chat interfaces of 2022 onwards are bolted on top of the
+same skeleton.
+<br><br>
+GPT-1 invented the recipe. GPT-2 found out the recipe didn't need the fine-tuning step. The
+rest of the field has been re-running this experiment at larger and larger scale ever since.
+</div>
+
+</body>
+</html>

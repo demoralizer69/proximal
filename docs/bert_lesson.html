@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BERT — Pre-training of Deep Bidirectional Transformers for Language Understanding — Lesson</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --accent: #5a3e9b;
+    --accent2: #2e5c8a;
+    --card: #ffffff;
+    --border: #e3e3df;
+    --code-bg: #f3f1ec;
+  }
+  body {
+    font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; color: var(--accent); }
+  h3 { font-size: 1.2rem; margin-top: 1.6rem; color: var(--accent2); }
+  h4 { font-size: 1.05rem; margin-top: 1.2rem; color: var(--fg); }
+  code {
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .checkin {
+    background: #eef5ff;
+    border-left: 4px solid var(--accent2);
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin: 1.5rem 0;
+  }
+  .doubt {
+    background: #fff0f0;
+    border-left: 4px solid #c44536;
+    padding: 0.8rem 1.25rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    font-style: italic;
+  }
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .toc ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+  .toc a { color: var(--accent2); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .timestamp {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+  }
+  .formula {
+    text-align: center;
+    margin: 1.5rem 0;
+    font-size: 1.1em;
+  }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    color: var(--muted);
+    margin-left: 0;
+    font-style: italic;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.6em;
+    background: var(--accent);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-left: 0.5em;
+    vertical-align: middle;
+  }
+  .badge.new { background: #2c9d4a; }
+  hr {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 2.5rem 0;
+  }
+  .ascii-diagram {
+    background: #1a1a1a;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    width: 100%;
+    font-size: 0.95em;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.8rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); }
+</style>
+</head>
+<body>
+
+<h1>BERT — Pre-training of Deep Bidirectional Transformers for Language Understanding</h1>
+<div class="timestamp">Devlin, Chang, Lee, Toutanova (Google AI Language, October 2018). Lesson generated: 2026-05-29.</div>
+
+<div class="toc">
+  <strong>Table of Contents</strong>
+  <ul>
+    <li><a href="#orientation">Orientation — where BERT sits in the 2018 timeline</a></li>
+    <li><a href="#part1">Part 1 — Section 1 (Introduction): the bidirectionality argument</a></li>
+    <li><a href="#part2">Part 2 — Section 2 (Related Work): ELMo, GPT, and what BERT borrows</a></li>
+    <li><a href="#part3">Part 3 — Section 3.1 (Model Architecture)</a></li>
+    <li><a href="#part4">Part 4 — Section 3.2 (Input/Output Representations)</a></li>
+    <li><a href="#part5">Part 5 — Section 3.3 (Pre-training): Masked LM + Next Sentence Prediction</a></li>
+    <li><a href="#part6">Part 6 — Section 3.4 (Fine-tuning BERT)</a></li>
+    <li><a href="#part7">Part 7 — Section 4 (Experiments): GLUE, SQuAD, SWAG</a></li>
+    <li><a href="#part8">Part 8 — Section 5 (Ablation Studies)</a></li>
+    <li><a href="#bigpicture">Big-picture synthesis: three views of BERT <span class="badge new">SYNTHESIS</span></a></li>
+    <li><a href="#weaknesses">Honest weaknesses (and what RoBERTa/ALBERT/etc. fixed)</a></li>
+  </ul>
+</div>
+
+<!-- ============ ORIENTATION ============ -->
+<h2 id="orientation">Orientation — where BERT sits in the 2018 timeline</h2>
+
+<p>You already know GPT-1 cold. So the cleanest way to teach BERT is as a series of
+deliberate departures from GPT-1's recipe — each one defended with a specific argument.
+That's how this lesson is organized: every BERT design choice gets compared to its GPT-1
+counterpart and we ask <em>why this and not that</em>.</p>
+
+<p>The 2018 timeline you need in your head:</p>
+
+<div class="card">
+<table>
+  <tr><th>Date</th><th>Paper</th><th>One-line summary</th></tr>
+  <tr><td>Jun 2017</td><td>Vaswani et al. — <em>Attention Is All You Need</em></td><td>The Transformer. Encoder + decoder. Trained for translation.</td></tr>
+  <tr><td>Feb 2018</td><td>Peters et al. — <em>ELMo</em></td><td>Pre-train two LSTM LMs (left→right and right→left), use their hidden states as <em>features</em>.</td></tr>
+  <tr><td>Jun 2018</td><td>Radford et al. — <em>GPT-1</em></td><td>Pre-train a left-to-right Transformer LM, then <em>fine-tune</em> end-to-end.</td></tr>
+  <tr><td><strong>Oct 2018</strong></td><td><strong>Devlin et al. — BERT (this paper)</strong></td><td><strong>Pre-train a <em>bidirectional</em> Transformer with masked LM + NSP, then fine-tune.</strong></td></tr>
+</table>
+</div>
+
+<p>BERT's pitch is: ELMo is bidirectional but uses LSTMs and only as a feature extractor;
+GPT-1 fine-tunes a Transformer but is unidirectional. Take the union of strengths:
+<em>fine-tunable bidirectional Transformer</em>. The trick is that you cannot just naively
+train a bidirectional language model — there's a "the model sees itself" problem we'll
+explain — so BERT invents the <strong>masked language model (MLM)</strong> objective to get
+around it. Plus a second auxiliary objective, <strong>Next Sentence Prediction (NSP)</strong>,
+for sentence-pair tasks.</p>
+
+<blockquote>
+Mental model: BERT is GPT-1 with three substitutions — encoder-only instead of decoder-only,
+masked LM instead of left-to-right LM, and a [CLS] token instead of the last position for
+classification. Everything else is essentially the same Transformer.
+</blockquote>
+
+<h3>The lesson plan, mapped to the paper</h3>
+
+<ol>
+  <li>§1 Introduction — the bidirectionality argument and the feature-vs-fine-tuning frame.</li>
+  <li>§2 Related Work — ELMo and GPT positioned side by side.</li>
+  <li>§3 BERT — the architecture (§3.1), the input format (§3.2), MLM + NSP pre-training
+    (§3.3), and fine-tuning per task (§3.4). <em>This is the core of the paper.</em></li>
+  <li>§4 Experiments — GLUE, SQuAD v1.1, SQuAD v2.0, SWAG. We focus on the <em>pattern</em>
+    of results, not every number.</li>
+  <li>§5 Ablations — what does NSP actually contribute? Does scale help on small fine-tuning
+    sets? Can BERT be used feature-based?</li>
+  <li>Synthesis — three big-picture views, then honest weaknesses and the post-BERT lineage.</li>
+</ol>
+
+<hr>
+
+<!-- ============ PART 1 ============ -->
+<h2 id="part1">Part 1 — Section 1 (Introduction): the bidirectionality argument</h2>
+
+<h3>The two strategies the field had settled into</h3>
+
+<p>By late 2018, two ways to use language model pre-training had emerged:</p>
+
+<div class="card">
+<strong>(a) Feature-based.</strong> Pre-train a model. Freeze it. Extract its hidden states
+as fixed features and feed them into a task-specific architecture trained from scratch on
+labeled data. <strong>Example: ELMo.</strong>
+<br><br>
+<strong>(b) Fine-tuning.</strong> Pre-train a model. Add a small task-specific head. Train
+everything (pre-trained weights + head) end-to-end on labeled data. The architecture is
+identical across tasks. <strong>Example: GPT-1.</strong>
+</div>
+
+<p>BERT belongs to the fine-tuning camp. The paper's first major claim is that
+<em>fine-tuning is the better paradigm</em> — because it lets you reuse not just the
+representations but the whole network's computation, with minimal task-specific engineering.
+You already accepted this argument when you read GPT-1.</p>
+
+<h3>The directionality limitation</h3>
+
+<p>Here's the new wrinkle BERT adds: <strong>existing fine-tuning approaches are
+unidirectional, and that's a serious bottleneck.</strong></p>
+
+<p>GPT-1 uses a left-to-right Transformer decoder. At every position $i$, the model can
+attend to positions $1, \ldots, i$ but not to $i+1, \ldots, n$. This is fine — necessary,
+even — if your goal is generation. But for <em>understanding</em>, it's an arbitrary
+constraint. Consider:</p>
+
+<blockquote>
+"The trophy didn't fit in the suitcase because <strong>it</strong> was too large."
+</blockquote>
+
+<p>To resolve "it" (the trophy), you need to look <em>forward</em> to "was too large" and
+reason that suitcases being large isn't the issue. A left-to-right model has access to that
+information only <em>after</em> "it" has already been processed; its representation of
+"it" at the moment of prediction can't depend on the future.</p>
+
+<p>For token-level tasks like named entity recognition (NER) or extractive QA — where the
+decision about token $i$ should depend on what surrounds it on <em>both</em> sides — this
+hurts a lot. The paper's quantitative claim: bidirectional pre-training is what closes the
+gap on these tasks.</p>
+
+<h4>Why didn't GPT-1 just go bidirectional, then?</h4>
+
+<p>Because of a fundamental problem: <strong>you can't train a bidirectional language
+model directly under the standard "predict the next token" objective.</strong></p>
+
+<p>Recall the LM objective:
+$$L \;=\; \sum_i \log P(u_i \mid u_1, \ldots, u_{i-1}; \Theta).$$
+If you let the model attend bidirectionally (no causal mask), then when computing
+$P(u_i \mid \text{context})$, the model can attend to position $i$ itself in some layer
+through some chain of attention links. After even a single self-attention layer, every
+position's representation contains information about every other position — including its
+own identity. The "prediction" becomes trivial: <em>look at yourself, copy yourself, output
+yourself</em>. The model achieves zero loss while learning nothing.</p>
+
+<p>This is the <strong>"see itself"</strong> problem. It's why GPT-1 had to use a causal
+mask: to prevent any leakage of $u_i$ into the representation at position $i$.</p>
+
+<div class="card">
+<strong>BERT's escape from the see-itself problem: masked language modeling.</strong>
+Don't ask the model to predict every token. Instead, randomly <em>replace</em> some tokens
+with a special <code>[MASK]</code> symbol, and ask the model to predict only the original
+identities of the masked positions. Since the input no longer contains the answer at the
+masked positions, the model can safely attend bidirectionally — there's nothing to "see"
+at the masked spot but the mask symbol itself. We'll formalize this in Part 5; for now,
+hold onto the intuition that masking <em>removes</em> the information that would otherwise
+leak through bidirectional attention.
+</div>
+
+<h3>What the paper claims to contribute</h3>
+
+<ol>
+  <li><strong>Bidirectional pre-training matters.</strong> Demonstrated by ablating against
+    a left-to-right baseline that's otherwise identical to BERT.</li>
+  <li><strong>One unified architecture beats task-specific architectures.</strong> Same
+    idea as GPT-1, but pushed harder — BERT is SOTA on 11 different tasks with essentially
+    no per-task architecture changes.</li>
+  <li><strong>Scale + masked LM transfers extraordinarily well.</strong> BERT-large
+    (340M params) sets new SOTA on basically every benchmark they try.</li>
+</ol>
+
+<div class="card">
+<strong>Mental model after Section 1:</strong>
+<ul>
+  <li>Two fine-tuning-paradigm extensions over GPT-1: (a) bidirectional attention,
+    (b) masked-LM objective that <em>enables</em> (a).</li>
+  <li>The "see itself" problem is what forces the masking trick — bidirectional + raw LM
+    objective doesn't work.</li>
+  <li>Same fine-tune-end-to-end philosophy as GPT-1: one architecture, minimal head per
+    task, all weights updated.</li>
+</ul>
+</div>
+
+<h4>Doubt anticipated: why not predict every token bidirectionally using a separate forward
+pass per position?</h4>
+
+<p>You could, in principle: for each position $i$, hide $u_i$, run a bidirectional
+Transformer over the rest, predict $u_i$. But that's $n$ forward passes per training
+sequence — quadratically wasteful compared to GPT's single pass that predicts all $n$
+tokens at once. BERT's MLM is the efficient amortized version: predict ~15% of positions
+per forward pass, accept that you train on less signal per pass, but parallelize fully.
+The trade is "see less per pass, but the per-pass signal is now bidirectional".</p>
+
+<h4>Doubt anticipated: why a single bidirectional model and not ELMo's "two unidirectional
+LMs glued together"?</h4>
+
+<p>ELMo trains a left-to-right LSTM LM and a right-to-left LSTM LM <em>independently</em>,
+then concatenates their hidden states. Each direction is shallow in its conditioning — at
+position $i$, the L→R model sees only the left context and the R→L model sees only the
+right context. They're combined <em>after</em> the fact. That's strictly weaker than a model
+where every layer can attend in both directions: in BERT, at every layer, the representation
+of position $i$ is a function of <em>both</em> left and right context simultaneously, and
+the layers above can build on that. ELMo's combination is a "shallow concatenation of two
+unidirectional views"; BERT's bidirectionality is "deep simultaneous integration".</p>
+
+<hr>
+
+<!-- ============ PART 2 ============ -->
+<h2 id="part2">Part 2 — Section 2 (Related Work): ELMo, GPT, and what BERT borrows</h2>
+
+<p>Section 2 is short. Three subsections:</p>
+<ul>
+  <li>§2.1 Unsupervised feature-based approaches — pre-word-embeddings to ELMo.</li>
+  <li>§2.2 Unsupervised fine-tuning approaches — GPT-1.</li>
+  <li>§2.3 Transfer learning from supervised data — translation, NLI, ImageNet-style
+    transfer.</li>
+</ul>
+
+<p>For our purposes, the only thing worth dwelling on is the <strong>positioning of BERT
+relative to ELMo and GPT-1</strong>, which the paper lays out cleanly in its Figure 3.</p>
+
+<div class="ascii-diagram">
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │  ELMo  (Feb 2018)                                                   │
+   │  ─────────────────                                                  │
+   │  Two LSTM LMs trained independently:                                │
+   │      L→R LSTM:  predict u_i from u_1, ..., u_{i-1}                  │
+   │      R→L LSTM:  predict u_i from u_{i+1}, ..., u_n                  │
+   │  Concatenate hidden states; feed as features to task-specific NN.   │
+   │  Pre-trained weights FROZEN at fine-tune time.                      │
+   └─────────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │  GPT-1  (Jun 2018)                                                  │
+   │  ─────────────────                                                  │
+   │  One Transformer decoder. Causal (L→R) attention.                   │
+   │  Standard LM objective.                                             │
+   │  Fine-tune end-to-end: all weights updated.                         │
+   └─────────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────────┐
+   │  BERT  (Oct 2018)  =  ELMo's bidirectionality + GPT's fine-tuning   │
+   │  ────────────────                                                   │
+   │  One Transformer ENCODER. Fully bidirectional self-attention.       │
+   │  Masked LM objective + Next Sentence Prediction.                    │
+   │  Fine-tune end-to-end: all weights updated.                         │
+   └─────────────────────────────────────────────────────────────────────┘
+</div>
+
+<p>So BERT's "related work" pitch is literally: "ELMo had the bidirectional idea but used
+it feature-based with LSTMs. GPT had the fine-tuning idea but used it unidirectional with
+Transformers. We do bidirectional + fine-tuning + Transformer."</p>
+
+<h4>Doubt anticipated: is "bidirectional encoder" not just a rebranding of "encoder"?</h4>
+
+<p>Yes, in the architecture sense. A Transformer <em>encoder</em> (as in Vaswani 2017) has
+no causal mask — every position attends to every other position. So "BERT is an encoder"
+and "BERT is bidirectional" describe the same thing. The reason the paper uses
+"bidirectional" throughout is to draw the contrast with GPT-1 ("unidirectional") rather
+than with translation models ("encoder-decoder"). Different rhetorical framing of the same
+architectural fact.</p>
+
+<hr>
+
+<!-- ============ PART 3 ============ -->
+<h2 id="part3">Part 3 — Section 3.1 (Model Architecture)</h2>
+
+<p>BERT's architecture is a stack of standard Transformer encoder blocks. Nothing exotic.
+The only thing to know:</p>
+
+<div class="card">
+<table>
+  <tr><th>Model</th><th>Layers (L)</th><th>Hidden (H)</th><th>Heads (A)</th><th>Params</th></tr>
+  <tr><td>BERT-base</td><td>12</td><td>768</td><td>12</td><td>~110M</td></tr>
+  <tr><td>BERT-large</td><td>24</td><td>1024</td><td>16</td><td>~340M</td></tr>
+</table>
+The feed-forward inner dimension is $4H$ in both (so 3072 for base, 4096 for large).
+</div>
+
+<h4>Doubt anticipated: BERT-base is literally identical in scale to GPT-1 (12 / 768 / 12).
+Coincidence?</h4>
+
+<p>Deliberate. The paper explicitly states: "BERT-base was chosen to have the same model
+size as OpenAI GPT for comparison purposes." It's an apples-to-apples controlled experiment.
+Anything BERT-base wins by must come from the <em>training procedure</em> (bidirectional,
+MLM, NSP, different corpus), not from extra capacity. That's a clean ablation design — if
+you didn't fix the architecture, you couldn't disentangle "bidirectional helps" from
+"more parameters helps". This is one of those small methodological details that makes the
+paper's comparisons honest.</p>
+
+<h3>Inside an encoder block (refresher)</h3>
+
+<p>Each of the $L$ blocks does, in order:</p>
+
+<ol>
+  <li>Multi-head self-attention (no causal mask — every position can attend to every other).</li>
+  <li>Add residual + LayerNorm.</li>
+  <li>Position-wise feed-forward: two linear layers with a GELU activation in between,
+    inner dim $4H$.</li>
+  <li>Add residual + LayerNorm.</li>
+</ol>
+
+<p>Same as Vaswani's encoder. The only minor change: BERT uses <strong>GELU</strong>
+(Gaussian Error Linear Unit) for the feed-forward activation rather than ReLU. Smoother
+gradient profile near zero; small but consistent improvement empirically. Not load-bearing
+theoretically.</p>
+
+<div class="ascii-diagram">
+   token ids  ──►  embeddings (token + segment + position)
+                                │
+                                ▼
+                       ┌────────────────────┐
+                       │  Encoder block 1   │   self-attn (bidir) → FFN
+                       └────────────────────┘
+                                │
+                                ▼
+                              ...
+                                │
+                                ▼
+                       ┌────────────────────┐
+                       │  Encoder block L   │
+                       └────────────────────┘
+                                │
+                                ▼
+                   final hidden states  h_1, h_2, ..., h_n   (each in R^H)
+                                │
+                  ┌─────────────┴─────────────┐
+                  ▼                           ▼
+            [CLS] position              other positions
+            for sentence-level          for token-level
+            tasks (NSP, classif.)       tasks (MLM, NER, span)
+</div>
+
+<hr>
+
+<!-- ============ PART 4 ============ -->
+<h2 id="part4">Part 4 — Section 3.2 (Input/Output Representations)</h2>
+
+<p>This section is where most of BERT's "engineering moves" live: the special tokens, the
+segment embeddings, the WordPiece vocabulary. Each one is small in isolation but together
+they give BERT the flexibility to handle single sentences <em>and</em> sentence pairs
+through a uniform interface.</p>
+
+<h3>The input format, in one sentence</h3>
+
+<p>Every input to BERT is a sequence that starts with a special <code>[CLS]</code> token,
+contains one or two text segments separated by a <code>[SEP]</code> token, and ends with
+another <code>[SEP]</code>. Concretely, for a sentence pair $(A, B)$:</p>
+
+<div class="formula">
+<code>[CLS] tok_A_1 tok_A_2 ... tok_A_m [SEP] tok_B_1 tok_B_2 ... tok_B_n [SEP]</code>
+</div>
+
+<p>For a single sentence, just drop $B$ — keep the first <code>[SEP]</code>.</p>
+
+<h3>The three embedding layers, summed</h3>
+
+<p>Every input token's embedding is the elementwise sum of three vectors, all in $\mathbb{R}^H$:</p>
+
+<div class="formula">
+$$\mathbf{e}_i \;=\; \mathbf{e}^{\text{tok}}_i \;+\; \mathbf{e}^{\text{seg}}_i \;+\; \mathbf{e}^{\text{pos}}_i$$
+</div>
+
+<table>
+<tr><th>Component</th><th>What it encodes</th><th>Vocab size</th></tr>
+<tr><td>$\mathbf{e}^{\text{tok}}_i$</td><td>The token's identity (which WordPiece).</td><td>~30,000</td></tr>
+<tr><td>$\mathbf{e}^{\text{seg}}_i$</td><td>Which segment the token belongs to: $A$ or $B$.</td><td>2</td></tr>
+<tr><td>$\mathbf{e}^{\text{pos}}_i$</td><td>The token's absolute position in the sequence.</td><td>512 (max seq length)</td></tr>
+</table>
+
+<div class="ascii-diagram">
+   Input:        [CLS]  my   dog  is  cute   [SEP]  he  likes  play ##ing  [SEP]
+                  │      │    │    │   │      │    │    │      │    │      │
+   Token emb:    E_CLS  E_my E_dog E_is E_cute E_SEP E_he E_lik E_pl E_ing E_SEP
+                  +      +    +    +   +      +    +    +      +    +      +
+   Segment emb:  E_A    E_A  E_A  E_A E_A    E_A  E_B  E_B    E_B  E_B    E_B
+                  +      +    +    +   +      +    +    +      +    +      +
+   Position emb: E_0    E_1  E_2  E_3 E_4    E_5  E_6  E_7    E_8  E_9    E_10
+                  ║      ║    ║    ║   ║      ║    ║    ║      ║    ║      ║
+   Sum:          e_0    e_1  e_2  e_3 e_4    e_5  e_6  e_7    e_8  e_9    e_10
+</div>
+
+<h4>Doubt anticipated: why segment embeddings? Couldn't [SEP] already mark the boundary?</h4>
+
+<p>The <code>[SEP]</code> token marks <em>where</em> the boundary is at the token level, but
+nothing else about the embedding tells a position whether it belongs to $A$ or $B$. Without
+segment embeddings, positions 6 and 7 in the example above would have no signal saying "you
+are part of segment $B$" — only the cumulative knowledge that they come after a
+<code>[SEP]</code>. The attention layers would have to learn to count <code>[SEP]</code>s
+to figure out membership.</p>
+
+<p>Adding a constant $\mathbf{e}_A$ to every position in $A$ and a constant $\mathbf{e}_B$
+to every position in $B$ makes segment membership a <em>direct</em> additive feature
+available at every layer. Much easier for the model to use, and only 2 extra vectors of
+parameters. A small, principled inductive bias.</p>
+
+<p>(There are only two segment embeddings, $\mathbf{e}_A$ and $\mathbf{e}_B$. Single-sentence
+inputs use $\mathbf{e}_A$ throughout.)</p>
+
+<h4>Doubt anticipated: why [CLS]? Why not just use the last token like GPT-1?</h4>
+
+<p>This is one of the cleanest consequences of bidirectionality.</p>
+
+<p>In GPT-1, the model is causal: position $i$'s hidden state depends on positions
+$1, \ldots, i$. The <em>only</em> position whose hidden state is a function of the
+<em>entire</em> input is the last one. So GPT-1 must use the last position for
+sequence-level tasks; there's no choice.</p>
+
+<p>In BERT, the model is bidirectional: every position's hidden state depends on every
+other position, including itself. <em>Every</em> position sees the full input. So
+"which position do we use for classification?" becomes an open question. The paper's
+answer: prepend a dedicated token (<code>[CLS]</code>) whose hidden state is
+<em>trained</em> to be a sequence-level summary. The MLM objective doesn't touch
+<code>[CLS]</code>; the NSP objective trains it to encode the relationship between segments
+$A$ and $B$. So <code>[CLS]</code> becomes the designated "summary register".</p>
+
+<p>Why dedicate a special token rather than (say) averaging all hidden states? Two reasons:
+(1) averaging treats every position equally, but in practice some positions are more
+informative than others — better to let the model learn the weighting, which is what the
+attention into <code>[CLS]</code> effectively does; (2) a special token gives a stable
+position-independent "address" for the classifier head to read from, simplifying the
+software interface.</p>
+
+<h3>WordPiece tokenization</h3>
+
+<p>BERT uses WordPiece with a 30,000-token vocabulary. WordPiece is a subword tokenization
+algorithm closely related to BPE (which GPT-1 used). Both split rare words into smaller
+pieces; the differences are in the exact merging criterion (WordPiece maximizes the
+likelihood of the corpus under a unigram language model; BPE greedily merges most-frequent
+pairs).</p>
+
+<h4>Doubt anticipated: why WordPiece over BPE?</h4>
+
+<p>Honestly, the choice is mostly historical/pragmatic: WordPiece was the in-house Google
+tokenizer (used for machine translation) and BERT inherited it. Performance differences
+between WordPiece and BPE at comparable vocab sizes are small; subsequent models have used
+either. The mechanical effect is the same: convert any English text into a stream of subword
+units from a fixed 30k vocabulary, with no out-of-vocabulary symbols.</p>
+
+<p>One small visible artifact: WordPiece marks word-internal continuations with
+<code>##</code>. So "playing" might tokenize as <code>play</code> + <code>##ing</code>. The
+<code>##</code> prefix tells you "this piece attaches to the previous one without a space".
+Cosmetic, but useful to know if you're ever debugging BERT outputs.</p>
+
+<h3>Output side</h3>
+
+<p>For every input position $i$, the final encoder layer produces a hidden state
+$\mathbf{h}_i \in \mathbb{R}^H$. Two outputs are then read off:</p>
+
+<ul>
+  <li><strong>$C \in \mathbb{R}^H$</strong>: the hidden state at the <code>[CLS]</code>
+    position. Used for sequence-level tasks (NSP, sentence classification).</li>
+  <li><strong>$T_i \in \mathbb{R}^H$ for $i = 1, \ldots, n$</strong>: the hidden states at
+    every other position. Used for token-level tasks (MLM, NER, span prediction).</li>
+</ul>
+
+<p>Important: these aren't separate model outputs. They're just the same vector
+$\mathbf{h}_i$ at different positions, renamed for clarity depending on whether you're
+talking about the sequence-level or token-level head. There's one network, one forward pass,
+two ways to read its output.</p>
+
+<hr>
+
+<!-- ============ PART 5 ============ -->
+<h2 id="part5">Part 5 — Section 3.3 (Pre-training): Masked LM + Next Sentence Prediction</h2>
+
+<p>Pre-training BERT uses two objectives simultaneously, summed:</p>
+
+<div class="formula">
+$$L_{\text{pretrain}} \;=\; L_{\text{MLM}} \;+\; L_{\text{NSP}}.$$
+</div>
+
+<p>We'll take them in turn. MLM is the deep one; NSP is simpler but worth examining closely
+because it turns out (in hindsight) to be the more controversial of the two.</p>
+
+<h3>3.3.1 — Masked Language Modeling (MLM)</h3>
+
+<h4>The procedure</h4>
+
+<p>Take a sequence of tokens after WordPiece tokenization. Randomly select 15% of token
+positions (excluding <code>[CLS]</code> and <code>[SEP]</code>). At each selected position,
+the token is replaced according to the following rule:</p>
+
+<div class="card">
+<strong>The 80/10/10 corruption rule</strong> for each of the 15% selected positions:
+<ul>
+  <li><strong>80%</strong> of the time, replace the token with <code>[MASK]</code>.</li>
+  <li><strong>10%</strong> of the time, replace the token with a <em>random</em> token from
+    the vocabulary.</li>
+  <li><strong>10%</strong> of the time, leave the token unchanged.</li>
+</ul>
+The model then computes hidden states for the whole sequence, and at each of the
+originally-selected positions, predicts the original token via a softmax over the
+vocabulary.
+</div>
+
+<p>Let $M \subset \{1, \ldots, n\}$ be the set of masked positions. Let $\mathbf{x}$ be the
+original token sequence and $\tilde{\mathbf{x}}$ the corrupted version that goes into BERT.
+The MLM loss is:</p>
+
+<div class="formula">
+$$L_{\text{MLM}} \;=\; -\sum_{i \in M} \log P(x_i \mid \tilde{\mathbf{x}}; \Theta)
+\;=\; -\sum_{i \in M} \log \operatorname{softmax}\bigl(\mathbf{h}_i \, W_e^\top\bigr)_{x_i}.$$
+</div>
+
+<p>where $\mathbf{h}_i$ is the final hidden state at position $i$ and $W_e$ is the input
+embedding matrix (tied — same trick as GPT-1 and Vaswani).</p>
+
+<h4>Why 15%?</h4>
+
+<p>This is the number to defend. Three forces are in tension:</p>
+
+<div class="card">
+<strong>The mask rate trade-off:</strong>
+<ul>
+  <li><strong>Too low</strong> (say 5%): you get fewer prediction targets per sequence, so
+    you waste compute — each forward pass produces useful loss signal at only a handful of
+    positions. Training is slow.</li>
+  <li><strong>Too high</strong> (say 50% or 90%): you destroy too much of the input context.
+    The remaining unmasked tokens can't supply enough bidirectional signal to predict the
+    masked ones, and the task becomes nearly impossible. Also, the gap between pre-training
+    (heavy masking) and fine-tuning (no masking) grows wider.</li>
+  <li><strong>15% is a pragmatic middle</strong>: enough prediction targets to learn from,
+    little enough corruption that context remains informative.</li>
+</ul>
+The paper doesn't sweep this hyperparameter in detail; 15% was inherited from prior work
+on denoising autoencoders and worked well enough that nobody questioned it for a while.
+Later work (especially the "Should You Mask 15% in MLM?" paper, Wettig et al. 2022) showed
+that <em>higher</em> rates (up to 40%) work fine and sometimes better when the model is
+large enough. But 15% has stuck as the canonical number.
+</div>
+
+<h4>Why the 80/10/10 mix?</h4>
+
+<p>This is the single most subtle design choice in the paper, and the one most worth
+internalizing. Each of the three branches solves a specific problem.</p>
+
+<div class="card">
+<strong>The 80% [MASK] branch:</strong> This is the "real" prediction task. Most of the
+time, the corruption is to replace the token with <code>[MASK]</code>, and the model has to
+predict what was there. This is the core MLM signal.
+<br><br>
+<strong>The problem this alone would create:</strong> <code>[MASK]</code> is a token that
+appears <em>only</em> during pre-training. At fine-tuning time, the model never sees
+<code>[MASK]</code>. So if 100% of MLM prediction came from <code>[MASK]</code>-replaced
+positions, the model would learn a strategy specialized to <code>[MASK]</code>-shaped holes,
+and that strategy would not transfer to downstream tasks where every position has a real
+token. There would be a distributional mismatch — a "pre-train / fine-tune skew".
+<br><br>
+<strong>The 10% random branch:</strong> Replace with a random vocabulary token. Now the
+"corrupted" position contains a real (but wrong) token — same surface form as fine-tuning.
+This forces the model to learn that <em>it cannot fully trust the token at any position</em>
+— the model should use context to either confirm or override what's there. This builds the
+right inductive bias: every position's representation should be a smoothed/contextualized
+version of its identity, not just a lookup.
+<br><br>
+<strong>The 10% unchanged branch:</strong> Leave the token as is, but still predict it.
+This sounds weird — the answer is sitting right there in the input. But it's important
+precisely because the model doesn't <em>know</em> which positions are unchanged. It has to
+predict every selected position, and it can't tell whether the visible token is original or
+random. So it can't just "copy the token through" — it has to use context anyway. The
+unchanged branch also stays close to fine-tuning distribution (real token, no mask).
+<br><br>
+<strong>The net effect:</strong> The model is forced to compute a meaningful contextual
+representation at every position regardless of which corruption was applied, because at
+inference it can't see which positions were chosen. This makes BERT's representations
+useful for every fine-tuning task — not just for the artificial "predict the masked token"
+game.
+</div>
+
+<h4>Doubt anticipated: in the 10% random case, isn't the model trained to predict a token
+when the input is a different random token? Doesn't that inject noise?</h4>
+
+<p>Yes, it does inject some noise. But the random tokens are uniformly drawn from the vocab,
+which means most of them are unrelated to the surrounding context. The signal from context
+overwhelmingly outweighs the misleading signal from the random token, especially because
+the model has access to the full bidirectional context. The cost is small (~1.5% of all
+tokens are random replacements, since 10% of 15% = 1.5%). The benefit — closing the
+pre-train / fine-tune distribution gap — is large. It's a worthwhile trade.</p>
+
+<h4>Doubt anticipated: the loss is computed over only 15% of positions. Isn't that a
+massive waste of compute?</h4>
+
+<p>Yes — and this is one of BERT's legitimate weaknesses. Compare to GPT-style left-to-right
+LM, where every token contributes a loss term. BERT does the same amount of forward-pass
+work but extracts 1/6.7th the gradient signal per pass. RoBERTa later mitigates this by
+training for much longer; ELECTRA (Clark et al., 2020) replaces MLM with a
+"replaced-token-detection" objective that uses every position. The 15%-only-loss design is
+a real inefficiency baked into BERT.</p>
+
+<h3>3.3.2 — Next Sentence Prediction (NSP)</h3>
+
+<h4>The procedure</h4>
+
+<p>For each pre-training example, construct a sentence pair $(A, B)$:</p>
+<ul>
+  <li>50% of the time, $B$ is the actual sentence that follows $A$ in the source document.
+    Label: <code>IsNext</code>.</li>
+  <li>50% of the time, $B$ is a random sentence drawn from elsewhere in the corpus. Label:
+    <code>NotNext</code>.</li>
+</ul>
+
+<p>Feed the full sequence <code>[CLS] A [SEP] B [SEP]</code> through BERT. Take the
+<code>[CLS]</code> hidden state $C \in \mathbb{R}^H$. Project to 2 logits via a small
+classifier $W_{\text{NSP}} \in \mathbb{R}^{H \times 2}$. Cross-entropy against the binary
+label.</p>
+
+<div class="formula">
+$$L_{\text{NSP}} \;=\; -\log P(\text{label} \mid C; W_{\text{NSP}})
+\;=\; -\log \operatorname{softmax}(C \, W_{\text{NSP}})_{\text{label}}.$$
+</div>
+
+<h4>Why NSP at all?</h4>
+
+<p>The motivating concern: MLM trains the model to predict <em>tokens within a sentence</em>,
+but many downstream tasks (entailment, QA, sentence pair similarity) require reasoning about
+<em>relationships between sentences</em>. NSP is supposed to inject that capability into
+pre-training by forcing <code>[CLS]</code> to encode whether $A$ and $B$ are coherent
+neighbors.</p>
+
+<p>It's also nearly free: NSP examples come from the same corpus you're already using for
+MLM, and you can compute both losses in the same forward pass.</p>
+
+<h4>Doubt anticipated (historical context): does NSP actually help?</h4>
+
+<p>At the time of publication, the BERT paper's ablations (we'll see them in Part 8) showed
+small but consistent gains from NSP. <strong>Subsequent work — most clearly RoBERTa
+(Liu et al., 2019) — showed that NSP doesn't help, and can even hurt, once you control for
+other factors</strong> (more training, more data, longer sequences). The current consensus
+is that NSP is too easy: distinguishing "next sentence" from "random sentence" mostly
+amounts to topic detection (are these two sentences about the same thing?), which the
+model can solve trivially from word-overlap statistics, and which doesn't actually teach
+useful sentence-relationship reasoning.</p>
+
+<p>So NSP is a historically interesting design that turned out to be wrong. We'll dwell on
+this more in Part 8 (ablations) and in the weaknesses section at the end. For now, accept
+that BERT-the-original-paper trained with NSP, and notice the contrast to how we'd build
+it today.</p>
+
+<h3>Putting MLM and NSP together</h3>
+
+<p>The combined pre-training loss is:</p>
+
+<div class="formula">
+$$L_{\text{pretrain}} \;=\; L_{\text{MLM}} \;+\; L_{\text{NSP}}.$$
+</div>
+
+<p>One forward pass through BERT produces both: the final hidden state at <code>[CLS]</code>
+feeds the NSP head; the final hidden states at masked positions feed the MLM head; one
+backward pass through both heads.</p>
+
+<div class="ascii-diagram">
+   Input:  [CLS] A_1 A_2 [MASK] A_4 [SEP] B_1 [MASK] B_3 [SEP]
+                                │             │
+                                ▼             ▼
+                       ┌──────────────────────────────┐
+                       │  L stacked encoder blocks    │
+                       │  (bidirectional self-attn)   │
+                       └──────────────┬───────────────┘
+                                      │
+              ┌───────────────────────┼────────────────────────┐
+              ▼                       ▼                        ▼
+       h_[CLS] = C            h_3 (masked pos)            h_8 (masked pos)
+              │                       │                        │
+              ▼                       ▼                        ▼
+       NSP head (2-way)        MLM head (|V|-way)        MLM head (|V|-way)
+       softmax → IsNext?       softmax → original tok    softmax → original tok
+              │                       │                        │
+              ▼                       ▼                        ▼
+           L_NSP                  L_MLM term               L_MLM term
+              └───────────────────────┴────────────────────────┘
+                                      │
+                                      ▼
+                          total loss = L_MLM + L_NSP
+</div>
+
+<h3>Pre-training corpus</h3>
+
+<p>BERT is pre-trained on the concatenation of:</p>
+<ul>
+  <li><strong>BooksCorpus</strong> — ~800M words (same as GPT-1).</li>
+  <li><strong>English Wikipedia</strong> — ~2,500M words (text only, no lists/tables).</li>
+</ul>
+
+<p>Total: ~3.3B words.</p>
+
+<h4>Doubt anticipated: why these two corpora and not, say, web crawl?</h4>
+
+<p>The paper explicitly notes that "it is critical to use a document-level corpus rather
+than a shuffled sentence-level corpus" to learn long-range dependencies. Both BooksCorpus
+and Wikipedia have document structure: books have chapter-level coherence, Wikipedia
+articles have paragraph-level argumentative structure. By contrast, the typical web crawl
+of the day was lower quality and noisier. The choice mirrors GPT-1's reasoning (recall:
+GPT-1 explicitly preferred BooksCorpus over the 1B Word Benchmark for the same reason).</p>
+
+<p>A later paper, RoBERTa, showed that BERT was actually under-trained on data: adding
+more (CC-News, OpenWebText, Stories) gave large improvements. So the corpus choice was
+defensible but conservative.</p>
+
+<h3>Training hyperparameters (briefly)</h3>
+
+<ul>
+  <li>Batch size: 256 sequences × 512 tokens = 128,000 tokens per batch.</li>
+  <li>Steps: 1,000,000 (~40 epochs over the 3.3B word corpus).</li>
+  <li>Optimizer: Adam, learning rate $10^{-4}$, linear warmup for first 10k steps.</li>
+  <li>Weight decay 0.01, dropout 0.1.</li>
+  <li>GELU activation in the FFN.</li>
+  <li>BERT-base trained for 4 days on 16 TPU chips; BERT-large for 4 days on 64 TPU chips.</li>
+</ul>
+
+<h4>Doubt anticipated: why learned absolute positional embeddings rather than sinusoidal?</h4>
+
+<p>Same answer as GPT-1: empirically equivalent up to the training context length, simpler
+to implement, and 512 is well within the trainable range. The cost — no extrapolation to
+longer sequences than were seen during training — wasn't a concern at the time. Later
+models (T5, RoPE-based, ALiBi) revisited this once long-context inference became a focus.</p>
+
+<hr>
+
+<!-- ============ PART 6 ============ -->
+<h2 id="part6">Part 6 — Section 3.4 (Fine-tuning BERT)</h2>
+
+<p>Once pre-training is done, fine-tuning is straightforward: take BERT, add a tiny
+task-specific head, train end-to-end on labeled data for a few epochs (typically 2–4).</p>
+
+<p>The interesting part is how the <em>same</em> network is adapted to four different task
+shapes. Figure 4 in the paper diagrams them; we'll go through each.</p>
+
+<div class="ascii-diagram">
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │ (a) SENTENCE-PAIR CLASSIFICATION   (MNLI, QQP, QNLI, STS-B, MRPC, RTE)  │
+   │                                                                         │
+   │  Input:   [CLS] sentence_A [SEP] sentence_B [SEP]                       │
+   │  Head:    classifier on h_[CLS] → softmax over K classes                │
+   │  Loss:    cross-entropy on label                                        │
+   └─────────────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │ (b) SINGLE-SENTENCE CLASSIFICATION   (SST-2, CoLA)                      │
+   │                                                                         │
+   │  Input:   [CLS] sentence [SEP]                                          │
+   │  Head:    classifier on h_[CLS] → softmax over K classes                │
+   │  Loss:    cross-entropy on label                                        │
+   └─────────────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │ (c) QUESTION ANSWERING / SPAN PREDICTION   (SQuAD v1.1, v2.0)           │
+   │                                                                         │
+   │  Input:   [CLS] question [SEP] passage [SEP]                            │
+   │  Head:    two vectors S, E in R^H learned during fine-tuning.           │
+   │           For each passage position i:                                  │
+   │              start_score_i = S · h_i                                    │
+   │              end_score_i   = E · h_i                                    │
+   │           softmax independently over positions for start, for end.      │
+   │  Loss:    -log P(start) - log P(end)  with gold span                    │
+   └─────────────────────────────────────────────────────────────────────────┘
+
+   ┌─────────────────────────────────────────────────────────────────────────┐
+   │ (d) TOKEN TAGGING / NER   (CoNLL-2003)                                  │
+   │                                                                         │
+   │  Input:   [CLS] sentence [SEP]                                          │
+   │  Head:    per-token classifier W_tag on each h_i → softmax over tags    │
+   │  Loss:    sum of per-token cross-entropies                              │
+   └─────────────────────────────────────────────────────────────────────────┘
+</div>
+
+<h3>The classification head, in math</h3>
+
+<p>For sentence-level tasks (a, b), the head is a single linear layer applied to the
+<code>[CLS]</code> hidden state $C$:</p>
+
+<div class="formula">
+$$P(y \mid x) \;=\; \operatorname{softmax}(C \, W_{\text{cls}}), \qquad W_{\text{cls}} \in \mathbb{R}^{H \times K}.$$
+</div>
+
+<p>This is the only new parameter — just $H \times K$ scalars, often a few thousand
+parameters. Everything else (the 110M or 340M weights of BERT) is initialized from
+pre-training and then fine-tuned.</p>
+
+<h3>Span prediction for SQuAD, in math</h3>
+
+<p>SQuAD is the canonical extractive QA benchmark: given a question and a passage, find
+the contiguous span of passage tokens that answers the question. So the output is two
+indices: <code>start</code> and <code>end</code>.</p>
+
+<p>BERT introduces two new vectors $\mathbf{S}, \mathbf{E} \in \mathbb{R}^H$ during
+fine-tuning. For each token $i$ in the passage, the model computes:</p>
+
+<div class="formula">
+$$\text{start score: } s_i = \mathbf{S} \cdot \mathbf{h}_i, \qquad \text{end score: } e_i = \mathbf{E} \cdot \mathbf{h}_i.$$
+</div>
+
+<p>These are then softmax-normalized <em>independently</em> over the passage positions:</p>
+
+<div class="formula">
+$$P(\text{start} = i) = \frac{\exp(s_i)}{\sum_j \exp(s_j)}, \qquad P(\text{end} = i) = \frac{\exp(e_i)}{\sum_j \exp(e_j)}.$$
+</div>
+
+<p>The training loss is the sum of two negative log-likelihoods (one for the gold start
+position, one for the gold end position):</p>
+
+<div class="formula">
+$$L_{\text{SQuAD}} \;=\; -\log P(\text{start} = i^*) - \log P(\text{end} = j^*).$$
+</div>
+
+<h4>Doubt anticipated: why model start and end <em>independently</em> rather than jointly?</h4>
+
+<p>This is exactly the question to ask. Predicting start and end jointly would mean modeling
+$P(\text{start}, \text{end})$ directly — a distribution over $O(n^2)$ span candidates per
+example. That's expensive, and parametrizing it requires more head parameters.</p>
+
+<p>The independence assumption $P(\text{start}, \text{end}) \approx P(\text{start}) \cdot
+P(\text{end})$ is a modeling simplification. At inference, BERT recovers a joint prediction
+by enumerating all valid (start, end) pairs with $\text{start} \le \text{end}$ and picking
+the one with the highest <em>sum</em> of scores $s_i + e_j$. This is cheap ($O(n^2)$
+addition, but no extra forward passes) and works well in practice.</p>
+
+<p>Why does independence work? Because the bidirectional encoder has already done most of
+the joint reasoning <em>inside</em> the network. By the final layer, each $\mathbf{h}_i$
+is a function of the entire sequence, including which tokens form coherent spans. The
+"independent" softmaxes at the head are really just two readout heads on top of a
+representation that already encodes span structure. The independence assumption applies
+only at the head, not in the deep representation.</p>
+
+<h4>SQuAD v2.0: handling unanswerable questions</h4>
+
+<p>SQuAD v2.0 adds questions that have no answer in the passage. BERT handles this by
+treating the <code>[CLS]</code> position as a "no-answer" span: train the model to predict
+start = end = position of <code>[CLS]</code> for unanswerable examples. At inference,
+compare the best-non-CLS-span score against the <code>[CLS]</code>-span score with a
+threshold; output "no answer" if CLS wins.</p>
+
+<h3>Why so few new parameters per task?</h3>
+
+<p>Notice how small each head is. Sentence classification: $H \times K$ params (a few
+thousand). NER: $H \times \text{num\_tags}$ (similar). SQuAD: $2H$ (just two vectors).
+Compare to BERT-base's 110M weights. The vast majority of the modeling capacity comes
+from pre-training; fine-tuning is essentially <em>steering</em> a well-developed
+representation toward a specific decision boundary.</p>
+
+<div class="card">
+<strong>Fine-tuning hyperparameters that worked across all tasks:</strong>
+<ul>
+  <li>Batch size 16 or 32.</li>
+  <li>Learning rate: $5 \times 10^{-5}$, $3 \times 10^{-5}$, or $2 \times 10^{-5}$
+    (small grid search per task).</li>
+  <li>Number of epochs: 2, 3, or 4.</li>
+  <li>Same Adam, same dropout 0.1.</li>
+</ul>
+The fact that <em>one hyperparameter region</em> works across 11 different downstream
+tasks is itself a non-obvious empirical finding. It says the pre-trained representation is
+strikingly robust.
+</div>
+
+<hr>
+
+<!-- ============ PART 7 ============ -->
+<h2 id="part7">Part 7 — Section 4 (Experiments): GLUE, SQuAD, SWAG</h2>
+
+<p>The experiments section is long on numbers but light on conceptual content. We'll
+extract the patterns.</p>
+
+<h3>4.1 — GLUE</h3>
+
+<p>GLUE (General Language Understanding Evaluation) is a basket of 9 sentence/sentence-pair
+classification tasks: linguistic acceptability (CoLA), sentiment (SST-2), paraphrase
+(MRPC, QQP), similarity (STS-B), entailment (MNLI, QNLI, RTE, WNLI). Each task has its own
+training set, ranging from ~2.5k to 400k examples. The headline metric is the average
+score across tasks.</p>
+
+<div class="card">
+<table>
+  <tr><th>System</th><th>GLUE avg.</th></tr>
+  <tr><td>Prior SOTA (pre-BERT)</td><td>72.8</td></tr>
+  <tr><td>GPT-1 (OpenAI)</td><td>75.1</td></tr>
+  <tr><td><strong>BERT-base</strong></td><td><strong>79.6</strong></td></tr>
+  <tr><td><strong>BERT-large</strong></td><td><strong>82.1</strong></td></tr>
+</table>
+</div>
+
+<p>Two patterns to note:</p>
+
+<ol>
+  <li><strong>BERT-base beats GPT-1 (which has the same architecture size) by ~4.5 points.</strong>
+    Since the architecture is identical, this gap is attributable to bidirectionality +
+    MLM + NSP. That's a meaningful chunk of the paper's evidence for its central claims.</li>
+  <li><strong>BERT-large beats BERT-base by ~2.5 more points.</strong> Even though many GLUE
+    tasks have only thousands of examples, the bigger model still helps. Scale transfers
+    even to small fine-tuning datasets — this becomes a major ablation finding in §5.2.</li>
+</ol>
+
+<h3>4.2 — SQuAD v1.1</h3>
+
+<p>SQuAD v1.1: given a Wikipedia passage and a question, extract the answer span. Trained
+on ~88k examples.</p>
+
+<div class="card">
+<table>
+  <tr><th>System</th><th>F1</th><th>EM</th></tr>
+  <tr><td>Prior SOTA (single model)</td><td>85.8</td><td>78.8</td></tr>
+  <tr><td>Prior SOTA (ensemble)</td><td>87.5</td><td>81.2</td></tr>
+  <tr><td>BERT-base (single)</td><td>88.5</td><td>80.8</td></tr>
+  <tr><td><strong>BERT-large (single)</strong></td><td><strong>90.9</strong></td><td><strong>84.1</strong></td></tr>
+  <tr><td><strong>BERT-large (ensemble)</strong></td><td><strong>91.8</strong></td><td><strong>85.1</strong></td></tr>
+</table>
+</div>
+
+<p>Single-model BERT-large beats the prior <em>ensemble</em> SOTA, which is striking.</p>
+
+<h3>4.3 — SQuAD v2.0</h3>
+
+<p>Same as v1.1 but ~33% of questions are unanswerable. The <code>[CLS]</code>-as-no-answer
+trick from Part 6 applies. BERT-large again sets new SOTA (~83 F1).</p>
+
+<h3>4.4 — SWAG</h3>
+
+<p>SWAG (Situations With Adversarial Generations) tests commonsense inference: given a
+sentence, pick which of four candidate continuations is most plausible.</p>
+
+<p>BERT handles this as a 4-way scoring task. For each candidate $k$, build the sequence
+<code>[CLS] context [SEP] candidate_k [SEP]</code>, get $C_k$, project to a scalar
+$s_k = C_k \cdot \mathbf{v}$ (where $\mathbf{v}$ is a learned vector). Softmax over the
+four candidates, train with cross-entropy.</p>
+
+<p>Result: BERT-large beats human-level performance (86.3% vs 85.0%). The fact that a
+language model can outperform humans on a commonsense inference benchmark — even an
+adversarial one — was, at the time, surprising.</p>
+
+<div class="card">
+<strong>The big-picture pattern across §4:</strong> BERT sets SOTA on basically everything.
+On most tasks it beats prior SOTA by margins comparable to (or larger than) the gap between
+prior SOTA and the previous-previous SOTA. This is the kind of result that signals a
+paradigm shift: not a refinement of an existing recipe, but a new recipe that resets the
+frontier across an entire field.
+</div>
+
+<hr>
+
+<!-- ============ PART 8 ============ -->
+<h2 id="part8">Part 8 — Section 5 (Ablation Studies)</h2>
+
+<p>The ablations are where you separate the design choices' contributions from each other.
+There are three.</p>
+
+<h3>5.1 — Effect of pre-training tasks (do MLM and NSP each matter?)</h3>
+
+<p>The paper compares four variants, all at BERT-base scale, all on the same corpus:</p>
+
+<div class="card">
+<table>
+  <tr><th>Variant</th><th>MLM?</th><th>NSP?</th><th>MNLI-m</th><th>QNLI</th><th>MRPC</th><th>SST-2</th><th>SQuAD F1</th></tr>
+  <tr><td>BERT-base</td><td>yes</td><td>yes</td><td>84.4</td><td>88.4</td><td>86.7</td><td>92.7</td><td>88.5</td></tr>
+  <tr><td>No NSP</td><td>yes</td><td>no</td><td>83.9</td><td>84.9</td><td>86.5</td><td>92.6</td><td>87.9</td></tr>
+  <tr><td>LTR + No NSP</td><td>no (left-to-right LM)</td><td>no</td><td>82.1</td><td>84.3</td><td>77.5</td><td>92.1</td><td>77.8</td></tr>
+  <tr><td>LTR + No NSP + BiLSTM</td><td>no</td><td>no</td><td>82.1</td><td>84.1</td><td>75.7</td><td>91.6</td><td>84.9</td></tr>
+</table>
+</div>
+
+<p>Three things to extract:</p>
+
+<h4>(a) Removing NSP hurts only mildly.</h4>
+
+<p>Comparing rows 1 and 2: dropping NSP costs ~0.5 points on MNLI, ~3.5 on QNLI, ~0.6 on
+SQuAD. Small but nonzero gains from NSP at this scale. This was the paper's argument for
+keeping NSP. <strong>As noted earlier, RoBERTa later showed that with more training data
+and longer sequences, even these small NSP gains disappear or reverse.</strong> So the
+paper's ablation here was misleading — not deliberately, but because the experimental
+budget couldn't expose NSP's irrelevance.</p>
+
+<h4>(b) Replacing MLM with left-to-right LM is much more damaging.</h4>
+
+<p>Comparing rows 2 and 3: LTR loses ~1.8 on MNLI, ~9 on MRPC, ~10 on SQuAD. Big drops on
+sentence-pair and span tasks. The bidirectional MLM signal is doing real work — especially
+on tasks that require looking at a token from both sides.</p>
+
+<h4>(c) Even adding a BiLSTM on top of LTR doesn't recover MLM's performance.</h4>
+
+<p>Row 4 adds a randomly-initialized BiLSTM head on top of the LTR Transformer at
+fine-tuning time. This gives <em>some</em> bidirectional signal post-hoc, and indeed SQuAD
+recovers significantly (77.8 → 84.9). But it's still well below BERT (88.5). The takeaway:
+bidirectionality is most valuable when it's <em>baked into pre-training</em>, not bolted on
+during fine-tuning. The whole representation gets shaped by bidirectional context, not just
+the final layer.</p>
+
+<blockquote>
+This is the most theoretically satisfying ablation in the paper. It says: bidirectionality
+matters not because the final layer integrates two views, but because <em>every layer</em>
+during pre-training builds representations conditioned on both sides.
+</blockquote>
+
+<h3>5.2 — Effect of model size</h3>
+
+<p>The paper trains a sequence of models from 3M to 340M parameters, fine-tuning each on
+GLUE tasks (some of which have very small training sets — MRPC has 3.7k examples). The
+result:</p>
+
+<div class="card">
+<table>
+  <tr><th>Hidden (H)</th><th>Layers (L)</th><th>Params (M)</th><th>MNLI-m</th><th>MRPC</th><th>SST-2</th></tr>
+  <tr><td>128</td><td>2</td><td>5</td><td>77.9</td><td>79.8</td><td>87.6</td></tr>
+  <tr><td>256</td><td>4</td><td>14</td><td>80.2</td><td>82.6</td><td>89.7</td></tr>
+  <tr><td>512</td><td>4</td><td>26</td><td>81.6</td><td>84.4</td><td>90.4</td></tr>
+  <tr><td>768</td><td>12</td><td>110</td><td>84.4</td><td>86.7</td><td>92.9</td></tr>
+  <tr><td>1024</td><td>24</td><td>340</td><td>86.6</td><td>87.8</td><td>93.7</td></tr>
+</table>
+</div>
+
+<p>Every column improves monotonically with scale. <strong>The MRPC result is particularly
+striking</strong> — MRPC has only 3.7k labeled examples, yet a 340M-parameter model
+fine-tuned on it works better than a 5M-parameter one.</p>
+
+<p>This contradicts the conventional wisdom of 2018, which held that very large models would
+overfit on small fine-tuning sets. The reason this turned out wrong: pre-training
+regularizes. A 340M-parameter model whose weights are <em>initialized from a strong
+pre-training run</em> is not a freely-fitting 340M-parameter model — it's a small
+perturbation of a model that already knows English. The effective capacity available for
+overfitting is much smaller than the raw parameter count suggests.</p>
+
+<blockquote>
+This was, in 2018, an early signal of what we now call the "scaling laws" — that pre-trained
+model capacity translates almost monotonically into downstream performance, even when the
+fine-tuning data is small. GPT-2, GPT-3, and the entire scale-up era took this lesson and
+ran with it.
+</blockquote>
+
+<h3>5.3 — Feature-based approach with BERT</h3>
+
+<p>BERT is designed as a fine-tuning model. But you <em>could</em> use it feature-based, the
+way ELMo is used: freeze BERT, extract its hidden states, feed them as fixed input features
+to a task-specific architecture trained from scratch.</p>
+
+<p>The paper tests this on CoNLL-2003 NER. They freeze BERT-large, extract token embeddings
+from various layers, feed them to a randomly-initialized 2-layer BiLSTM, and train just the
+BiLSTM.</p>
+
+<div class="card">
+<table>
+  <tr><th>Layers used as features</th><th>NER F1 (dev)</th></tr>
+  <tr><td>BERT-large fine-tuned</td><td>96.4</td></tr>
+  <tr><td>Last hidden layer only</td><td>94.9</td></tr>
+  <tr><td>Last 4 hidden layers (sum)</td><td>95.5</td></tr>
+  <tr><td>Last 4 hidden layers (concat)</td><td>96.1</td></tr>
+  <tr><td>All 24 hidden layers (weighted sum)</td><td>95.9</td></tr>
+</table>
+</div>
+
+<p>The takeaway: feature-based BERT gets <em>within 0.3 F1</em> of fully fine-tuned BERT.
+That's basically negligible. So you can use BERT either way — and that flexibility matters
+for practitioners with constrained compute (you can pre-compute frozen features once and
+train many small task-specific models on top).</p>
+
+<p>It's also another argument that BERT's representations are <em>genuinely</em> rich, not
+just well-tuned to the fine-tuning objective. If pretraining alone produces features that
+get to within a fraction of a point of full fine-tuning, the pretraining has done its job.</p>
+
+<hr>
+
+<!-- ============ BIG PICTURE ============ -->
+<h2 id="bigpicture">Big-picture synthesis — three views of BERT</h2>
+
+<h3>View 1: BERT in one diagram</h3>
+
+<div class="ascii-diagram">
+                       ┌──────────────────────────────────────────┐
+                       │              INPUT PIPELINE              │
+                       │                                          │
+                       │  raw text                                │
+                       │     │                                    │
+                       │     ▼                                    │
+                       │  WordPiece tokenizer  (30k vocab)        │
+                       │     │                                    │
+                       │     ▼                                    │
+                       │  [CLS] A_1 ... [SEP] B_1 ... [SEP]       │
+                       │     │                                    │
+                       │     ▼                                    │
+                       │  e_tok + e_seg + e_pos    (each in R^H)  │
+                       └──────────────────┬───────────────────────┘
+                                          │
+                                          ▼
+                       ┌──────────────────────────────────────────┐
+                       │       L STACKED ENCODER BLOCKS           │
+                       │                                          │
+                       │   ┌─────────────────────────────────┐    │
+                       │   │  bidirectional self-attention   │    │
+                       │   │  + residual + LayerNorm         │    │
+                       │   │  + FFN (GELU, 4H inner)         │    │
+                       │   │  + residual + LayerNorm         │    │
+                       │   └─────────────────────────────────┘    │
+                       │              × L  layers                 │
+                       │   (L=12 / H=768 base; L=24 / H=1024 lg)  │
+                       └──────────────────┬───────────────────────┘
+                                          │
+                       ┌──────────────────▼───────────────────────┐
+                       │    final hidden states {h_i}             │
+                       └────────┬──────────────────────┬──────────┘
+                                │                      │
+                       ┌────────▼────────┐    ┌────────▼─────────┐
+                       │  C  = h_[CLS]   │    │  T_i = h_i       │
+                       │  sequence head  │    │  token-level     │
+                       │  (NSP / classif)│    │  (MLM / NER /    │
+                       │                 │    │   span pred)     │
+                       └─────────────────┘    └──────────────────┘
+</div>
+
+<h3>View 2: GPT-1 ↔ BERT side-by-side</h3>
+
+<div class="card">
+<table>
+  <tr><th>Aspect</th><th>GPT-1 (Jun 2018)</th><th>BERT (Oct 2018)</th></tr>
+  <tr><td>Architecture</td><td>Transformer decoder, causal mask</td><td>Transformer encoder, no mask</td></tr>
+  <tr><td>Directionality</td><td>Left-to-right</td><td>Bidirectional</td></tr>
+  <tr><td>Pre-training objective</td><td>Standard LM: predict next token</td><td>MLM (15%, 80/10/10) + NSP</td></tr>
+  <tr><td>Classification token</td><td>Last position (<code>&lt;e&gt;</code>)</td><td>First position (<code>[CLS]</code>)</td></tr>
+  <tr><td>Sentence-pair input</td><td>Custom delimiter-style: <code>&lt;s&gt; A $ B &lt;e&gt;</code></td><td><code>[CLS] A [SEP] B [SEP]</code> + segment embeddings</td></tr>
+  <tr><td>Tokenization</td><td>BPE, 40k vocab</td><td>WordPiece, 30k vocab</td></tr>
+  <tr><td>Pre-training corpus</td><td>BooksCorpus (~800M words)</td><td>BooksCorpus + Wikipedia (~3.3B words)</td></tr>
+  <tr><td>Sizes</td><td>117M (12 / 768 / 12)</td><td>110M base (12/768/12), 340M large (24/1024/16)</td></tr>
+  <tr><td>Fine-tune aux loss</td><td>$L_3 = L_2 + \lambda L_1$ (LM as aux)</td><td>None (pre-training objective discarded at fine-tune)</td></tr>
+  <tr><td>Generation capable?</td><td>Yes (it's a real LM)</td><td>No (MLM can't autoregress)</td></tr>
+  <tr><td>Best for</td><td>Generation; classification</td><td>Understanding tasks; per-token classification; span extraction</td></tr>
+</table>
+</div>
+
+<p>The cleanest way to think about the architectural fork in 2018:</p>
+
+<div class="ascii-diagram">
+                       Vaswani 2017 (encoder-decoder Transformer)
+                                       │
+                          ┌────────────┴────────────┐
+                          │                         │
+                          ▼                         ▼
+                   take just the              take just the
+                   DECODER half               ENCODER half
+                          │                         │
+                          ▼                         ▼
+                       GPT line                  BERT line
+                  (causal, generative)     (bidirectional, discriminative)
+                          │                         │
+                          ▼                         ▼
+                  GPT-1 → GPT-2 →           BERT → RoBERTa → ALBERT →
+                  GPT-3 → GPT-4 →           DistilBERT → DeBERTa →
+                  Claude / ChatGPT          (mostly: classification &amp; retrieval)
+</div>
+
+<h3>View 3: the post-BERT lineage</h3>
+
+<p>BERT spawned a research direction. The most important descendants:</p>
+
+<div class="card">
+<ul>
+  <li><strong>RoBERTa (Liu et al., 2019).</strong> Same architecture as BERT. Drops NSP.
+    Trains on much more data (~160GB) for much longer. Uses dynamic masking (re-randomize
+    masks each epoch rather than fixing them once). Result: meaningfully better than BERT.
+    The "no architecture change, just train better" message was influential.</li>
+  <li><strong>ALBERT (Lan et al., 2019).</strong> Cross-layer parameter sharing — every
+    encoder layer shares weights. Factorizes the embedding matrix to save params. Replaces
+    NSP with a "sentence-order prediction" task that actually trains useful sentence-level
+    representations. Smaller param count, comparable performance.</li>
+  <li><strong>DistilBERT (Sanh et al., 2019).</strong> Knowledge distillation: train a
+    smaller (6-layer) BERT to mimic BERT-base's outputs. 40% smaller, 60% faster, retains
+    ~97% of BERT's performance. Practical deployment workhorse.</li>
+  <li><strong>DeBERTa (He et al., 2020).</strong> Disentangled attention: separate content
+    and position into two attention streams, combine carefully. Substantially better than
+    BERT/RoBERTa on GLUE and SuperGLUE.</li>
+  <li><strong>ELECTRA (Clark et al., 2020).</strong> Replaces MLM with a discriminator
+    objective: a small generator network proposes replacements for 15% of tokens; BERT learns
+    to detect which tokens were replaced. Loss applies to <em>every</em> position, not just
+    15% — much more sample-efficient than MLM.</li>
+</ul>
+</div>
+
+<p>And the more interesting divergence: the BERT-line never produced a "ChatGPT moment".
+The conversational, generative AI revolution went down the GPT line — the unidirectional
+decoder lineage. Why? Because BERT's MLM is inherently a <em>denoising</em> objective,
+not a generative one. You can't sample from BERT in a coherent left-to-right way; you can
+only fill in masks. Generation requires next-token prediction, which is the GPT setup.</p>
+
+<p>So in retrospect, the 2018 fork was not just architectural but <em>functional</em>:</p>
+
+<blockquote>
+GPT-style pre-training optimizes for generation; BERT-style pre-training optimizes for
+representation. As of 2026, the generation path won the "consumer-facing AI" race, while
+the representation path remained dominant for retrieval, embeddings, classification, and
+RAG pipelines.
+</blockquote>
+
+<h3>One-sentence summary of the paper</h3>
+
+<blockquote>
+BERT shows that pre-training a bidirectional Transformer encoder with a masked language
+model objective produces representations that, when fine-tuned end-to-end, set new
+state-of-the-art on essentially every standard NLP task — closing the gap between
+feature-based and fine-tuning paradigms by combining the strengths of ELMo (bidirectionality)
+and GPT (end-to-end fine-tuning) in a single architecture.
+</blockquote>
+
+<hr>
+
+<!-- ============ HONEST WEAKNESSES ============ -->
+<h2 id="weaknesses">Honest weaknesses (and what subsequent work fixed)</h2>
+
+<p>BERT is a remarkable paper but not flawless. Three honest weaknesses are worth naming
+explicitly, because they each got addressed by later work and the addressed-form is how the
+field thinks about pre-training today.</p>
+
+<div class="card">
+<strong>Weakness 1: NSP doesn't actually help.</strong>
+<br>BERT's ablations showed small gains from NSP, but those gains were artifacts of an
+under-trained baseline. RoBERTa demonstrated that with longer training and more data,
+removing NSP doesn't hurt — and sometimes helps. The probable reason: distinguishing the
+next sentence from a random sentence mostly reduces to topic similarity, which the model
+solves trivially without learning real sentence-relationship reasoning. ALBERT's
+sentence-order prediction (same topic, just reordered) is a harder task that does produce
+useful sentence-level signal. <em>Modern recipes mostly drop NSP entirely.</em>
+</div>
+
+<div class="card">
+<strong>Weakness 2: data scale was conservative.</strong>
+<br>3.3B words sounds like a lot in 2018, but RoBERTa (160GB), T5 (~750GB), and modern
+foundation models (multi-TB) showed that BERT was significantly under-trained on data.
+Many of the headline BERT results would improve simply by re-running pre-training on a
+larger corpus. The paper, being early in the scaling era, did not yet realize this.
+</div>
+
+<div class="card">
+<strong>Weakness 3: 15% masking is computationally wasteful.</strong>
+<br>BERT does a full forward and backward pass through L=12 or L=24 encoder layers, but
+extracts loss signal at only 15% of positions. The 85% of positions whose predictions
+aren't scored contribute compute without contributing gradient. Per token of training data
+processed, BERT is about 6.7× less sample-efficient than a comparable autoregressive LM
+that predicts every token. ELECTRA fixed this by applying its discriminator loss at every
+position; modern pre-training recipes often use similar dense-loss objectives.
+</div>
+
+<h3>Other things to keep in mind</h3>
+
+<ul>
+  <li><strong>BERT can't generate.</strong> The MLM objective trains a denoiser, not a
+    next-token predictor. You can do iterative gibbs-style sampling from BERT but the output
+    quality is poor compared to a real LM. If you want generation, you want GPT-style.</li>
+  <li><strong>Fixed 512-token context window.</strong> BERT's learned absolute positional
+    embeddings don't extrapolate. For longer documents you have to either chunk + aggregate
+    or switch to a model with relative/sliding-window positions (Longformer, BigBird).</li>
+  <li><strong>The [MASK] token never appears at fine-tune time.</strong> The 80/10/10 trick
+    mitigates this but doesn't fully eliminate the pre-train/fine-tune distribution gap.
+    ELECTRA's discriminator objective sidesteps it entirely.</li>
+</ul>
+
+<hr>
+
+<h2>Closing thought</h2>
+
+<p>If you internalize one thing from BERT, make it this: the paper's central technical
+contribution isn't the architecture — it's the <em>training procedure</em>, specifically
+the masked LM objective that <em>enables</em> bidirectional pre-training. Once you can
+train a bidirectional Transformer at all, the rest of the paper (the [CLS] head, the
+segment embeddings, the fine-tuning recipes) falls out as straightforward engineering.
+The conceptual leap is realizing that you can sidestep the "see itself" problem of
+bidirectional LMs by training a denoising objective instead of a next-token objective —
+and that the resulting representations transfer beautifully to fine-tuning. That single
+trick reset the SOTA on every standard NLP benchmark within a few months of publication,
+and the encoder-pretraining paradigm it launched still powers most production NLP systems
+that aren't doing generation.</p>
+
+<p>The other paper from 2018, GPT-1, will, of course, turn out to be the lineage that
+produces ChatGPT and modern conversational AI. But BERT is the one that taught the field
+how to <em>use</em> deep pre-training for <em>understanding</em>. Both lineages start from
+Vaswani's 2017 Transformer; both rely on self-supervised pre-training; they diverge on
+whether the model is decoder-only and generative or encoder-only and discriminative. As of
+2026, we live in a world where both lineages matter — and the BERT lesson is that those
+two design axes are independent and worth choosing deliberately.</p>
+
+</body>
+</html>
