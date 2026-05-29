@@ -1,0 +1,2867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Attention Is All You Need — Lesson</title>
+<script>
+  MathJax = {
+    tex: { inlineMath: [['$','$'],['\\(','\\)']], displayMath: [['$$','$$'],['\\[','\\]']] },
+    svg: { fontCache: 'global' }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --accent: #c44536;
+    --accent2: #2e5c8a;
+    --card: #ffffff;
+    --border: #e3e3df;
+    --code-bg: #f3f1ec;
+  }
+  body {
+    font-family: 'Charter', 'Iowan Old Style', 'Georgia', serif;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.65;
+    font-size: 17px;
+  }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; color: var(--accent); }
+  h3 { font-size: 1.2rem; margin-top: 1.6rem; color: var(--accent2); }
+  h4 { font-size: 1.05rem; margin-top: 1.2rem; color: var(--fg); }
+  code {
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .ratings {
+    background: linear-gradient(135deg, #fff8e1, #ffe6dd);
+    border-left: 4px solid var(--accent);
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin: 1.5rem 0;
+  }
+  .ratings .rating {
+    font-size: 1.05rem;
+    margin: 0.3rem 0;
+  }
+  .checkin {
+    background: #eef5ff;
+    border-left: 4px solid var(--accent2);
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+    margin: 1.5rem 0;
+  }
+  .doubt {
+    background: #fff0f0;
+    border-left: 4px solid var(--accent);
+    padding: 0.8rem 1.25rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+    font-style: italic;
+  }
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .toc ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+  .toc a { color: var(--accent2); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .timestamp {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+  }
+  .formula {
+    text-align: center;
+    margin: 1.5rem 0;
+    font-size: 1.1em;
+  }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    color: var(--muted);
+    margin-left: 0;
+    font-style: italic;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.6em;
+    background: var(--accent);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-left: 0.5em;
+    vertical-align: middle;
+  }
+  .badge.new { background: #2c9d4a; }
+  hr {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 2.5rem 0;
+  }
+  .ascii-diagram {
+    background: #1a1a1a;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    white-space: pre;
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+
+<h1>Attention Is All You Need — Lesson Notebook</h1>
+<div class="timestamp">Last updated: Sections 5.2, 5.3, 5.4 — Hardware, Optimizer, Regularization</div>
+
+<div class="toc">
+  <strong>Table of Contents</strong>
+  <ul>
+    <li><a href="#part1">Part 1 — Abstract + Section 1 (Introduction)</a></li>
+    <li><a href="#part2">Part 2 — Section 2 (Background)</a></li>
+    <li><a href="#part3">Part 3 — Section 3.1 (Encoder–Decoder Stacks)</a></li>
+    <li><a href="#doubts-31">Doubts answered: residuals, LayerNorm, why +x</a></li>
+    <li><a href="#part4">Part 4 — Section 3.2.1 (Scaled Dot-Product Attention)</a></li>
+    <li><a href="#doubts-321">Doubts answered: variance theory, Q/K/V motivation</a></li>
+    <li><a href="#matrix-ref">Quick reference: matrix shapes &amp; meanings</a></li>
+    <li><a href="#part5">Part 5 — Section 3.2.2 (Multi-Head Attention)</a></li>
+    <li><a href="#doubts-322">Doubt answered: what prevents head collapse?</a></li>
+    <li><a href="#side-ensemble">Side concept: what is an ensemble?</a></li>
+    <li><a href="#part6">Part 6 — Section 3.2.3 (Applications of Attention)</a></li>
+    <li><a href="#part7">Part 7 — Section 3.3 (Position-wise Feed-Forward Networks)</a></li>
+    <li><a href="#doubts-33">Doubt answered: why non-linearity, intuition for ReLU/sigmoid</a></li>
+    <li><a href="#part8">Part 8 — Section 3.4 (Embeddings and Softmax)</a></li>
+    <li><a href="#doubts-34">Doubt answered: what is "n" in decoder output; training vs inference</a></li>
+    <li><a href="#part9">Part 9 — Section 3.5 (Positional Encoding)</a></li>
+    <li><a href="#bigpicture">🔭 Big-picture map: how everything connects</a></li>
+    <li><a href="#doubts-bigpic">Doubts: why W_out = E^T, why don't we subtract PE?</a></li>
+    <li><a href="#part10">Part 10 — Section 4 (Why Self-Attention)</a></li>
+    <li><a href="#part11">Part 11 — Section 5.1 (Training Data and Batching)</a></li>
+    <li><a href="#part12">Part 12 — Sections 5.2 / 5.3 / 5.4 (Hardware, Optimizer, Regularization) <span class="badge new">NEW</span></a></li>
+    <li><a href="#latest">⬇️ Latest check-in</a></li>
+  </ul>
+</div>
+
+<!-- ============ PART 1 ============ -->
+<h2 id="part1">Part 1 — Abstract + Section 1 (Introduction)</h2>
+
+<h3>The problem the paper is solving</h3>
+
+<p>Before this paper (2017), the dominant way to do sequence tasks — like translating English → French, or summarizing text — used <strong>Recurrent Neural Networks (RNNs)</strong>, often the LSTM or GRU variants.</p>
+
+<p><strong>How RNNs work (intuition):</strong> They process a sequence one token at a time, carrying a "hidden state" forward — like reading a sentence word by word and updating your understanding after each word.</p>
+
+<div class="ascii-diagram">"The"  →  "cat"  →  "sat"  →  "on"  →  "the"  →  "mat"
+  h₁   →   h₂   →   h₃   →   h₄  →   h₅   →   h₆</div>
+
+<p>Each hidden state $h_t$ depends on the previous one $h_{t-1}$. This is <strong>sequential by design</strong>.</p>
+
+<h3>Why this was a problem</h3>
+<ol>
+  <li><strong>No parallelization within a sequence.</strong> You can't compute $h_5$ until $h_4$ is done. On GPUs (which thrive on parallelism), this is wasteful.</li>
+  <li><strong>Long-range dependencies are hard.</strong> If word 1 needs to influence word 100, the signal has to pass through 99 intermediate steps. Information gets diluted or lost.</li>
+</ol>
+
+<h3>The paper's pitch</h3>
+<blockquote>"We propose a new simple network architecture, the <strong>Transformer</strong>, based <strong>solely on attention mechanisms</strong>, dispensing with recurrence and convolutions entirely."</blockquote>
+
+<p>Two big claims:</p>
+<ol>
+  <li><strong>Better quality</strong> — beats prior state-of-the-art on machine translation (WMT 2014 English-to-German and English-to-French).</li>
+  <li><strong>Much faster to train</strong> — because attention lets you process all positions in parallel.</li>
+</ol>
+
+<h3>The key idea in one sentence</h3>
+<p>Instead of passing information sequentially through hidden states, let every word <strong>directly look at every other word</strong> in the sequence and decide what's relevant. That "looking at" mechanism is called <strong>attention</strong>.</p>
+
+<h3>What "attention" means intuitively</h3>
+<p>Imagine translating: <em>"The animal didn't cross the street because <strong>it</strong> was too tired."</em></p>
+<p>To translate "it" correctly, the model needs to know "it" refers to "the animal" (not "the street"). Attention lets the model, when processing "it", <strong>directly attend to</strong> "animal" and pull information from it — no matter how far apart they are in the sentence.</p>
+
+<hr>
+
+<!-- ============ PART 2 ============ -->
+<h2 id="part2">Part 2 — Section 2 (Background)</h2>
+
+<p>This section answers: <em>"Wasn't anyone else trying to fix RNNs? What were they doing?"</em></p>
+
+<p>Prior approaches (Extended Neural GPU, ByteNet, ConvS2S — historical, don't memorize names) used <strong>convolutions</strong> instead of recurrence:</p>
+<ul>
+  <li>Convolutions can be parallelized ✅</li>
+  <li>BUT to connect two distant positions, you need many stacked conv layers — number of operations grows with distance: $O(n)$ or $O(\log n)$.</li>
+</ul>
+
+<p><strong>The Transformer's claim:</strong> connecting any two positions takes a <strong>constant</strong> number of operations — $O(1)$. Every position can look at every other position in a single attention step.</p>
+
+<p><strong>Trade-off:</strong> averaging information from many positions reduces effective resolution. The paper counters this with <strong>Multi-Head Attention</strong> (coming up).</p>
+
+<p>Self-attention had been used before (in reading comprehension, summarization, etc.), but <strong>the Transformer is the first model to rely on self-attention alone</strong> — no RNNs, no convolutions.</p>
+
+<hr>
+
+<!-- ============ PART 3 ============ -->
+<h2 id="part3">Part 3 — Section 3.1 (Encoder–Decoder Stacks)</h2>
+
+<p>The Transformer follows the classic <strong>encoder-decoder</strong> structure used for sequence-to-sequence tasks like translation.</p>
+
+<div class="ascii-diagram">Input sentence  →  [ENCODER]  →  rich representation  →  [DECODER]  →  Output sentence
+  (English)                                                              (German)</div>
+
+<h3>The Encoder</h3>
+<ul>
+  <li>A stack of <strong>N = 6 identical layers</strong>.</li>
+  <li>Each layer has <strong>two sub-layers</strong>:
+    <ol>
+      <li><strong>Multi-head self-attention</strong> — each word looks at all words in the input.</li>
+      <li><strong>Position-wise feed-forward network</strong> — a small MLP applied to each position independently.</li>
+    </ol>
+  </li>
+</ul>
+
+<p>Around each sub-layer there are two important tricks:</p>
+<p><strong>(a) Residual connection:</strong> <code>output = sublayer(x) + x</code> — helps gradients flow during training.</p>
+<p><strong>(b) Layer normalization:</strong> normalizes activations to have stable statistics.</p>
+
+<p>So each sub-layer actually computes: <code>LayerNorm(x + Sublayer(x))</code></p>
+
+<p>All sub-layers and embeddings produce vectors of dimension $d_{\text{model}} = 512$.</p>
+
+<h3>The Decoder</h3>
+<ul>
+  <li>Also <strong>N = 6 identical layers</strong>.</li>
+  <li>Each layer has <strong>three sub-layers</strong>:
+    <ol>
+      <li><strong>Masked multi-head self-attention</strong> — each output position looks at <em>previous</em> output positions only.</li>
+      <li><strong>Multi-head attention over the encoder output</strong> — this is where the decoder "reads" the input sentence.</li>
+      <li><strong>Position-wise feed-forward network.</strong></li>
+    </ol>
+  </li>
+</ul>
+
+<h3>Why "masking" in the decoder?</h3>
+<p>When generating output (e.g., translating word by word), at position $i$ the model should only see positions $< i$. Otherwise, during training, it would "cheat" by peeking at the answer.</p>
+
+<div class="ascii-diagram">ENCODER (×6):
+   ┌─────────────────────────────┐
+   │ Multi-Head Self-Attention   │ ← every word looks at every word
+   │         ↓ + residual        │
+   │       LayerNorm             │
+   │         ↓                   │
+   │  Feed-Forward Network       │
+   │         ↓ + residual        │
+   │       LayerNorm             │
+   └─────────────────────────────┘
+
+DECODER (×6):
+   ┌──────────────────────────────────┐
+   │ Masked Multi-Head Self-Attention │ ← look only at past output words
+   │              ↓                   │
+   │ Multi-Head Attention (Enc→Dec)   │ ← look at encoder output
+   │              ↓                   │
+   │  Feed-Forward Network            │
+   └──────────────────────────────────┘</div>
+
+<hr>
+
+<!-- ============ DOUBTS 3.1 ============ -->
+<h2 id="doubts-31">Doubts Answered: Residuals, LayerNorm, "Why +x?" <span class="badge new">just answered</span></h2>
+
+<div class="doubt">"Motivation behind residual connection and layernorm? And why did we directly add x — why not log(x) or x²? Plus what is layernorm mathematically?"</div>
+
+<h3>1. Motivation for Residual Connections</h3>
+<p><strong>The problem they solve: deep networks are hard to train.</strong></p>
+
+<p><strong>(a) Vanishing gradients.</strong> During backpropagation, gradients are multiplied by the derivatives of each layer (chain rule). If those derivatives are small, gradients shrink exponentially as they travel backward. By the time they reach the early layers, they're too tiny to update the weights — early layers stop learning.</p>
+
+<p><strong>(b) The degradation problem.</strong> The original ResNet paper (He et al., 2015) showed something counterintuitive: deeper networks performed <em>worse than shallower ones</em> — even on <strong>training data</strong> (so it's not overfitting). Optimization just gets harder as depth grows.</p>
+
+<p><strong>The residual fix:</strong> instead of asking a layer to learn the full transformation $H(x)$, ask it to learn the <strong>residual</strong> $F(x) = H(x) - x$. Then:</p>
+
+<div class="formula">$$H(x) = F(x) + x$$</div>
+
+<p>Why this helps:</p>
+<ul>
+  <li><strong>Gradient highway.</strong> In backprop, the gradient of $F(x) + x$ w.r.t. $x$ is $\frac{\partial F}{\partial x} + 1$. That <strong>+1</strong> means gradients always have a clean path backward — even if $\frac{\partial F}{\partial x} \approx 0$, the gradient still flows.</li>
+  <li><strong>Easy identity.</strong> If the optimal layer behavior is "pass through unchanged," the layer just needs to learn $F(x) \approx 0$ — easy. Without the skip, learning identity is surprisingly hard.</li>
+  <li><strong>Reframes the task.</strong> The layer now learns "what to <em>change</em> about x," not "what x should become from scratch." Smaller, simpler target.</li>
+</ul>
+
+<h3>2. Why <code>x</code> and not <code>log(x)</code> or <code>x²</code>?</h3>
+<p>Great design question. Several reasons:</p>
+
+<p><strong>(a) Only identity gives derivative = 1.</strong> That clean gradient highway depends on the derivative of the skip term being <strong>constant 1</strong>.</p>
+<ul>
+  <li>$\frac{d}{dx}(x) = 1$ ✅ — gradient flows unchanged</li>
+  <li>$\frac{d}{dx}(\log x) = \frac{1}{x}$ — explodes near 0, vanishes for large $x$; also undefined for $x \leq 0$</li>
+  <li>$\frac{d}{dx}(x^2) = 2x$ — gradient scales with input magnitude, can explode or vanish</li>
+</ul>
+
+<p><strong>(b) Activations can be negative.</strong> Hidden states in neural nets are typically zero-centered. $\log(x)$ is undefined for negatives. $x^2$ destroys sign information (collapses $\pm x$ to the same value).</p>
+
+<p><strong>(c) Identity preserves the original signal exactly.</strong> A nonlinear skip would <em>also</em> be a transformation — you'd want to know "did this layer help?" relative to the unchanged input. The identity skip gives you a clean baseline.</p>
+
+<p><strong>(d) Alternatives have been tried.</strong> Highway Networks (Srivastava et al., 2015) used a <em>gated</em> skip: $T(x) \cdot F(x) + (1 - T(x)) \cdot x$, where $T$ is learned. ResNet's pure identity outperformed it — simpler, fewer parameters, faster, more stable.</p>
+
+<p><strong>(e) Optimization initialization.</strong> If weights of $F$ are initialized small, the block computes $\approx x$ at the start of training. The network starts from a sensible "do nothing" point and learns <em>deviations</em> from there. Any nonlinear skip would break this.</p>
+
+<h3>3. LayerNorm Mathematically</h3>
+<p>For a single input vector $\mathbf{x} = [x_1, x_2, \dots, x_d]$ (one position in the sequence, with $d$ features):</p>
+
+<p><strong>Step 1 — compute mean and variance across features:</strong></p>
+<div class="formula">$$\mu = \frac{1}{d} \sum_{i=1}^{d} x_i \quad\quad \sigma^2 = \frac{1}{d} \sum_{i=1}^{d} (x_i - \mu)^2$$</div>
+
+<p><strong>Step 2 — normalize:</strong></p>
+<div class="formula">$$\hat{x}_i = \frac{x_i - \mu}{\sqrt{\sigma^2 + \epsilon}}$$</div>
+
+<p>($\epsilon$ is a tiny constant like $10^{-5}$ to avoid divide-by-zero.)</p>
+
+<p><strong>Step 3 — scale and shift with learned parameters:</strong></p>
+<div class="formula">$$y_i = \gamma_i \cdot \hat{x}_i + \beta_i$$</div>
+
+<p>where $\gamma$ and $\beta$ are <strong>learnable vectors</strong> of size $d$. They let the network "un-normalize" if it wants — giving it full expressive power.</p>
+
+<h4>Motivation for LayerNorm</h4>
+<ul>
+  <li><strong>Stable activation scale.</strong> Without normalization, activations can grow or shrink wildly through 6+ layers. LayerNorm pins them to mean 0, variance 1 → training is stable.</li>
+  <li><strong>No batch dependence.</strong> Unlike BatchNorm (which normalizes across the batch), LayerNorm operates on a single sample. This matters for:
+    <ul>
+      <li><strong>Variable-length sequences</strong> — batch statistics are awkward when sentences have different lengths.</li>
+      <li><strong>Small batch sizes</strong> or <strong>batch size 1 at inference</strong> — BatchNorm misbehaves; LayerNorm is identical at train and test time.</li>
+    </ul>
+  </li>
+  <li><strong>Faster convergence.</strong> Empirically, LayerNorm makes training of deep stacks dramatically faster.</li>
+</ul>
+
+<h4>Key contrast: BatchNorm vs. LayerNorm</h4>
+<div class="ascii-diagram">BatchNorm: normalize across BATCH for each feature
+   → mean & var depend on other samples in the batch
+
+LayerNorm: normalize across FEATURES for each sample
+   → mean & var depend only on this one sample</div>
+
+<p>In Transformers, LayerNorm is the right choice because each token is processed somewhat independently, and we want consistency between training and inference.</p>
+
+<hr>
+
+<!-- ============ PART 4 ============ -->
+<h2 id="part4">Part 4 — Section 3.2.1: Scaled Dot-Product Attention <span class="badge new">NEW</span></h2>
+
+<p style="background:#fffbe6; padding:0.8rem 1rem; border-radius:6px; border-left:4px solid #d4a437;">
+<strong>⚠️ This is the most important concept in the entire paper.</strong> Take your time here — everything else builds on it.
+</p>
+
+<h3>The Q, K, V analogy 🔍</h3>
+<p>Think of attention like a <strong>search engine</strong>:</p>
+<ul>
+  <li><strong>Q (Query):</strong> what you're searching for. <em>"I'm the word 'it' — who do I refer to?"</em></li>
+  <li><strong>K (Key):</strong> what each item advertises itself as. <em>"I am the word 'animal', a noun, subject of the sentence."</em></li>
+  <li><strong>V (Value):</strong> the actual content that gets returned. <em>"Here's my meaning vector: [0.3, -0.7, 1.2, ...]"</em></li>
+</ul>
+
+<p><strong>How it works:</strong></p>
+<ol>
+  <li>The Query is compared against every Key → gives a <strong>similarity score</strong>.</li>
+  <li>Scores are turned into <strong>weights</strong> (using softmax — they sum to 1).</li>
+  <li>The output is a <strong>weighted sum of Values</strong>.</li>
+</ol>
+
+<p>So: <em>"Pull more content from items whose Keys match my Query."</em></p>
+
+<h3>The formula</h3>
+
+<div class="formula">$$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right) V$$</div>
+
+<p>Let's unpack each piece, step by step.</p>
+
+<h4>Step 1: $QK^T$ — the similarity scores</h4>
+<ul>
+  <li>$Q$ is a matrix where each row is a query vector (one per word).</li>
+  <li>$K$ is a matrix where each row is a key vector.</li>
+  <li>$QK^T$ gives you a matrix of <strong>dot products</strong> — how similar each query is to each key.</li>
+</ul>
+
+<p>For one query vector $q$ and one key vector $k$:</p>
+<ul>
+  <li>$q \cdot k$ is <strong>large</strong> if they point in similar directions (high similarity).</li>
+  <li>$q \cdot k$ is <strong>near zero</strong> if they're unrelated.</li>
+</ul>
+
+<p>If you have 6 words, $QK^T$ is a $6 \times 6$ matrix where entry $(i, j)$ = "how much should word $i$ attend to word $j$?"</p>
+
+<h4>Step 2: $\div \sqrt{d_k}$ — the scaling</h4>
+<p>$d_k$ is the dimension of the key vectors (in the paper: $d_k = 64$).</p>
+
+<p><strong>Why divide?</strong> When $d_k$ is large, dot products can become huge in magnitude. If the scores are huge, softmax produces extremely peaked distributions (one value $\approx 1$, the rest $\approx 0$), which <strong>kills gradients</strong> during training.</p>
+
+<p>Dividing by $\sqrt{d_k}$ keeps scores in a reasonable range. The $\sqrt{\cdot}$ comes from a statistical argument:</p>
+<blockquote>If $q$ and $k$ are vectors with independent components of mean 0 and variance 1, then $q \cdot k = \sum_{i=1}^{d_k} q_i k_i$ has mean 0 and variance $d_k$. Dividing by $\sqrt{d_k}$ brings the variance back to 1.</blockquote>
+
+<h4>Step 3: $\text{softmax}(\cdot)$ — turn scores into weights</h4>
+<p>Softmax converts the scores into a probability distribution along each row:</p>
+<ul>
+  <li>All weights are between 0 and 1.</li>
+  <li>Each row sums to 1.</li>
+</ul>
+
+<p>Row $i$ now says: <em>"Word $i$ should pay this much attention to each of the other words."</em></p>
+
+<p>Mathematically, for a row of scores $s = [s_1, s_2, \dots, s_n]$:</p>
+<div class="formula">$$\text{softmax}(s)_j = \frac{e^{s_j}}{\sum_{k=1}^{n} e^{s_k}}$$</div>
+
+<h4>Step 4: $\times V$ — weighted sum of values</h4>
+<p>Multiply by $V$ to actually retrieve a blend of value vectors, weighted by attention.</p>
+
+<h3>A concrete walk-through (toy example)</h3>
+<p>Sentence: <em>"The cat sat"</em> — 3 words.</p>
+
+<p>Suppose for the word <strong>"sat"</strong>:</p>
+<ul>
+  <li>Its query $q_{\text{sat}}$ is most similar to the key $k_{\text{cat}}$ (subject of the verb).</li>
+  <li>Less similar to $k_{\text{the}}$ (a generic article).</li>
+</ul>
+
+<p>The scores (after $QK^T / \sqrt{d_k}$) might be:</p>
+<pre>"the":  0.5
+"cat":  3.0   ← highest
+"sat":  1.0</pre>
+
+<p>After softmax:</p>
+<pre>"the":  0.08
+"cat":  0.78   ← gets most of the weight
+"sat":  0.14</pre>
+
+<p>The output for "sat" is then:</p>
+<div class="formula">$$\text{output}_{\text{sat}} = 0.08 \cdot v_{\text{the}} + 0.78 \cdot v_{\text{cat}} + 0.14 \cdot v_{\text{sat}}$$</div>
+
+<p>So "sat" pulls in mostly the meaning of "cat" — it has learned that the verb depends on its subject. ✨</p>
+
+<h3>Where do Q, K, V come from? 🤔</h3>
+<p>This is the part that often confuses people.</p>
+
+<p>For <strong>self-attention</strong>, all three come from the <strong>same input</strong> — your sequence of word embeddings $X$:</p>
+
+<div class="formula">$$Q = XW^Q, \quad K = XW^K, \quad V = XW^V$$</div>
+
+<p>$W^Q$, $W^K$, $W^V$ are <strong>learned weight matrices</strong>. They project the same input into three different "views":</p>
+<ul>
+  <li><strong>Q-view:</strong> what each word is looking for.</li>
+  <li><strong>K-view:</strong> what each word offers.</li>
+  <li><strong>V-view:</strong> what each word contributes.</li>
+</ul>
+
+<p>That's why it's called <strong>"self"-attention</strong> — the sequence attends to itself.</p>
+
+<hr>
+
+<!-- ============ DOUBTS 3.2.1 ============ -->
+<h2 id="doubts-321">Doubts Answered: Variance Theory + Q/K/V Motivation <span class="badge new">just answered</span></h2>
+
+<div class="doubt">"Does adding k independent variables with variance 1 each just make the variance k? Why does every step of normalization try to keep variance = 1? And what's the motivation behind the 3 matrices K, Q, V — how did they come up with this idea?"</div>
+
+<h3>1. Yes — variances add for independent variables</h3>
+
+<p>For independent random variables $X_1, X_2, \dots, X_k$:</p>
+
+<div class="formula">$$\text{Var}(X_1 + X_2 + \dots + X_k) = \sum_{i=1}^{k} \text{Var}(X_i)$$</div>
+
+<p>This comes from the general formula:</p>
+<div class="formula">$$\text{Var}(X + Y) = \text{Var}(X) + \text{Var}(Y) + 2\,\text{Cov}(X, Y)$$</div>
+
+<p>When $X$ and $Y$ are independent, $\text{Cov}(X, Y) = 0$, so the cross terms vanish. So if each $X_i$ has variance 1, the sum has variance $k$, and standard deviation $\sqrt{k}$.</p>
+
+<h4>Applying this to the attention dot product</h4>
+
+<p>The dot product $q \cdot k = \sum_{i=1}^{d_k} q_i k_i$. Let's check the variance of each term $q_i k_i$:</p>
+
+<p>Assume $q_i, k_i$ are independent, each with mean 0 and variance 1.</p>
+
+<p><strong>Mean of $q_i k_i$:</strong></p>
+<div class="formula">$$E[q_i k_i] = E[q_i] \cdot E[k_i] = 0 \cdot 0 = 0$$</div>
+
+<p><strong>Variance of $q_i k_i$:</strong></p>
+<div class="formula">$$\text{Var}(q_i k_i) = E[(q_i k_i)^2] - (E[q_i k_i])^2 = E[q_i^2] \cdot E[k_i^2] - 0 = 1 \cdot 1 = 1$$</div>
+
+<p>So each term has variance 1, and summing $d_k$ independent such terms gives <strong>variance $d_k$</strong>. Standard deviation = $\sqrt{d_k}$.</p>
+
+<p>Dividing by $\sqrt{d_k}$ rescales the standard deviation back to 1. ✅</p>
+
+<h3>2. Why obsessively keep variance ≈ 1?</h3>
+
+<p>This is the deeper question. The literal value "1" isn't magical — what matters is <strong>keeping variance CONSTANT through the layers</strong>. Here's the concrete reasoning:</p>
+
+<h4>(a) The exponential drift problem</h4>
+<p>If every layer multiplies variance by some factor $c$, after $L$ layers the variance is $c^L$:</p>
+<ul>
+  <li>$c &gt; 1$ → variance explodes (e.g., $1.5^{20} \approx 3325$) → activations overflow</li>
+  <li>$c &lt; 1$ → variance vanishes (e.g., $0.5^{20} \approx 10^{-6}$) → activations become indistinguishable</li>
+</ul>
+<p>Either way, training breaks. The only stable choice is $c \approx 1$ — a fixed point.</p>
+
+<h4>(b) Activation functions have a "sweet spot"</h4>
+<p>Most nonlinearities (softmax, tanh, sigmoid) behave well when inputs are roughly in $[-2, 2]$:</p>
+
+<ul>
+  <li><strong>Softmax with large inputs</strong> becomes a one-hot vector (one value $\approx 1$, rest $\approx 0$). Gradient through softmax is then essentially zero everywhere. <em>This is exactly why $\sqrt{d_k}$ scaling matters!</em></li>
+  <li><strong>tanh/sigmoid with large inputs</strong> saturate at $\pm 1$ / 0 or 1 → derivative ≈ 0 → vanishing gradients.</li>
+  <li><strong>tanh/sigmoid with tiny inputs</strong> are nearly linear → no nonlinearity → network can't learn complex functions.</li>
+</ul>
+
+<h4>(c) Variance = 1 specifically?</h4>
+<p>Why 1 and not 0.5 or 2? Three reasons:</p>
+<ol>
+  <li><strong>Standard normal convention.</strong> $\mathcal{N}(0, 1)$ is the canonical reference distribution. Initialization schemes (Xavier, He) are designed around it.</li>
+  <li><strong>Identity for multiplication.</strong> If variance is 1, repeatedly applying "variance-preserving" operations keeps it at 1 forever — clean fixed point.</li>
+  <li><strong>Empirically calibrated.</strong> Activation functions and softmax happen to behave well at this scale. Could you train with variance 2 throughout? Probably yes — but you'd be re-tuning everything (initializations, learning rate, optimizer betas). Variance 1 is a Schelling point that everyone has standardized on.</li>
+</ol>
+
+<p>So when you see <strong>$\sqrt{d_k}$</strong> in the attention formula, or <strong>LayerNorm</strong>, or <strong>$\frac{1}{\sqrt{d}}$ in Xavier init</strong>, they're all enforcing the same invariant: <em>"keep variance at 1 throughout the network."</em></p>
+
+<blockquote>The whole field of "deep learning that actually trains" is largely the discipline of preventing variance drift.</blockquote>
+
+<hr>
+
+<h3>3. Motivation for Q, K, V — Where did the idea come from?</h3>
+
+<p>This wasn't invented from scratch. It evolved through a lineage of papers, each adding one piece.</p>
+
+<h4>Lineage (rough timeline)</h4>
+<ol>
+  <li>
+    <strong>seq2seq with attention (Bahdanau et al., 2014; Luong et al., 2015).</strong>
+    The decoder of an RNN translation model needed to "look back" at the encoder. They computed alignment scores between decoder state and each encoder state, then output a weighted sum of encoder states.
+    <br><em>At this stage: just queries (decoder state) and one role for encoder states (both compared against AND retrieved from).</em>
+  </li>
+  <li>
+    <strong>Memory Networks / Neural Turing Machines (Weston et al., 2014; Graves et al., 2014).</strong>
+    Explicit "memory" banks read by computing addressing weights from a query. Introduced the abstraction of <em>"read from memory by similarity."</em>
+  </li>
+  <li>
+    <strong>Key-Value Memory Networks (Miller et al., 2016).</strong>
+    Crucially: separated <strong>keys</strong> (used to compute attention weights) from <strong>values</strong> (returned as content). This is the moment the K/V split appears explicitly.
+  </li>
+  <li>
+    <strong>The Transformer (2017)</strong> takes the Q/K/V abstraction, applies it to <em>self-attention</em> (the sequence attends to itself), and makes all three projections learned.
+  </li>
+</ol>
+
+<h4>The core insight: decouple matching from retrieving</h4>
+
+<p>Imagine a library lookup:</p>
+<ul>
+  <li><strong>Book title</strong> (Key): what gets matched against your query. Optimized for searchability.</li>
+  <li><strong>Book contents</strong> (Value): what you actually take home. Optimized for usefulness.</li>
+  <li><strong>Your search term</strong> (Query): what you're looking for.</li>
+</ul>
+
+<p>Title and contents describe the same book, but they're optimized for different jobs. Forcing them to be the same vector would mean compromising one for the other.</p>
+
+<h4>Why not just use $X$ for all three?</h4>
+
+<p>Suppose you skip the projections and use $X$ directly: $\text{Attention}(X, X, X)$. Two problems:</p>
+
+<p><strong>(a) Symmetric attention.</strong> $X X^T$ is a symmetric matrix — meaning word A attends to word B with the same weight as B to A. But that's <em>not how language works</em>. A verb attends to its subject differently than the subject attends to its verb.</p>
+
+<p>With three different projections, $Q K^T = (XW^Q)(XW^K)^T = X W^Q (W^K)^T X^T$. The combined matrix $W^Q (W^K)^T$ is generally <strong>not symmetric</strong> → asymmetric attention patterns are possible. ✅</p>
+
+<p><strong>(b) Three independent "knobs."</strong> Each projection gives the model an independent lever:</p>
+<ul>
+  <li>$W^Q$ controls "what should I look for?"</li>
+  <li>$W^K$ controls "how should I make myself findable?"</li>
+  <li>$W^V$ controls "what do I contribute when I'm attended to?"</li>
+</ul>
+<p>A single shared matrix would collapse all three jobs into one — much less flexible.</p>
+
+<p><strong>(c) Dimensionality control.</strong> $W^Q, W^K$ project to dimension $d_k$ (in the paper: 64) which is smaller than $d_{\text{model}} = 512$. This is computational efficiency — you don't need full 512-dim vectors for matching, just enough capacity. $W^V$ projects to $d_v$ (also 64) for the value content.</p>
+
+<h4>The "soft database" mental model</h4>
+
+<p>The cleanest way to remember it: attention is a <strong>differentiable, soft database lookup</strong>.</p>
+
+<pre>Hard lookup (Python dict):    db = {key1: val1, key2: val2, ...}
+                              result = db[query]   # exact match
+
+Soft lookup (attention):      similarity = query · key_i  (for each i)
+                              weights    = softmax(similarities)
+                              result     = Σᵢ weights_i · val_i</pre>
+
+<p>It's a lookup that's <em>differentiable</em> (gradients flow through softmax and weighted sums), so the network can <em>learn</em> what to query, what to expose as a key, and what to return as a value — all from data.</p>
+
+<hr>
+
+<!-- ============ MATRIX REFERENCE ============ -->
+<h2 id="matrix-ref">Quick Reference: Matrix Shapes &amp; Meanings <span class="badge new">just added</span></h2>
+
+<p>Notation:</p>
+<ul>
+  <li>$n$ = sequence length (number of tokens)</li>
+  <li>$d_{\text{model}}$ = embedding dim (512 in the paper)</li>
+  <li>$d_k$ = key/query dim per head (64 in the paper)</li>
+  <li>$d_v$ = value dim per head (64 in the paper)</li>
+</ul>
+
+<h3>Reference table</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Matrix</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Shape</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Each ROW means</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Each COLUMN means</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$X$</strong><br><span style="color:var(--muted); font-size:0.85em;">input embeddings</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$n \times d_{\text{model}}$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">One <strong>token</strong> in the sequence</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">One <strong>embedding feature</strong></td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$W^Q$, $W^K$</strong><br><span style="color:var(--muted); font-size:0.85em;">learned projections</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$d_{\text{model}} \times d_k$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">An input feature's "recipe" — how it contributes to each output dim</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">A <strong>new feature</strong> in Q/K space (a learned mix of input features)</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$W^V$</strong><br><span style="color:var(--muted); font-size:0.85em;">learned projection</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$d_{\text{model}} \times d_v$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">An input feature's recipe (for V space)</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">A new feature in V space</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$Q = XW^Q$</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$n \times d_k$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">The <strong>query vector for one token</strong> ("what I'm looking for")</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">One feature dim of query space</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$K = XW^K$</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$n \times d_k$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">The <strong>key vector for one token</strong> ("how I make myself findable")</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">One feature dim of key space</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$V = XW^V$</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$n \times d_v$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">The <strong>value vector for one token</strong> ("what I contribute")</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">One feature dim of value space</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$QK^T$</strong><br><span style="color:var(--muted); font-size:0.85em;">raw scores</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$n \times n$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Scores for token $i$ attending to every other token — <strong>"how much should I look at each one?"</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Scores for everyone attending to token $j$ — "how much does each token care about me?"</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$\text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right)$</strong><br><span style="color:var(--muted); font-size:0.85em;">attention weights</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$n \times n$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">A probability distribution: <strong>where token $i$ spreads its attention</strong> (row sums to 1)</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Doesn't sum to anything special — column $j$ = "the attention received by token $j$ from each other token"</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Output</strong><br><span style="color:var(--muted); font-size:0.85em;">$\text{softmax}(\cdot) V$</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">$n \times d_v$</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">The <strong>new representation of token $i$</strong> after attention — a weighted blend of all value vectors</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">One feature dim of the output</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Shape flow diagram</h3>
+
+<div class="ascii-diagram">                  X
+            (n × d_model)
+                 │
+        ┌────────┼────────┐
+        │        │        │
+       W^Q      W^K      W^V         ← learned (d_model × d_k or d_v)
+        │        │        │
+        ▼        ▼        ▼
+       Q         K         V
+    (n × d_k) (n × d_k) (n × d_v)
+        │        │        │
+        └───┬────┘        │
+            │             │
+         Q · K^T          │
+        (n × n)           │
+            │             │
+       ÷ √d_k             │
+            │             │
+        softmax           │
+        (n × n)           │
+            └─────┬───────┘
+                  ▼
+              Output
+            (n × d_v)</div>
+
+<h3>One-line mental model per matrix</h3>
+
+<ul>
+  <li><strong>$X$</strong>: "The sequence — one row per word, each row is a 512-dim word embedding."</li>
+  <li><strong>$W^Q, W^K, W^V$</strong>: "Three different glasses to view each word through — what it's asking, what it's offering, what it's giving."</li>
+  <li><strong>$Q$</strong>: "Each row = one word's question."</li>
+  <li><strong>$K$</strong>: "Each row = one word's advertisement."</li>
+  <li><strong>$V$</strong>: "Each row = one word's content payload."</li>
+  <li><strong>$QK^T$</strong>: "How well each question matches each advertisement — an $n \times n$ compatibility grid."</li>
+  <li><strong>softmax row</strong>: "A probability distribution over who to listen to."</li>
+  <li><strong>Output</strong>: "Each row = a word's new, attention-refined representation."</li>
+</ul>
+
+<hr>
+
+<!-- ============ PART 5 ============ -->
+<h2 id="part5">Part 5 — Section 3.2.2: Multi-Head Attention <span class="badge new">NEW</span></h2>
+
+<h3>The problem with a single attention head</h3>
+
+<p>Scaled dot-product attention (what we just learned) does <em>one</em> kind of mixing. For a given word, softmax produces one distribution over the other words — meaning that word ends up paying attention <strong>in one specific way</strong>.</p>
+
+<p>But language has many simultaneous relationships:</p>
+<ul>
+  <li><strong>Syntactic:</strong> "ran" depends on "she" (subject-verb agreement).</li>
+  <li><strong>Semantic:</strong> "bank" relates to "river" (disambiguating word sense).</li>
+  <li><strong>Coreference:</strong> "it" refers back to "animal".</li>
+  <li><strong>Positional:</strong> the next word matters in a different way than the word 10 positions back.</li>
+</ul>
+
+<p>A single attention head has to <em>compromise</em> — averaging all these signals into one weighted blend. The paper's fix: <strong>run multiple attention computations in parallel, then combine them.</strong></p>
+
+<h3>The mechanism</h3>
+
+<p>Instead of one attention with full $d_{\text{model}}$-dimensional Q, K, V, the model uses $h$ parallel <strong>heads</strong>. Each head has its own learned projections.</p>
+
+<div class="formula">$$\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \dots, \text{head}_h) \, W^O$$</div>
+
+<p>where each head is:</p>
+
+<div class="formula">$$\text{head}_i = \text{Attention}(Q W^Q_i, \, K W^K_i, \, V W^V_i)$$</div>
+
+<p>The shapes of the per-head matrices:</p>
+<ul>
+  <li>$W^Q_i, W^K_i \in \mathbb{R}^{d_{\text{model}} \times d_k}$</li>
+  <li>$W^V_i \in \mathbb{R}^{d_{\text{model}} \times d_v}$</li>
+  <li>$W^O \in \mathbb{R}^{h \cdot d_v \times d_{\text{model}}}$ (the final output projection)</li>
+</ul>
+
+<p>In the paper:</p>
+<ul>
+  <li>$h = 8$ heads</li>
+  <li>$d_k = d_v = d_{\text{model}} / h = 512 / 8 = 64$</li>
+</ul>
+
+<h3>Why this works</h3>
+
+<h4>(a) Each head can specialize</h4>
+<p>Because each head has its own $W^Q_i, W^K_i, W^V_i$, it learns to focus on a particular type of relationship. After training, you can often visualize attention patterns and see:</p>
+<ul>
+  <li>Head 1: attending to the previous word</li>
+  <li>Head 2: attending to the syntactic head of the phrase</li>
+  <li>Head 3: attending to similar tokens across the sentence</li>
+  <li>... and so on.</li>
+</ul>
+
+<p>It's like having 8 different experts looking at the sentence from different angles, then a final layer ($W^O$) deciding how to combine their reports.</p>
+
+<h4>(b) Computational cost is comparable to single-head</h4>
+
+<p>Crucial design point: total compute is roughly the same as one full-dimensional attention.</p>
+
+<p>One big head ($d_k = 512$): $n \times n \times 512 = 512 n^2$ operations for the score matrix.</p>
+
+<p>Eight small heads ($d_k = 64$ each): $8 \times n \times n \times 64 = 512 n^2$ operations.</p>
+
+<p>Same total work, but partitioned into 8 independent "experts." This is parameter-efficient: you get diversity without paying extra compute.</p>
+
+<h4>(c) Better gradients through diversity</h4>
+
+<p>If one head's projection collapses (e.g., learns useless features), the others can still carry signal. Multi-head is more robust during training than putting all eggs in one head.</p>
+
+<h3>Visual: data flow through Multi-Head Attention</h3>
+
+<div class="ascii-diagram">                              X  (n × d_model)
+                              │
+       ┌──────────────────────┼──────────────────────┐
+       │                      │                      │
+       ▼                      ▼                      ▼
+   ┌─────────┐           ┌─────────┐            ┌─────────┐
+   │ Head 1  │           │ Head 2  │   ...      │ Head 8  │
+   │         │           │         │            │         │
+   │ Q₁ K₁ V₁│           │ Q₂ K₂ V₂│            │ Q₈ K₈ V₈│
+   │ (n×64)  │           │ (n×64)  │            │ (n×64)  │
+   │         │           │         │            │         │
+   │Attention│           │Attention│            │Attention│
+   │  output │           │  output │            │  output │
+   │ (n×64)  │           │ (n×64)  │            │ (n×64)  │
+   └────┬────┘           └────┬────┘            └────┬────┘
+        │                     │                      │
+        └─────── Concat ──────┴──────────────────────┘
+                       │
+                  (n × 512)              ← 8 × 64 = 512
+                       │
+                  × W^O   (512 × 512)
+                       │
+                       ▼
+                   Output
+                  (n × 512)</div>
+
+<h3>Concrete numerical walk-through</h3>
+
+<p>Say the input sequence has $n = 10$ tokens:</p>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Step</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Shape</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:0.5rem; border:1px solid var(--border);">$X$ (input)</td><td style="padding:0.5rem; border:1px solid var(--border);">10 × 512</td></tr>
+    <tr style="background:#fafaf7;"><td style="padding:0.5rem; border:1px solid var(--border);">$Q_i = X W^Q_i$ (per head)</td><td style="padding:0.5rem; border:1px solid var(--border);">10 × 64</td></tr>
+    <tr><td style="padding:0.5rem; border:1px solid var(--border);">$Q_i K_i^T / \sqrt{64}$</td><td style="padding:0.5rem; border:1px solid var(--border);">10 × 10</td></tr>
+    <tr style="background:#fafaf7;"><td style="padding:0.5rem; border:1px solid var(--border);">softmax applied row-wise</td><td style="padding:0.5rem; border:1px solid var(--border);">10 × 10</td></tr>
+    <tr><td style="padding:0.5rem; border:1px solid var(--border);">$\times V_i$ → head output</td><td style="padding:0.5rem; border:1px solid var(--border);">10 × 64</td></tr>
+    <tr style="background:#fafaf7;"><td style="padding:0.5rem; border:1px solid var(--border);">Concat 8 heads</td><td style="padding:0.5rem; border:1px solid var(--border);">10 × 512</td></tr>
+    <tr><td style="padding:0.5rem; border:1px solid var(--border);">$\times W^O$ (final projection)</td><td style="padding:0.5rem; border:1px solid var(--border);">10 × 512</td></tr>
+  </tbody>
+</table>
+
+<p>Input is 10 × 512; output is 10 × 512. The shape <strong>round-trips</strong> — the attention block can be slotted into a stack of layers without resizing anything.</p>
+
+<h3>The $W^O$ projection — what does it do?</h3>
+
+<p>After concatenating the 8 head outputs you get a 10 × 512 matrix where the first 64 columns are head 1's output, next 64 are head 2's, etc. The columns are <em>siloed</em> by head.</p>
+
+<p>$W^O$ is a learned $512 \times 512$ matrix that <strong>mixes information across heads</strong> — letting the model combine, weight, and recombine the per-head representations into a unified output. Without $W^O$, the heads would just be parallel slices that never interact.</p>
+
+<h3>The mental model</h3>
+
+<blockquote>"Single-head attention is one expert looking at the sentence. Multi-head attention is a panel of experts (8 of them), each with a different specialty, whose reports get aggregated by a final mixer."</blockquote>
+
+<hr>
+
+<!-- ============ DOUBTS 3.2.2 ============ -->
+<h2 id="doubts-322">Doubt Answered: What Prevents Head Collapse? <span class="badge new">just answered</span></h2>
+
+<div class="doubt">"What prevents the $W^Q$, $W^K$, etc. of the different heads from just learning to be the exact same?"</div>
+
+<p>This is a <em>fantastic</em> question — and the honest answer is: <strong>nothing forces them to be different architecturally.</strong> No explicit constraint, no orthogonality penalty, no diversity loss. Heads diversify only through <em>emergent training dynamics</em>. Let's unpack what those dynamics are — and then look at the uncomfortable truth that this doesn't always work.</p>
+
+<h3>1. Random initialization breaks symmetry</h3>
+
+<p>Each head's projection matrices $W^Q_i$, $W^K_i$, $W^V_i$ are initialized with <strong>independent random draws</strong> (typically Xavier/Glorot or He init). So even before any training:</p>
+
+<div class="formula">$$W^Q_1 \neq W^Q_2 \neq \dots \neq W^Q_8$$</div>
+
+<p>This is the foundational reason. If all heads started with <em>identical</em> weights, they would receive identical gradients on every forward/backward pass, and remain identical forever — they'd be a single head in disguise. This is the classic "symmetry problem" in neural networks, and random initialization is the standard cure.</p>
+
+<h3>2. SGD amplifies tiny initial differences</h3>
+
+<p>Random initialization gives each head a slightly different starting position in the loss landscape. From there, gradient descent is <strong>sensitive to initial conditions</strong>:</p>
+
+<ul>
+  <li>Two heads with slightly different weights produce slightly different outputs.</li>
+  <li>Their slightly different outputs pull slightly different gradients.</li>
+  <li>The slightly different gradients widen the gap.</li>
+  <li>Over thousands of training steps, small differences compound into large ones.</li>
+</ul>
+
+<p>This is the same dynamic that makes a butterfly flap matter — exponentially amplifying tiny initial differences along an unstable trajectory.</p>
+
+<h3>3. $W^O$ creates an implicit incentive for specialization</h3>
+
+<p>This is the deepest mechanism. Recall the final step:</p>
+
+<div class="formula">$$\text{Output} = \text{Concat}(\text{head}_1, \dots, \text{head}_8) \cdot W^O$$</div>
+
+<p>$W^O$ is $512 \times 512$, and the concatenated input is split into <strong>8 column-blocks of 64 features each</strong>, one per head. So $W^O$ can be thought of as 8 sub-matrices, each "reading from" one head:</p>
+
+<div class="ascii-diagram">       columns 0..63   64..127   ...   448..511
+       ┌─────────┬─────────┬─────────┬─────────┐
+       │  block₁ │  block₂ │   ...   │  block₈ │   ← these multiply head₁, head₂, ..., head₈
+       └─────────┴─────────┴─────────┴─────────┘
+                          W^O</div>
+
+<p>During backprop:</p>
+<ul>
+  <li>The gradient flowing into head $i$ depends on the rows of $W^O$ that <em>consume</em> head $i$'s columns.</li>
+  <li>If two heads produced identical outputs, the optimizer would have <strong>redundant capacity</strong> — half its degrees of freedom doing nothing. The loss can typically be reduced more by making them <em>different</em>.</li>
+  <li>So the gradient signal naturally pushes each head to contribute <em>distinct</em> information that the others aren't providing.</li>
+</ul>
+
+<p>This is the same reason ensembles work better when models are diverse: a duplicate model contributes nothing new. Multi-head attention is essentially an "ensemble inside a layer" where the optimizer learns the ensemble weights ($W^O$) jointly with the experts.</p>
+
+<h3>4. Different downstream gradient paths</h3>
+
+<p>Even before $W^O$ is trained, each head sits at a different position in the concatenated output. So at the very first optimization step:</p>
+<ul>
+  <li>Head 1's output gets multiplied by the first 64 rows of $W^O$.</li>
+  <li>Head 2's output gets multiplied by rows 65–128.</li>
+  <li>...</li>
+</ul>
+<p>Since $W^O$ is also randomly initialized, each head sees a <em>different</em> downstream environment. The gradients propagated back to each head's $W^Q_i, W^K_i, W^V_i$ are therefore different from step one.</p>
+
+<h3>5. Reality check: heads <em>do</em> sometimes collapse</h3>
+
+<p>Despite all the above, here's the uncomfortable truth: <strong>multi-head attention often has redundant heads in practice.</strong> Research has shown this empirically.</p>
+
+<blockquote><strong>Michel et al. (2019), "Are Sixteen Heads Really Better than One?"</strong> — they showed that you can prune most attention heads from a trained Transformer with minimal accuracy loss. In many layers, a single head was sufficient.</blockquote>
+
+<p>Other related findings:</p>
+<ul>
+  <li>Voita et al. (2019) found that only a small subset of heads carry specialized roles (positional, syntactic, rare-word); most are "generic" or redundant.</li>
+  <li>You can train Transformers with explicit diversity regularization (orthogonality penalties, etc.), but it's not standard — the default training works "well enough" most of the time.</li>
+</ul>
+
+<p>So your intuition is correct: the architecture <em>permits</em> collapse, and partial collapse does happen. The reasons it isn't catastrophic:</p>
+<ol>
+  <li>Even partial diversity is enough to give multi-head a measurable edge over single-head.</li>
+  <li>The optimizer "wants" heads to be different because diverse heads reduce loss more — but the pressure is weak (just a soft incentive, not a hard constraint).</li>
+  <li>Modern training has so much capacity and data that some wasted heads aren't a deal-breaker.</li>
+</ol>
+
+<h3>The summary mental model</h3>
+
+<blockquote>
+  Heads diversify through a chain of accidents:
+  <strong>random init</strong> → <strong>different starting points</strong> → <strong>different gradients</strong> → <strong>different learning trajectories</strong>.
+  The optimizer <em>softly</em> encourages diversity (because redundant heads waste capacity), but doesn't enforce it.
+  In practice, you get partial diversity — some heads specialize beautifully, others end up redundant.
+</blockquote>
+
+<hr>
+
+<!-- ============ SIDE: ENSEMBLE ============ -->
+<h2 id="side-ensemble">Side Concept: What Is an Ensemble? <span class="badge new">just answered</span></h2>
+
+<div class="doubt">"What is an ensemble?"</div>
+
+<h3>The one-line definition</h3>
+
+<blockquote>
+  An <strong>ensemble</strong> is a collection of models whose individual predictions are <em>combined</em> (usually by averaging or voting) to produce a single, better prediction.
+</blockquote>
+
+<h3>The simplest example: averaging</h3>
+
+<p>Say you want to predict tomorrow's temperature, and you have three models:</p>
+<ul>
+  <li>Model A predicts 22°C</li>
+  <li>Model B predicts 25°C</li>
+  <li>Model C predicts 24°C</li>
+</ul>
+
+<p>A simple ensemble prediction: just average them → $(22 + 25 + 24) / 3 = 23.67$°C.</p>
+
+<p>For <strong>classification</strong> (e.g., "is this image a cat or a dog?"), you'd do <strong>majority voting</strong> instead of averaging.</p>
+
+<h3>Why this works — the "wisdom of crowds" effect</h3>
+
+<p>Each model makes its own mistakes. If the mistakes are <strong>different</strong> (i.e., the models are <em>diverse</em>), they tend to cancel out when averaged.</p>
+
+<p>Mathematically: suppose each model's prediction has some bias + some random error. If the errors are independent and zero-mean, averaging $N$ predictions reduces the error variance by a factor of $N$:</p>
+
+<div class="formula">$$\text{Var}\!\left(\frac{1}{N} \sum_i \hat{y}_i\right) = \frac{1}{N^2} \sum_i \text{Var}(\hat{y}_i) = \frac{\sigma^2}{N}$$</div>
+
+<p>(Same independence-variance argument we used for the dot product — variances add, then dividing by $N$ shrinks the average.)</p>
+
+<p>Notice the <strong>critical requirement</strong>: the models must be <em>diverse</em>. If they all make the <em>same</em> mistakes, averaging doesn't help — you just get the same wrong answer.</p>
+
+<h3>Common ensemble techniques</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Technique</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">How it creates diversity</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Bagging</strong><br><span style="color:var(--muted); font-size:0.85em;">(Random Forest is the classic example)</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Train each model on a different <em>random subset</em> of the training data. Different subsets → different models → different mistakes.</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Boosting</strong><br><span style="color:var(--muted); font-size:0.85em;">(XGBoost, AdaBoost)</span></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Train models <em>sequentially</em>, where each new model focuses on the examples the previous models got wrong.</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Stacking</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Train several "base" models, then train a "meta-model" that learns how to combine their predictions optimally.</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Different random seeds</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Train multiple copies of the same model architecture with different random initializations. Each lands at a different local minimum.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Connecting back to multi-head attention</h3>
+
+<p>Multi-head attention is essentially an <strong>ensemble baked into a single layer</strong>:</p>
+<ul>
+  <li>Each "head" is like a base model — it computes an attention output independently.</li>
+  <li>$W^O$ is a learned <strong>stacking-style</strong> combiner — instead of simple averaging, it learns the optimal linear mixture.</li>
+  <li>Diversity comes from random init + SGD dynamics (like the "different random seeds" technique above).</li>
+</ul>
+
+<p>The reason head collapse hurts is the same reason ensembles fail when models are too similar: <em>you lose the variance-reduction effect</em>. Eight identical heads = one head, not eight.</p>
+
+<h3>Real-world ML example you've likely encountered</h3>
+
+<p>If you've used <strong>Random Forest</strong> (e.g., in scikit-learn): it's an ensemble of decision trees. Each tree sees a different random sample of the data and a different random subset of features. No single tree is great, but the average over 100 trees is robust and accurate. Same principle — diversity + averaging beats any individual.</p>
+
+<hr>
+
+<!-- ============ PART 6 ============ -->
+<h2 id="part6">Part 6 — Section 3.2.3: Applications of Attention <span class="badge new">NEW</span></h2>
+
+<p>So far we've learned the <strong>mechanism</strong> of attention. Now: <strong>where</strong> is it actually used in the Transformer?</p>
+
+<p>The paper uses multi-head attention in <strong>three distinct places</strong>, each with a different source for Q, K, V.</p>
+
+<h3>1. Encoder Self-Attention</h3>
+
+<p><strong>Where:</strong> Inside each encoder layer (in all 6 layers).</p>
+
+<p><strong>Where do Q, K, V come from?</strong> All three come from the <em>same place</em>: the <strong>output of the previous encoder layer</strong> (or the input embeddings, in the first layer).</p>
+
+<div class="formula">$$Q = X_{\text{enc}} W^Q, \quad K = X_{\text{enc}} W^K, \quad V = X_{\text{enc}} W^V$$</div>
+
+<p>where $X_{\text{enc}}$ is the previous encoder layer's output.</p>
+
+<p><strong>What it does:</strong> Each position in the encoder attends to <em>all</em> other positions in the encoder. This lets every word in the input sentence see every other word — building up context-rich representations.</p>
+
+<p><em>Example:</em> When encoding "the bank by the river," the word "bank" can attend to "river" and pick up that this is a riverbank, not a financial institution.</p>
+
+<h3>2. Decoder Masked Self-Attention</h3>
+
+<p><strong>Where:</strong> The first sub-layer inside each decoder layer (in all 6 layers).</p>
+
+<p><strong>Where do Q, K, V come from?</strong> Same as encoder self-attention — all from the <strong>previous decoder layer's output</strong>:</p>
+
+<div class="formula">$$Q = X_{\text{dec}} W^Q, \quad K = X_{\text{dec}} W^K, \quad V = X_{\text{dec}} W^V$$</div>
+
+<p><strong>What's different?</strong> A <strong>mask</strong> is applied to prevent each position from attending to <em>future</em> positions.</p>
+
+<h4>Why masking is needed</h4>
+
+<p>The decoder generates output one token at a time (left-to-right). At position $i$, the model is trying to predict the next token. It must only see positions $0, 1, \dots, i$ — never $i+1, i+2, \dots$ Otherwise, during training, it would "cheat" by peeking at the answer it's supposed to predict.</p>
+
+<p>This is called the <strong>auto-regressive property</strong>: each output depends only on previous outputs, never future ones.</p>
+
+<h4>How masking is implemented mechanically</h4>
+
+<p>Recall the attention score matrix: $QK^T / \sqrt{d_k}$, shape $n \times n$, row $i$ = scores for what position $i$ attends to.</p>
+
+<p>The mask sets the scores for "future" positions (the upper triangular part of the matrix) to <strong>$-\infty$</strong> (in practice, a very large negative number like $-10^9$) <em>before</em> the softmax:</p>
+
+<div class="ascii-diagram">For sequence length n = 5:
+
+Original scores (5×5):       Masked scores (5×5):
+[s s s s s]                  [s  −∞ −∞ −∞ −∞]
+[s s s s s]                  [s  s  −∞ −∞ −∞]
+[s s s s s]    →   mask →    [s  s  s  −∞ −∞]
+[s s s s s]                  [s  s  s  s  −∞]
+[s s s s s]                  [s  s  s  s  s ]
+
+                                     ↑
+                       Upper triangle replaced with −∞</div>
+
+<p>After softmax, $e^{-\infty} = 0$, so those positions get <strong>weight = 0</strong>. The model literally cannot attend to them.</p>
+
+<p><em>Why $-\infty$ before softmax instead of just zeroing out weights after?</em> Because softmax weights have to sum to 1. If you zero them out post-softmax, the rest don't compensate. Adding $-\infty$ pre-softmax makes those entries vanish during normalization, and the remaining valid positions' weights re-distribute to still sum to 1. Clean and elegant.</p>
+
+<h3>3. Encoder-Decoder Attention (Cross-Attention)</h3>
+
+<p><strong>Where:</strong> The second sub-layer inside each decoder layer.</p>
+
+<p><strong>Where do Q, K, V come from?</strong> This is the most interesting one — they come from <em>different sources</em>:</p>
+
+<ul>
+  <li><strong>Queries (Q)</strong>: from the <em>previous sub-layer of the decoder</em> (the masked self-attention output).</li>
+  <li><strong>Keys (K) and Values (V)</strong>: from the <em>final output of the encoder</em>.</li>
+</ul>
+
+<div class="formula">$$Q = X_{\text{dec}} W^Q, \quad K = X_{\text{enc-out}} W^K, \quad V = X_{\text{enc-out}} W^V$$</div>
+
+<p><strong>What it does:</strong> This is where the decoder <em>reads</em> the input sentence. Each decoder position (a word being generated in the target language) attends over all positions of the encoded source sentence.</p>
+
+<p><em>Example (English → German translation):</em></p>
+<ul>
+  <li>The decoder is generating the German word at position 3.</li>
+  <li>Its current state (after masked self-attention over German words so far) becomes the <strong>query</strong>.</li>
+  <li>The encoder's output (representations of the full English sentence) provides the <strong>keys and values</strong>.</li>
+  <li>The decoder asks: "Given what I've generated so far, which English words should I be paying attention to right now?"</li>
+</ul>
+
+<p>This is essentially the same attention mechanism used in the original Bahdanau (2014) seq2seq model — the decoder peeking at the encoder. The Transformer just generalizes it with Q/K/V projections and multi-head structure.</p>
+
+<h3>Summary table — the three uses of attention</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Type</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Q from</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">K, V from</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Mask?</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Job</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Encoder self-attention</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">prev encoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">prev encoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">❌ No</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Each input word builds context from all other input words</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Decoder masked self-attention</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">prev decoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">prev decoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">✅ Yes (causal)</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Each output word looks only at previously-generated output words</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Cross-attention</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">prev decoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>encoder output</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">❌ No</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Decoder reads the encoded input sentence</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Full architecture, with all three attention types labeled</h3>
+
+<div class="ascii-diagram">          INPUT  (English)              OUTPUT so far (German)
+              │                                │
+        Embeddings                         Embeddings
+        + positional                       + positional
+              │                                │
+              ▼                                ▼
+   ┌──────────────────┐               ┌──────────────────────┐
+   │                  │               │ MASKED Self-Attn  ◄── │ (2) Decoder masked self-attention
+   │ Self-Attention ◄─┼──── (1)       │        │             │
+   │       │          │  Encoder      │        ▼             │
+   │       ▼          │  self-attn    │ Cross-Attn       ◄── │ (3) Encoder→Decoder cross-attention
+   │ Feed-Forward     │               │   ▲        │         │     (Q from decoder, K&V from encoder)
+   │       │          │               │   │        ▼         │
+   │       ▼          │   ───────────►│   K, V   Feed-Fwd    │
+   │  (×6 layers)     │  encoder      │            │         │
+   │                  │  output       │  (×6 layers)         │
+   └──────────────────┘               └──────────────────────┘
+                                                │
+                                                ▼
+                                       Linear + Softmax
+                                                │
+                                                ▼
+                                       Next-word probabilities</div>
+
+<h3>Mental model</h3>
+
+<blockquote>
+  Three attention types, each answering a different question:
+  <br>(1) <em>"How do input words relate to each other?"</em> — encoder self-attention.
+  <br>(2) <em>"What have I generated so far?"</em> — decoder masked self-attention.
+  <br>(3) <em>"What in the source should I look at to generate the next word?"</em> — cross-attention.
+</blockquote>
+
+<hr>
+
+<!-- ============ PART 7 ============ -->
+<h2 id="part7">Part 7 — Section 3.3: Position-wise Feed-Forward Networks <span class="badge new">NEW</span></h2>
+
+<p>Recall: each encoder layer has 2 sub-layers, each decoder layer has 3. We've covered the <em>attention</em> sub-layer in detail. The <strong>other</strong> sub-layer (present in both encoder and decoder) is the <strong>position-wise feed-forward network</strong>, or FFN.</p>
+
+<h3>The formula</h3>
+
+<div class="formula">$$\text{FFN}(x) = \max(0, \, xW_1 + b_1)\, W_2 + b_2$$</div>
+
+<p>It's a 2-layer fully-connected network (an MLP) with a <strong>ReLU</strong> nonlinearity in between:</p>
+
+<ol>
+  <li><strong>Linear layer 1:</strong> $xW_1 + b_1$ — projects from $d_{\text{model}} = 512$ up to $d_{\text{ff}} = 2048$.</li>
+  <li><strong>ReLU:</strong> $\max(0, \cdot)$ — applied element-wise. Sets negatives to 0, keeps positives.</li>
+  <li><strong>Linear layer 2:</strong> $W_2 + b_2$ — projects back down from $d_{\text{ff}} = 2048$ to $d_{\text{model}} = 512$.</li>
+</ol>
+
+<p>Shapes:</p>
+<ul>
+  <li>$W_1 \in \mathbb{R}^{512 \times 2048}$</li>
+  <li>$W_2 \in \mathbb{R}^{2048 \times 512}$</li>
+  <li>$b_1 \in \mathbb{R}^{2048}, \, b_2 \in \mathbb{R}^{512}$</li>
+</ul>
+
+<h3>Visual</h3>
+
+<div class="ascii-diagram">     input x  (512-dim per token)
+              │
+              ▼
+        ┌──────────┐
+        │ Linear 1 │   512 → 2048   (W₁, b₁)
+        └────┬─────┘
+             │
+             ▼
+        ┌──────────┐
+        │  ReLU    │   max(0, ·)
+        └────┬─────┘
+             │
+             ▼  (2048-dim "expanded" representation)
+        ┌──────────┐
+        │ Linear 2 │   2048 → 512   (W₂, b₂)
+        └────┬─────┘
+             │
+             ▼
+     output  (512-dim per token)</div>
+
+<h3>What does "position-wise" mean?</h3>
+
+<p>This is the key word. The same FFN — <strong>same weights $W_1, W_2, b_1, b_2$</strong> — is applied <strong>independently at every position</strong> in the sequence.</p>
+
+<p>Important: the FFN has <strong>no cross-position interaction</strong>. Word 5 doesn't see word 2 inside the FFN. The mixing across positions happened in the <em>attention</em> sub-layer; the FFN just refines each position individually.</p>
+
+<div class="ascii-diagram">    Sequence of n tokens (each 512-dim) entering the FFN:
+
+    pos 1 ──► FFN ──► pos 1 output
+    pos 2 ──► FFN ──► pos 2 output         ← same FFN weights
+    pos 3 ──► FFN ──► pos 3 output            applied independently
+    pos 4 ──► FFN ──► pos 4 output            at every position
+    ...
+    pos n ──► FFN ──► pos n output
+
+    NO information flows between positions inside the FFN.</div>
+
+<h3>Why expand to 2048 and back down to 512?</h3>
+
+<p>The inner dimension $d_{\text{ff}} = 2048$ is <strong>4× larger</strong> than $d_{\text{model}} = 512$. This "expand-then-contract" pattern is common in deep networks (also called a "bottleneck inverted" or "inverted bottleneck").</p>
+
+<p>Why bother?</p>
+<ul>
+  <li><strong>Capacity in the middle.</strong> The expanded 2048-dim hidden layer gives the network room to compute complex nonlinear features. With ReLU, each of the 2048 neurons can act as a learned feature detector.</li>
+  <li><strong>Project back to fit the architecture.</strong> The next layer expects 512-dim input (because of residual connections — $\text{output} + x$ requires matching shapes). So we must project back.</li>
+  <li><strong>Most of the model's parameters live here.</strong> $W_1$ has $512 \times 2048 \approx 1M$ parameters; $W_2$ has another 1M. The FFN dominates the parameter count over attention. This is where the model stores most of its "knowledge."</li>
+</ul>
+
+<h3>Why is FFN needed at all? Isn't attention enough?</h3>
+
+<p>Crucial point: <strong>attention is essentially linear in $V$</strong>. The output of $\text{softmax}(QK^T) V$ is a weighted <em>linear</em> combination of value vectors. The only nonlinearity is the softmax — and that operates only on the attention weights, not on the values themselves.</p>
+
+<p>If you stacked attention layers without any feed-forward in between, the whole stack would be (almost) a giant linear function of the input — limited expressive power.</p>
+
+<p>The FFN's job is to inject <strong>per-position nonlinearity</strong> (via ReLU). Together:</p>
+<ul>
+  <li>Attention <strong>mixes</strong> information across positions.</li>
+  <li>FFN <strong>transforms</strong> the mixed result nonlinearly at each position.</li>
+</ul>
+
+<p>Alternating these two operations is what lets the Transformer learn rich, deep representations.</p>
+
+<h3>Alternative view: $1 \times 1$ convolutions</h3>
+
+<p>The paper notes you can also think of the FFN as <strong>two convolutions with kernel size 1</strong>:</p>
+
+<ul>
+  <li>A 1×1 conv with 2048 filters on a 512-channel input = $W_1$.</li>
+  <li>Followed by ReLU.</li>
+  <li>A 1×1 conv with 512 filters on the 2048-channel result = $W_2$.</li>
+</ul>
+
+<p>This is mathematically identical to applying the same linear layers at every position. The "conv" framing is just a different vocabulary borrowed from vision.</p>
+
+<h3>Parameter sharing rules</h3>
+
+<ul>
+  <li><strong>Within one layer</strong>: the same $W_1, W_2$ are reused across every position of the sequence.</li>
+  <li><strong>Across different layers</strong>: each of the 6 encoder layers and 6 decoder layers has its <strong>own</strong> $W_1, W_2$ — they are not shared between layers.</li>
+</ul>
+
+<p>So in total, there are 12 different FFNs in the model (6 encoder + 6 decoder), each with ~2M parameters.</p>
+
+<h3>Mental model</h3>
+
+<blockquote>
+  Each Transformer block alternates: <strong>"talk to your neighbors"</strong> (attention) and <strong>"think hard on your own"</strong> (FFN). The FFN is where each token, having gathered context from attention, transforms that into something more useful for the next layer.
+</blockquote>
+
+<hr>
+
+<!-- ============ DOUBTS 3.3 ============ -->
+<h2 id="doubts-33">Doubt Answered: Why Non-linearity, and Why ReLU? <span class="badge new">just answered</span></h2>
+
+<div class="doubt">"Why is non-linearity necessary — what value does it add? What's the intuition behind ReLU or sigmoid, and why is ReLU used here?"</div>
+
+<h3>1. Why is non-linearity necessary?</h3>
+
+<h4>The mathematical reason: stacking linear layers collapses</h4>
+
+<p>Suppose you stack two linear layers with no nonlinearity in between:</p>
+
+<div class="formula">$$y_1 = W_1 x + b_1$$</div>
+<div class="formula">$$y_2 = W_2 y_1 + b_2 = W_2 (W_1 x + b_1) + b_2 = \underbrace{(W_2 W_1)}_{\text{just one matrix}} x + \underbrace{(W_2 b_1 + b_2)}_{\text{just one bias}}$$</div>
+
+<p>That's the same as a <strong>single linear layer</strong> with effective weight $W_2 W_1$ and bias $W_2 b_1 + b_2$. No matter how many linear layers you stack — 6, 60, 600 — the entire stack collapses to one linear function.</p>
+
+<p>So without non-linearity, deep networks are no more expressive than shallow ones. The whole point of "depth" disappears.</p>
+
+<h4>What linear models can and can't do</h4>
+
+<p>A linear function can only carve up input space with <em>flat</em> decision boundaries (hyperplanes). The canonical example is <strong>XOR</strong>:</p>
+
+<div class="ascii-diagram">  XOR problem:
+       │
+   1 ●─┼─○ 0
+       │
+   ────┼────
+       │
+   0 ○─┼─● 1
+       │
+
+  Two classes (● and ○). NO single straight line can separate them.
+  A linear classifier fails here. A 2-layer network with non-linearity solves it trivially.</div>
+
+<p>More generally, the <strong>Universal Approximation Theorem</strong> (Cybenko 1989, Hornik 1991) says: a feed-forward network with even a single hidden layer and a non-linear activation can approximate <em>any</em> continuous function on a compact domain, given enough hidden units.</p>
+
+<p>Without non-linearity, you can only approximate linear functions. With it, you can approximate <em>any</em> function. Non-linearity is what gives neural networks their expressive power.</p>
+
+<h4>Intuition: bending the space</h4>
+
+<p>Imagine each linear layer as a rigid transformation of space (rotation, scaling, shearing) — but it can't <em>bend</em>. A non-linear activation acts like a fold: it warps the space, making things that were tangled into things that are separable.</p>
+
+<p>Each layer of a deep network: <strong>(rigid transform) → (bend) → (rigid transform) → (bend) → ...</strong> The composition can sculpt very complex shapes.</p>
+
+<hr>
+
+<h3>2. Intuition behind common activations</h3>
+
+<h4>Sigmoid: $\sigma(x) = \dfrac{1}{1 + e^{-x}}$</h4>
+
+<ul>
+  <li><strong>Range:</strong> $(0, 1)$.</li>
+  <li><strong>Shape:</strong> smooth S-curve. At $x \to -\infty$, $\sigma \to 0$. At $x \to +\infty$, $\sigma \to 1$. At $x = 0$, $\sigma = 0.5$.</li>
+  <li><strong>Intuition:</strong> a "soft on/off switch." Small inputs → close to 0 (off). Large inputs → close to 1 (on). Intermediate inputs → smoothly between. Often used to model probabilities.</li>
+</ul>
+
+<div class="ascii-diagram">  σ(x) = 1 / (1 + e^(-x))
+
+      1 ┤        ╱─────────
+        │      ╱
+    0.5 ┤    ●
+        │   ╱
+      0 ┤──────
+        ────┼────
+            0</div>
+
+<h4>Sigmoid's problem: vanishing gradients</h4>
+
+<p>The derivative is $\sigma'(x) = \sigma(x)(1 - \sigma(x))$. Maximum value at $x=0$: $0.5 \cdot 0.5 = 0.25$. For $|x| > 4$ or so, the derivative is essentially zero (the curve flattens out — "saturates").</p>
+
+<p>In a deep network, gradients flow back via the chain rule, multiplying together derivatives at each layer. If each layer's max derivative is 0.25, after 10 layers the gradient is at most $0.25^{10} \approx 10^{-6}$ — effectively zero. <strong>Early layers stop learning.</strong> This is why sigmoid is rarely used in deep hidden layers anymore.</p>
+
+<h4>ReLU: $f(x) = \max(0, x)$</h4>
+
+<ul>
+  <li><strong>Range:</strong> $[0, \infty)$.</li>
+  <li><strong>Shape:</strong> Flat 0 for $x < 0$. Identity (line $y = x$) for $x \geq 0$. A simple "kink" at the origin.</li>
+  <li><strong>Intuition:</strong> a "feature detector." Output is the input if the neuron's input is positive (the neuron "fires"), otherwise 0 (it's silent). Mimics, roughly, the firing behavior of biological neurons.</li>
+</ul>
+
+<div class="ascii-diagram">  ReLU(x) = max(0, x)
+
+        │           ╱
+        │         ╱
+        │       ╱
+      0 ┤───────●─────
+        ────────┼────
+                0
+
+   "Half-wave rectification" from electronics — same idea.</div>
+
+<h4>Why ReLU dominates sigmoid in modern deep networks</h4>
+
+<ol>
+  <li><strong>No vanishing gradient on the positive side.</strong> The derivative is 1 for any $x > 0$. Gradients flow back unchanged through positively-activated neurons. (Compare: sigmoid's max derivative is 0.25.)</li>
+  <li><strong>Computationally trivial.</strong> Just a comparison + max. No exponentials. Fast on hardware.</li>
+  <li><strong>Sparsity.</strong> Roughly half the neurons end up at 0 for any given input. This is computationally efficient and acts as implicit regularization (only relevant features "fire").</li>
+  <li><strong>Empirically faster convergence.</strong> Networks with ReLU train several times faster than sigmoid-based equivalents (shown in Krizhevsky et al., 2012, the AlexNet paper).</li>
+</ol>
+
+<h4>ReLU's downsides</h4>
+
+<ul>
+  <li><strong>Dead neurons.</strong> If a neuron's input becomes very negative and stays there, it outputs 0 forever — and since the derivative for $x < 0$ is also 0, no gradient flows back to update it. It's "dead." Common workaround: <strong>Leaky ReLU</strong> ($\max(0.01 x, x)$), which gives a small negative slope so dead neurons can recover.</li>
+  <li><strong>Not zero-centered.</strong> Outputs are non-negative, which can introduce some bias in gradients. Usually a minor issue.</li>
+  <li><strong>Not smooth at zero.</strong> The "kink" is mathematically a non-differentiable point. In practice, frameworks just define the derivative as 0 there and it's fine.</li>
+</ul>
+
+<h3>Quick comparison table</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Activation</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Range</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Max gradient</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Compute</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Pros / Cons</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>Sigmoid</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">(0, 1)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">0.25</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">expensive (exp)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Probability-like output; vanishing gradients in deep nets</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>tanh</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">(−1, 1)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">1.0</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">expensive (exp)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Zero-centered (better than sigmoid); still saturates</td>
+    </tr>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>ReLU</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">[0, ∞)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">1 (positive side)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">trivial</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Fast, no vanishing on positive side; can have dead neurons</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>GELU</strong> (newer)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">≈ (−0.17, ∞)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">~1.1</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">expensive</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Smooth ReLU-like; used in BERT, GPT</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h3>3. Why ReLU specifically in the Transformer's FFN?</h3>
+
+<ol>
+  <li><strong>It was the default in 2017.</strong> When this paper was written, ReLU was the standard activation for fully-connected and conv layers — best known to work well, simple, fast.</li>
+  <li><strong>Avoids vanishing gradient in deep stacks.</strong> The Transformer is 6 layers deep on each side (encoder + decoder), each with an FFN. Sigmoid would have caused trouble.</li>
+  <li><strong>Computationally cheap.</strong> The FFN already has ~2M parameters per layer; you want activations to be fast.</li>
+  <li><strong>Plays well with residual connections.</strong> Identity skip + ReLU together is well-tested at this point (ResNet, 2015).</li>
+</ol>
+
+<h4>What modern Transformers use</h4>
+
+<p>Most large language models after ~2018 replaced ReLU with <strong>GELU</strong> (Gaussian Error Linear Unit) — used in BERT, GPT-2/3/4, etc. GELU is roughly ReLU but smoother near zero. Empirically gives small but consistent improvements. Some recent models use <strong>SwiGLU</strong> or <strong>Swish</strong>.</p>
+
+<p>But for understanding the original paper: ReLU is the right answer.</p>
+
+<h3>Mental model</h3>
+
+<blockquote>
+  <strong>Linear layers</strong> do "stretching, rotating, shearing." <strong>Non-linearities</strong> do "folding." A deep network is alternating stretches and folds. Without folds (no non-linearity), no matter how many stretches, you can't make complex shapes. ReLU is the simplest, fastest fold: <em>everything below zero gets squashed to zero; everything above stays as is</em>.
+</blockquote>
+
+<hr>
+
+<!-- ============ PART 8 ============ -->
+<h2 id="part8">Part 8 — Section 3.4: Embeddings and Softmax <span class="badge new">NEW</span></h2>
+
+<p>This section is short. It addresses two things at the <em>boundaries</em> of the model:</p>
+<ul>
+  <li><strong>Input side:</strong> How do raw tokens (words/subwords) become the 512-dim vectors that go into the encoder/decoder?</li>
+  <li><strong>Output side:</strong> How does the decoder's final output get converted into actual token predictions?</li>
+</ul>
+
+<h3>1. Input embeddings</h3>
+
+<p>The model's vocabulary contains some fixed number of tokens — say $V = 37{,}000$ subword units (the paper uses byte-pair encoding for English-German).</p>
+
+<p>Each token gets a learned vector of dimension $d_{\text{model}} = 512$. This is just a giant lookup table:</p>
+
+<div class="formula">$$E \in \mathbb{R}^{V \times d_{\text{model}}}$$</div>
+
+<p>Row $i$ of $E$ is the embedding for token $i$. To embed a token, look up its row. To embed a sequence of $n$ tokens, look up $n$ rows → get an $n \times d_{\text{model}}$ matrix. This is the "X" we've been using everywhere.</p>
+
+<p>Both the encoder (for source language tokens) and the decoder (for target language tokens) use embedding layers like this.</p>
+
+<h3>2. Output transformation: linear + softmax</h3>
+
+<p>The decoder produces an $n \times 512$ output. To predict the next token, you need a distribution over the vocabulary (37,000 numbers summing to 1).</p>
+
+<p>Two steps:</p>
+<ol>
+  <li><strong>Linear:</strong> multiply by a $512 \times V$ matrix → gives $n \times V$ logits (one logit per vocab token per position).</li>
+  <li><strong>Softmax:</strong> apply softmax across the vocabulary dimension → gives $n \times V$ probabilities.</li>
+</ol>
+
+<div class="formula">$$\text{logits} = X_{\text{dec-out}} \cdot W_{\text{out}}, \quad \text{probs} = \text{softmax}(\text{logits})$$</div>
+
+<p>At position $i$, the model outputs a probability distribution over the next token; you take argmax (greedy decoding) or sample to pick the next word.</p>
+
+<h3>3. Weight tying (the clever bit)</h3>
+
+<p>Here's the design choice from this section:</p>
+
+<blockquote>
+  "We share the same weight matrix between the two embedding layers and the pre-softmax linear transformation."
+</blockquote>
+
+<p>That means: the matrix $E$ (used to embed input tokens) is the <strong>same</strong> matrix as $W_{\text{out}}$ (used to map decoder output → vocab logits), just transposed:</p>
+
+<div class="formula">$$W_{\text{out}} = E^T$$</div>
+
+<h4>Why share these weights?</h4>
+
+<p><strong>(a) Conceptual symmetry.</strong> Embedding maps <em>token → vector</em>. The pre-softmax linear maps <em>vector → token logits</em>. They're inverse-flavored operations. Sharing the matrix says: <em>"the same notion of token-to-vector should govern both directions."</em></p>
+
+<p><strong>(b) Parameter savings.</strong> The embedding matrix is huge: $V \times d_{\text{model}} = 37{,}000 \times 512 \approx 19M$ parameters. Sharing saves $19M$ params each on the input embedding and the output projection. Three places × 19M = ~57M params, reduced to one shared 19M.</p>
+
+<p><strong>(c) Regularization.</strong> Forcing the same matrix to do both jobs is a constraint that often improves generalization (less overfitting, smoother training).</p>
+
+<p>This trick comes from Press &amp; Wolf (2017), "Using the Output Embedding to Improve Language Models."</p>
+
+<h3>4. The mysterious $\sqrt{d_{\text{model}}}$ scaling</h3>
+
+<p>One detail in the paper:</p>
+
+<blockquote>
+  "In the embedding layers, we multiply those weights by $\sqrt{d_{\text{model}}}$."
+</blockquote>
+
+<p>So the actual input to the model is:</p>
+
+<div class="formula">$$X = E[\text{tokens}] \cdot \sqrt{d_{\text{model}}}$$</div>
+
+<h4>Why scale up by $\sqrt{512} \approx 22.6$?</h4>
+
+<p>Because of how embeddings are initialized: typical init gives each entry of $E$ small variance (e.g., $\sim 1/d_{\text{model}}$). So an embedding vector has norm $\sim 1$.</p>
+
+<p>But the <strong>positional encoding</strong> (next section!) that gets <em>added</em> to the embedding has fixed magnitude — each component is in $[-1, 1]$ and the vector has norm $\sim \sqrt{d_{\text{model}}/2}$.</p>
+
+<p>If you didn't scale up the embedding, the positional encoding would <em>dominate</em> in magnitude — the model would see "position" much more loudly than "token." Multiplying the embedding by $\sqrt{d_{\text{model}}}$ rescales it to be on the same order of magnitude as the positional encoding.</p>
+
+<div class="ascii-diagram">Without scaling:                 With ×√d_model scaling:
+
+  embedding:    [norm ≈ 1]         embedding × √512: [norm ≈ √512]
+  positional:   [norm ≈ 16]        positional:       [norm ≈ 16]
+  ─────────────────────────         ─────────────────────────────
+  positional drowns token            both contribute comparably
+  identity.</div>
+
+<p>It's a clean, easy fix to a real numerical imbalance.</p>
+
+<h3>Mental model</h3>
+
+<blockquote>
+  Embedding = "every token in the vocab has an address (a 512-dim vector); the model carries the address around as the token's representation."
+  <br><br>
+  Pre-softmax linear = the inverse: "given a 512-dim vector, how well does it match each vocab token's address?" Sharing the matrix says the addresses are the same in both directions.
+</blockquote>
+
+<hr>
+
+<!-- ============ DOUBTS 3.4 ============ -->
+<h2 id="doubts-34">Clarification: What is "n" in the decoder output? <span class="badge new">just answered</span></h2>
+
+<div class="doubt">"What is 'n' in the decoder output — is it the number of input tokens or output tokens? Please explain in more detail."</div>
+
+<h3>Quick answer</h3>
+
+<blockquote>
+  In <strong>$X_{\text{dec-out}}$ shape $n \times d_{\text{model}}$</strong>: $n$ is the number of <strong>output (target) tokens</strong> the decoder has processed so far, NOT the input length.
+</blockquote>
+
+<p>Critically, the meaning of "so far" differs between <strong>training</strong> and <strong>inference</strong> — which is where most confusion comes from. Let's go through both.</p>
+
+<hr>
+
+<h3>Concrete example</h3>
+
+<p>Let's translate <em>"the cat sat"</em> (English) → <em>"die Katze saß"</em> (German). Three source tokens, three target tokens. We'll use:</p>
+<ul>
+  <li><strong>$n_{\text{src}} = 3$</strong> for source length (English)</li>
+  <li><strong>$n_{\text{tgt}} = 3$</strong> for target length (German), or $4$ if we count the start-of-sentence token</li>
+</ul>
+
+<h3>What happens during TRAINING</h3>
+
+<p>During training, the entire target sentence is known. We process it <strong>in parallel</strong> using a trick called <em>teacher forcing</em>.</p>
+
+<h4>Step 1: Encoder processes the source</h4>
+
+<div class="ascii-diagram">English tokens:  [the, cat, sat]               shape: (3,)
+
+After embedding: X_enc                           shape: (3, 512)
+
+After 6 encoder layers: enc_output               shape: (3, 512)
+                                                  └─ n_src = 3</div>
+
+<h4>Step 2: Decoder processes a SHIFTED version of the target</h4>
+
+<p>The decoder gets the target sentence <em>shifted right by one</em>, with a special <code>&lt;start&gt;</code> token prepended:</p>
+
+<div class="ascii-diagram">Target (shifted):  [&lt;start&gt;, die, Katze]      shape: (3,)
+                                              └─ n_tgt = 3
+
+After embedding:   X_dec                       shape: (3, 512)
+
+After 6 decoder layers: dec_output             shape: (3, 512)
+                                                └─ n_tgt = 3</div>
+
+<p>The decoder output has shape <strong>$3 \times 512$</strong>. So $n = 3$ here is <strong>the number of target tokens</strong> (with the start token in place of the last position).</p>
+
+<h4>Step 3: Project to vocab and softmax</h4>
+
+<div class="ascii-diagram">dec_output  ×  W_out  →  logits           softmax  →  probs
+ (3 × 512)    (512 × V)    (3 × V)                    (3 × V)
+
+Where V = vocabulary size (~37,000)</div>
+
+<p>Now we have <strong>3 probability distributions over the vocabulary</strong>, one per position:</p>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border);">Decoder input at position $i$</th>
+      <th style="padding:0.5rem; border:1px solid var(--border);">Decoder output predicts:</th>
+      <th style="padding:0.5rem; border:1px solid var(--border);">Compared against (true label):</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$i=0$: &lt;start&gt;</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">probability over next token</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">"die"</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);">$i=1$: die</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">probability over next token</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">"Katze"</td>
+    </tr>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$i=2$: Katze</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">probability over next token</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">"saß"</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The decoder at position $i$ tries to predict the token at position $i+1$. We sum up the cross-entropy losses across all 3 positions and backprop. <strong>All 3 predictions happen in parallel</strong> (one forward pass), thanks to the causal mask preventing position $i$ from seeing positions $> i$.</p>
+
+<p>This is "teacher forcing": even though position 2's input is the <em>true</em> "die" (not the model's guess), the model still tries to predict "Katze" from it.</p>
+
+<hr>
+
+<h3>What happens during INFERENCE (generating a translation)</h3>
+
+<p>At inference, the target is <strong>unknown</strong> — that's what we're trying to produce. So we generate one token at a time, growing $n$ by 1 each step.</p>
+
+<h4>Step 1: Encoder runs once</h4>
+
+<p>Same as training. We compute <code>enc_output</code> with shape $(n_{\text{src}}, 512) = (3, 512)$. This is reused for every decoder step.</p>
+
+<h4>Step 2: Decoder generates one token at a time</h4>
+
+<div class="ascii-diagram">Step 1: Decoder input: [&lt;start&gt;]              n = 1
+         dec_output shape: (1, 512)
+         project + softmax → (1, V)
+         argmax of last position → "die"
+         Append "die" to output.
+
+Step 2: Decoder input: [&lt;start&gt;, die]          n = 2
+         dec_output shape: (2, 512)
+         project + softmax → (2, V)
+         look at row 1 (the LAST position) → predict "Katze"
+         Append "Katze".
+
+Step 3: Decoder input: [&lt;start&gt;, die, Katze]   n = 3
+         dec_output shape: (3, 512)
+         project + softmax → (3, V)
+         look at row 2 (the last position) → predict "saß"
+         Append "saß".
+
+Step 4: Decoder input: [&lt;start&gt;, die, Katze, saß]   n = 4
+         predict next → "&lt;end&gt;"
+         Stop.</div>
+
+<p>So at inference, $n$ is the number of target tokens generated so far — it grows by 1 each step. Only the prediction at the <em>last</em> position is used; the earlier positions are recomputed but their predictions get discarded.</p>
+
+<hr>
+
+<h3>Why bother computing all $n$ positions in training?</h3>
+
+<p>Because <em>all $n$ predictions are useful as training signal</em> — each position predicts the next token, and we have ground truth for all of them. Training in parallel gives us $n_{\text{tgt}}$ supervision signals per sentence in a single forward pass. That's a huge efficiency win over RNNs.</p>
+
+<h3>The two "$n$"s in the architecture</h3>
+
+<p>So the lesson is: there are <em>two different sequence lengths</em> in the model.</p>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border);">Quantity</th>
+      <th style="padding:0.5rem; border:1px solid var(--border);">Length</th>
+      <th style="padding:0.5rem; border:1px solid var(--border);">Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Encoder input / output</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$n_{\text{src}}$</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Source sentence length</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);">Decoder input / output</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$n_{\text{tgt}}$</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Target tokens so far (full target during training; growing during inference)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>These two lengths can be different. The encoder self-attention is over $n_{\text{src}} \times n_{\text{src}}$. The decoder self-attention is over $n_{\text{tgt}} \times n_{\text{tgt}}$. The cross-attention is over $n_{\text{tgt}} \times n_{\text{src}}$ (queries from decoder, keys/values from encoder) — the decoder's $n_{\text{tgt}}$ queries each attend to the encoder's $n_{\text{src}}$ keys/values.</p>
+
+<h3>Going back to Section 3.4</h3>
+
+<p>When I wrote "the decoder produces an $n \times 512$ output," I should have been clearer: $n = n_{\text{tgt}}$, the <strong>target</strong> sequence length. The pre-softmax linear projects each of those $n_{\text{tgt}}$ rows into a vocab-sized logit vector, one prediction per position.</p>
+
+<hr>
+
+<!-- ============ PART 9 ============ -->
+<h2 id="part9">Part 9 — Section 3.5: Positional Encoding <span class="badge new">NEW</span></h2>
+
+<h3>The motivation: attention is "order-blind"</h3>
+
+<p>Here's a striking property of self-attention: <strong>if you shuffle the input tokens, attention computes the same outputs, just in shuffled order</strong>.</p>
+
+<p>Why? Because attention computes:</p>
+<div class="formula">$$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}}\right) V$$</div>
+
+<p>None of these operations care about the row order of $Q$, $K$, $V$. The dot products, softmax, and weighted sum are all "permutation equivariant" — shuffle the inputs, the outputs shuffle the same way, but no information about <em>position</em> ever enters the computation.</p>
+
+<p>This is a problem. Language has order:</p>
+<ul>
+  <li><strong>"dog bites man"</strong> ≠ <strong>"man bites dog"</strong></li>
+  <li><strong>"not happy"</strong> ≠ <strong>"happy not"</strong></li>
+</ul>
+
+<p>Contrast this with RNNs (which process tokens sequentially → position is implicit) and CNNs (which use kernels over neighboring positions → position is implicit). The Transformer has no recurrence and no convolution, so position must be <strong>injected explicitly</strong>.</p>
+
+<h3>The solution: add a "position vector" to each token's embedding</h3>
+
+<p>For every position $\text{pos} \in \{0, 1, 2, \dots, n-1\}$, we generate a $d_{\text{model}}$-dimensional vector $\text{PE}(\text{pos})$. We <strong>add</strong> it to the token embedding:</p>
+
+<div class="formula">$$\text{input}_{\text{pos}} = \text{Embedding}(\text{token}_{\text{pos}}) \cdot \sqrt{d_{\text{model}}} \;+\; \text{PE}(\text{pos})$$</div>
+
+<p>Same token at different positions → different inputs. The model can now distinguish them.</p>
+
+<h3>The formula</h3>
+
+<p>The paper defines $\text{PE}$ using sines and cosines of varying frequencies:</p>
+
+<div class="formula">$$\text{PE}(\text{pos}, 2i) = \sin\!\left(\frac{\text{pos}}{10000^{2i/d_{\text{model}}}}\right)$$</div>
+
+<div class="formula">$$\text{PE}(\text{pos}, 2i+1) = \cos\!\left(\frac{\text{pos}}{10000^{2i/d_{\text{model}}}}\right)$$</div>
+
+<p>Where:</p>
+<ul>
+  <li>$\text{pos}$ = position in the sequence (0, 1, 2, ...)</li>
+  <li>$i$ ranges from 0 to $d_{\text{model}}/2 - 1$ — indexing pairs of dimensions</li>
+  <li>Even dimensions get the sine; odd dimensions get the cosine.</li>
+</ul>
+
+<p>So position 0 gets the vector $\text{PE}(0)$, position 1 gets $\text{PE}(1)$, etc. — each is a 512-dim vector built from many sine/cosine values at different frequencies.</p>
+
+<h3>Concrete view: what does $\text{PE}$ look like?</h3>
+
+<p>For $d_{\text{model}} = 4$ (toy example), the encoding for position $\text{pos}$ is:</p>
+
+<div class="formula">$$\text{PE}(\text{pos}) = \left[\sin\!\left(\frac{\text{pos}}{10000^{0}}\right),\; \cos\!\left(\frac{\text{pos}}{10000^{0}}\right),\; \sin\!\left(\frac{\text{pos}}{10000^{2/4}}\right),\; \cos\!\left(\frac{\text{pos}}{10000^{2/4}}\right)\right]$$</div>
+
+<p>Simplified:</p>
+
+<div class="formula">$$\text{PE}(\text{pos}) = \left[\sin(\text{pos}),\; \cos(\text{pos}),\; \sin(\text{pos}/100),\; \cos(\text{pos}/100)\right]$$</div>
+
+<p>Notice: the first pair oscillates fast (with $\text{pos}$ directly), the second pair oscillates slowly (with $\text{pos}/100$). Each pair of dimensions is like a different <strong>clock running at a different speed</strong>.</p>
+
+<h3>Intuition: think of it like a binary clock with smooth dials</h3>
+
+<p>Imagine you're trying to give each position a unique "address." A simple way: binary numbers.</p>
+
+<div class="ascii-diagram">  pos = 0:   0 0 0
+  pos = 1:   0 0 1
+  pos = 2:   0 1 0
+  pos = 3:   0 1 1
+  pos = 4:   1 0 0
+  ...
+
+  bit 0 oscillates fastest (period 2)
+  bit 1 next (period 4)
+  bit 2 slowest (period 8)</div>
+
+<p>Each bit is a different frequency oscillator. Combine them and you get a unique pattern per number.</p>
+
+<p>Positional encoding is the <strong>continuous (smooth) analog</strong> of this. Instead of binary bits, you have sine waves at different wavelengths. The wavelengths range geometrically from $2\pi$ (fastest) to $10000 \cdot 2\pi$ (slowest). With 256 such oscillators (256 pairs in 512 dimensions), each position gets a unique, smooth fingerprint.</p>
+
+<h3>Why sines and cosines specifically? The clever property</h3>
+
+<p>This is the deepest reason. With sinusoidal encoding, <strong>the position $k$ steps away is a fixed linear transformation of the current position</strong>.</p>
+
+<p>Specifically:</p>
+
+<div class="formula">$$\sin(a + b) = \sin(a)\cos(b) + \cos(a)\sin(b)$$</div>
+<div class="formula">$$\cos(a + b) = \cos(a)\cos(b) - \sin(a)\sin(b)$$</div>
+
+<p>So for any fixed offset $k$:</p>
+
+<div class="formula">$$\begin{bmatrix} \text{PE}(\text{pos}+k, 2i) \\ \text{PE}(\text{pos}+k, 2i+1) \end{bmatrix} = \begin{bmatrix} \cos(\omega_i k) & \sin(\omega_i k) \\ -\sin(\omega_i k) & \cos(\omega_i k) \end{bmatrix} \begin{bmatrix} \text{PE}(\text{pos}, 2i) \\ \text{PE}(\text{pos}, 2i+1) \end{bmatrix}$$</div>
+
+<p>where $\omega_i = 1 / 10000^{2i/d_{\text{model}}}$. This is a <strong>rotation matrix</strong> — the position-$(pos+k)$ encoding is just the position-$pos$ encoding rotated by an angle depending only on $k$.</p>
+
+<p>What does that mean? <strong>The model can easily learn relative positional relationships through linear weights in its attention layers.</strong> "Attend to the token 3 positions ago" is achievable because the offset-3 transformation is the same linear map everywhere. The model just needs to learn that one linear map.</p>
+
+<h3>Bonus property: can extrapolate beyond training lengths</h3>
+
+<p>Since the formula is well-defined for <em>any</em> position (even ones the model has never seen during training), the model can — in principle — handle sequences longer than the longest training example. Just keep computing sines and cosines at larger $\text{pos}$ values.</p>
+
+<p>(In practice, the model's performance still degrades on much-longer-than-trained inputs, but the encoding itself doesn't break. This was a stated motivation for choosing sinusoids over learned position embeddings.)</p>
+
+<h3>Why ADD, not CONCATENATE?</h3>
+
+<p>The PE is added to the token embedding, both 512-dim, producing a 512-dim result.</p>
+
+<p><strong>Why add?</strong></p>
+<ul>
+  <li><strong>Keeps the dimensionality constant.</strong> Concatenation would produce a $1024$-dim vector, requiring everything downstream to be wider.</li>
+  <li><strong>No extra parameters.</strong> Addition is free.</li>
+  <li><strong>The model can "separate" the two contributions implicitly.</strong> The token embedding is learned freely; the positional encoding has a specific spectral shape (sines/cosines at fixed frequencies). The model's linear layers can — through their learned weights — pay attention to certain frequency components in the input, effectively isolating positional vs. semantic info.</li>
+</ul>
+
+<h3>Sinusoidal vs. learned positional embeddings</h3>
+
+<p>The paper notes they also tried <strong>learned</strong> positional embeddings (just a $(\text{max\_len} \times d_{\text{model}})$ matrix of free parameters, indexed by position):</p>
+
+<blockquote>"We chose the sinusoidal version because it may allow the model to extrapolate to sequence lengths longer than the ones encountered during training."</blockquote>
+
+<p>The results were comparable. Modern transformers (BERT, GPT-2/3) typically use <strong>learned</strong> positional embeddings. More recent models (PaLM, LLaMA) use variants like <strong>Rotary Positional Embeddings (RoPE)</strong> which apply the rotation idea more elegantly inside the attention computation itself.</p>
+
+<h3>Visual: PE matrix for a 50-position, 64-dim setup</h3>
+
+<div class="ascii-diagram">  dimensions →    fast oscillation                slow oscillation
+  positions ↓     (every few positions)           (changes only over many positions)
+
+  pos=0    [ ⎯ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ⎯ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ]
+  pos=1    [ ─ ⎯ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ⎯ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ─ ]
+  pos=2    [ ─ ─ ⎯ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ⎯ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ]
+  ...
+  pos=49   [ ─ ─ ⎯ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ⎯ ⎯ ─ ─ ─ ─ ─ ─ ─ ─ ─ ]
+
+  ↑ Left dimensions oscillate fast.   Right dimensions oscillate slowly.</div>
+
+<h3>Mental model</h3>
+
+<blockquote>
+  Each token, after embedding, is moved into a specific "neighborhood" of 512-dim space based on its position. Tokens close in position get nearby vectors added; tokens far apart get distant vectors. The model can then learn to "navigate" by these positional landmarks — recognizing that "the token 5 steps back" always involves a specific rotation/offset.
+</blockquote>
+
+<hr>
+
+<h3>🎉 Section 3 complete!</h3>
+
+<p>We've now covered the entire <strong>model architecture</strong>:</p>
+<ul>
+  <li>✅ 3.1 Encoder–Decoder stacks (6 layers each)</li>
+  <li>✅ 3.2.1 Scaled Dot-Product Attention</li>
+  <li>✅ 3.2.2 Multi-Head Attention</li>
+  <li>✅ 3.2.3 Applications of attention (3 types)</li>
+  <li>✅ 3.3 Position-wise Feed-Forward Networks</li>
+  <li>✅ 3.4 Embeddings &amp; Softmax (with weight tying)</li>
+  <li>✅ 3.5 Positional Encoding</li>
+</ul>
+
+<p>The "how" of the Transformer is now fully explained. What's left:</p>
+<ul>
+  <li>Section 4: <em>Why</em> self-attention? (complexity comparison vs RNN/CNN)</li>
+  <li>Section 5: Training details (data, hardware, optimizer, regularization)</li>
+  <li>Section 6: Results (machine translation + ablations)</li>
+  <li>Section 7: Conclusion</li>
+</ul>
+
+<hr>
+
+<!-- ============ BIG PICTURE ============ -->
+<h2 id="bigpicture">🔭 Big-Picture Map: How Everything Connects <span class="badge new">just added</span></h2>
+
+<p>Let's zoom out and put every piece you've learned on a single map.</p>
+
+<h3>1. End-to-end data flow (translating "I love cats" → "Ich liebe Katzen")</h3>
+
+<div class="ascii-diagram">         SOURCE: "I love cats"                       TARGET (shifted): "&lt;start&gt; Ich liebe Katzen"
+                  │                                                  │
+            tokenize → IDs                                      tokenize → IDs
+                  │                                                  │
+                  ▼                                                  ▼
+         ┌────────────────────┐                            ┌─────────────────────┐
+         │ Embedding lookup   │                            │ Embedding lookup    │
+         │ (shared with W_out)│                            │ (same shared matrix)│
+         └─────────┬──────────┘                            └─────────┬───────────┘
+                   ▼                                                 ▼
+              × √d_model                                       × √d_model
+                   │                                                 │
+              + Positional                                      + Positional
+                Encoding                                          Encoding
+                   │                                                 │
+                   ▼  (n_src × 512)                                  ▼  (n_tgt × 512)
+
+        ╔══════════════════════════╗                ╔══════════════════════════════╗
+        ║   ENCODER LAYER #1       ║                ║   DECODER LAYER #1           ║
+        ║  ┌────────────────────┐  ║                ║  ┌─────────────────────────┐ ║
+        ║  │ Multi-Head Self-   │  ║                ║  │ MASKED MH Self-Attn     │ ║
+        ║  │   Attention        │  ║                ║  │  (Q, K, V from below;   │ ║
+        ║  │ (Q, K, V from      │  ║                ║  │   causal mask applied)  │ ║
+        ║  │  below; 8 heads,   │  ║                ║  │  → W^O                  │ ║
+        ║  │   W^O)             │  ║                ║  └────────────┬────────────┘ ║
+        ║  └────────┬───────────┘  ║                ║   + residual + LayerNorm     ║
+        ║  + residual + LayerNorm  ║                ║                │             ║
+        ║           │              ║                ║                ▼             ║
+        ║           ▼              ║                ║  ┌─────────────────────────┐ ║
+        ║  ┌────────────────────┐  ║                ║  │ CROSS-Attention         │ ║
+        ║  │ Feed-Forward       │  ║                ║  │  Q ← from decoder above │ ║
+        ║  │ (512→ReLU→2048→512)│  ║                ║  │  K, V ← ENCODER OUTPUT ◄╬═══════════╗
+        ║  └────────┬───────────┘  ║                ║  │  → W^O                  │ ║         ║
+        ║  + residual + LayerNorm  ║                ║  └────────────┬────────────┘ ║         ║
+        ╚═══════════│══════════════╝                ║   + residual + LayerNorm     ║         ║
+                    ▼                               ║                │             ║         ║
+              encoder layer #2                      ║                ▼             ║         ║
+                    ▼                               ║  ┌─────────────────────────┐ ║         ║
+                   ...                              ║  │ Feed-Forward (same as   │ ║         ║
+                    ▼                               ║  │  encoder's)             │ ║         ║
+              encoder layer #6                      ║  └────────────┬────────────┘ ║         ║
+                    │                               ║   + residual + LayerNorm     ║         ║
+                    ▼                               ╚════════════════│═════════════╝         ║
+              enc_output  ════════════════════════════════════════════════════════════════════╝
+            (n_src × 512)                                            ▼
+                                                              decoder layer #2
+                                                                     ▼
+                                                                    ...
+                                                                     ▼
+                                                              decoder layer #6
+                                                                     │
+                                                                     ▼  (n_tgt × 512)
+                                                            ┌─────────────────┐
+                                                            │ Linear (W_out = │
+                                                            │  E^T, shared)   │
+                                                            └────────┬────────┘
+                                                                     ▼  (n_tgt × V)
+                                                                 Softmax
+                                                                     │
+                                                                     ▼
+                                                          Probability over next token
+                                                          at each position</div>
+
+<h3>2. Zooming in on ONE encoder layer</h3>
+
+<div class="ascii-diagram">   input  X_in  (n × 512)
+              │
+              │────────────────────────┐  ← residual branch
+              │                        │
+              ▼                        │
+    ┌──────────────────────┐           │
+    │  Multi-Head Attn     │           │
+    │  ┌─────────────────┐ │           │
+    │  │ Project to Q,K,V│ │           │
+    │  │ (8 heads × 64-d)│ │           │
+    │  └────────┬────────┘ │           │
+    │           ▼          │           │
+    │  ┌─────────────────┐ │           │
+    │  │ Scaled dot-prod │ │           │
+    │  │ + softmax + V   │ │  for each head
+    │  └────────┬────────┘ │           │
+    │           ▼          │           │
+    │  ┌─────────────────┐ │           │
+    │  │ Concat 8 heads  │ │           │
+    │  └────────┬────────┘ │           │
+    │           ▼          │           │
+    │  ┌─────────────────┐ │           │
+    │  │ Multiply by W^O │ │           │
+    │  └────────┬────────┘ │           │
+    └───────────┬──────────┘           │
+                ▼                      │
+              (n × 512)                │
+                │                      │
+                ▼   ────────────────── ▼
+              X_in + Sublayer(X_in)
+                │
+                ▼
+          LayerNorm
+                │
+              X_mid (n × 512)
+                │
+                │────────────────────────┐  ← residual branch
+                │                        │
+                ▼                        │
+    ┌────────────────────────┐           │
+    │  Feed-Forward          │           │
+    │  ┌──────────────────┐  │           │
+    │  │ Linear: 512→2048 │  │           │
+    │  └────────┬─────────┘  │           │
+    │           ▼            │           │
+    │  ┌──────────────────┐  │           │
+    │  │ ReLU             │  │           │
+    │  └────────┬─────────┘  │           │
+    │           ▼            │           │
+    │  ┌──────────────────┐  │           │
+    │  │ Linear: 2048→512 │  │           │
+    │  └────────┬─────────┘  │           │
+    └───────────┬────────────┘           │
+                ▼   ────────────────── ▼
+              X_mid + Sublayer(X_mid)
+                │
+                ▼
+          LayerNorm
+                │
+              X_out (n × 512)   ───►  next encoder layer</div>
+
+<h3>3. Zooming in on ONE decoder layer</h3>
+
+<div class="ascii-diagram">Same as encoder, BUT with an extra middle sub-layer (cross-attention):
+
+   input X_in (from prev decoder layer)  (n_tgt × 512)
+              │
+              ▼
+   ┌──────────────────────┐
+   │ MASKED Self-Attn     │   ← Q, K, V from X_in;  upper-triangular mask
+   │ (8 heads → W^O)      │
+   └──────────┬───────────┘
+              │
+   + residual + LayerNorm
+              │
+              ▼
+   ┌──────────────────────┐
+   │ CROSS-Attn           │   ← Q from above,  K, V from enc_output
+   │ (8 heads → W^O)      │     this is where the decoder "reads" the encoder
+   └──────────┬───────────┘
+              │
+   + residual + LayerNorm
+              │
+              ▼
+   ┌──────────────────────┐
+   │ Feed-Forward         │   ← same structure as encoder's FFN
+   │ (512→ReLU→2048→512)  │
+   └──────────┬───────────┘
+              │
+   + residual + LayerNorm
+              │
+              ▼
+       to next decoder layer</div>
+
+<h3>4. Where each named piece lives in the model</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Component</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">Where it appears</th>
+      <th style="padding:0.6rem; border:1px solid var(--border); text-align:left;">How many copies</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Embedding $E$</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Input to encoder + decoder + output projection</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">1 (shared)</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Positional Encoding</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Added to embeddings, once on each side (encoder input, decoder input)</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">2 add-ons (same formula)</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Multi-Head Self-Attn (encoder)</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">First sub-layer of each encoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">6</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Masked MH Self-Attn (decoder)</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">First sub-layer of each decoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">6</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Cross-Attn (Encoder→Decoder)</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Second sub-layer of each decoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">6</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$W^Q, W^K, W^V$ (per head)</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Inside every attention block × 8 heads</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">18 blocks × 8 heads × 3 mats = 432 small matrices</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>$W^O$ (output mixer)</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Inside every multi-head attention block (1 per block)</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">18 (6 encoder + 6 decoder masked + 6 decoder cross)</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Feed-Forward (MLP)</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Last sub-layer of every encoder + decoder layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">12 (6 encoder + 6 decoder)</td>
+    </tr>
+    <tr>
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>LayerNorm + residual</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">Wrapped around <em>every</em> sub-layer</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">2 per encoder layer + 3 per decoder layer = 30 total</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.6rem; border:1px solid var(--border);"><strong>Linear + Softmax (output)</strong></td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">After the final decoder layer (linear is $E^T$, shared)</td>
+      <td style="padding:0.6rem; border:1px solid var(--border);">1</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>5. The two simple "moves" the Transformer alternates</h3>
+
+<p>If you want one core image to keep in your head:</p>
+
+<div class="ascii-diagram">  Every encoder/decoder layer alternates exactly two operations:
+
+   ┌───────────────────────────────────────────────┐
+   │  Step A — TALK across positions (Attention)   │
+   │       Each token gathers info from others.    │
+   │       Cross-position information flow.        │
+   └───────────────────────┬───────────────────────┘
+                           │
+   ┌───────────────────────▼───────────────────────┐
+   │  Step B — THINK at each position (FFN)        │
+   │       Each token transforms what it knows.    │
+   │       Per-position, no cross-talk.            │
+   └───────────────────────────────────────────────┘
+
+  Both wrapped in: + residual + LayerNorm
+
+  The decoder adds one more "TALK" step in the middle:
+  cross-attention (talk to the encoder).</div>
+
+<h3>6. Information flow summary</h3>
+
+<ul>
+  <li><strong>Encoder:</strong> input tokens flow upward through 6 layers, getting progressively richer representations through self-attention (gathering context) and FFN (refining each position). Output: $n_{\text{src}} \times 512$ — a rich representation of the source sentence.</li>
+  <li><strong>Decoder:</strong> target tokens flow upward through 6 layers. Each layer does (1) <strong>masked self-attention</strong> over what's been generated so far, (2) <strong>cross-attention</strong> reading from the encoder output, (3) <strong>FFN</strong>. The encoder's output is consulted by every decoder layer (not just once).</li>
+  <li><strong>Output:</strong> the final decoder hidden state at each position is projected to vocabulary logits and softmaxed → next-token probability distribution.</li>
+</ul>
+
+<h3>7. Parameter count breakdown (paper's base model)</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Component</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Params per instance</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:0.5rem; border:1px solid var(--border);">Embedding (shared)</td><td style="padding:0.5rem; border:1px solid var(--border);">37k × 512 ≈ 19M</td><td style="padding:0.5rem; border:1px solid var(--border);">19M</td></tr>
+    <tr style="background:#fafaf7;"><td style="padding:0.5rem; border:1px solid var(--border);">Each attention block (Q, K, V, O projections)</td><td style="padding:0.5rem; border:1px solid var(--border);">~1M</td><td style="padding:0.5rem; border:1px solid var(--border);">18 blocks × 1M = 18M</td></tr>
+    <tr><td style="padding:0.5rem; border:1px solid var(--border);">Each FFN (512→2048→512)</td><td style="padding:0.5rem; border:1px solid var(--border);">~2M</td><td style="padding:0.5rem; border:1px solid var(--border);">12 FFNs × 2M = 24M</td></tr>
+    <tr style="background:#fafaf7;"><td style="padding:0.5rem; border:1px solid var(--border);">LayerNorm + biases (small)</td><td style="padding:0.5rem; border:1px solid var(--border);">tiny</td><td style="padding:0.5rem; border:1px solid var(--border);">&lt;1M</td></tr>
+    <tr><td style="padding:0.5rem; border:1px solid var(--border);"><strong>Total (base model)</strong></td><td style="padding:0.5rem; border:1px solid var(--border);">—</td><td style="padding:0.5rem; border:1px solid var(--border);"><strong>~65M params</strong></td></tr>
+  </tbody>
+</table>
+
+<p>Notice: the FFNs hold the most parameters (more than attention!). They're the "knowledge storage" of the model.</p>
+
+<h3>Mental model to lock in</h3>
+
+<blockquote>
+  Transformer = stack of <strong>identical blocks</strong>, each doing the same two-step rhythm: <em>"talk to your neighbors (attention), then think on your own (FFN)."</em>
+  <br><br>
+  The encoder is 6 such blocks. The decoder is 6 such blocks, each with an extra middle step — <em>"talk to the encoder (cross-attention)"</em> — so the target side can consult the source.
+  <br><br>
+  Positional encoding is added <em>once</em> at the very bottom of each side, giving the model a sense of order it would otherwise lack. Embeddings + a shared output projection map between token IDs and vectors.
+</blockquote>
+
+<hr>
+
+<!-- ============ DOUBTS BIGPIC ============ -->
+<h2 id="doubts-bigpic">Doubts: Why $W_{\text{out}} = E^T$? Why Don't We Subtract PE? <span class="badge new">just answered</span></h2>
+
+<div class="doubt">"Why is $W_{\text{out}} = E^T$? Why don't we 'subtract' the positional encoding from the output of the decoder?"</div>
+
+<h3>Question 1: Why $W_{\text{out}} = E^T$ — what's the geometric reason?</h3>
+
+<p>Let's look at what the output projection is actually computing. The decoder produces a hidden state $h \in \mathbb{R}^{512}$ at each position. We compute:</p>
+
+<div class="formula">$$\text{logits} = h \cdot W_{\text{out}}$$</div>
+
+<p>If $W_{\text{out}} = E^T$, then for each token $v$ in the vocabulary, the logit is:</p>
+
+<div class="formula">$$\text{logit}_v = h \cdot e_v$$</div>
+
+<p>where $e_v$ is row $v$ of $E$ — the <strong>embedding vector of token $v$</strong>.</p>
+
+<h4>The geometric meaning</h4>
+
+<p>The embedding matrix $E$ assigns every token a fixed location in 512-dim space:</p>
+<ul>
+  <li>$e_{\text{cat}}$ = "where 'cat' lives"</li>
+  <li>$e_{\text{dog}}$ = "where 'dog' lives"</li>
+  <li>$e_{\text{run}}$ = "where 'run' lives"</li>
+</ul>
+
+<p>The decoder's hidden state $h$ represents "the direction the next token should be in." Then:</p>
+
+<div class="formula">$$\text{logit}_v = h \cdot e_v = |h| \cdot |e_v| \cdot \cos(\theta_{h, e_v})$$</div>
+
+<p>The dot product is large when $h$ and $e_v$ <strong>point in similar directions</strong>. So the logit for token $v$ is high precisely when "the prediction direction $h$ is aligned with token $v$'s location."</p>
+
+<div class="ascii-diagram">    512-dim semantic space:
+
+                e_cat
+                  ●
+                 /
+            h   /        e_dog
+            ● ←(aligned!) ●
+              ●
+            e_run        e_table
+
+    h aligns with e_cat → high logit for "cat"
+    h far from e_table  → low logit for "table"</div>
+
+<h4>Why this makes deep conceptual sense</h4>
+
+<p>If we used a <em>separate</em> $W_{\text{out}}$ (not $E^T$), the model would need to learn <strong>two parallel semantic spaces</strong>:</p>
+<ul>
+  <li>One for representing tokens as input (the embedding $E$).</li>
+  <li>One for matching tokens as output ($W_{\text{out}}$).</li>
+</ul>
+
+<p>That's wasteful and incoherent. Why should "the location of 'cat' in input-space" be different from "the location of 'cat' in prediction-space"? It's the <em>same word</em>.</p>
+
+<p>Tying $W_{\text{out}} = E^T$ enforces: <strong>one semantic space, used in both directions.</strong></p>
+
+<h4>Three concrete benefits</h4>
+
+<ol>
+  <li><strong>Conceptual elegance.</strong> Input embedding and output matching share the same word geometry.</li>
+  <li><strong>~38M fewer parameters.</strong> $V \times d_{\text{model}}$ = ~19M params; would be needed twice (input + output) without tying.</li>
+  <li><strong>Acts as regularization.</strong> Forcing both directions to share the same matrix is a strong constraint that improves generalization. Press & Wolf (2017) showed empirically this improves perplexity.</li>
+</ol>
+
+<h4>Visual</h4>
+
+<div class="ascii-diagram">   WITHOUT tying:                           WITH tying (the paper):
+
+   Input  → E   → vector in space_A         Input  → E   → vector in semantic_space
+                                                                 │
+                                                                 │
+   vector ← W_out ← from space_B            vector ← E^T ← from same semantic_space
+
+   Two unrelated spaces.                    One coherent space.
+   Model has to learn both.                 The same e_cat is used for input AND output.</div>
+
+<hr>
+
+<h3>Question 2: Why don't we subtract positional encoding from the decoder output?</h3>
+
+<p>This is a sharp question. Your intuition is logical:</p>
+
+<blockquote>
+  <em>"We added $\text{PE}(\text{pos})$ at the input. Six layers later, the decoder output still 'contains' position info. The output projection $E^T$ is purely about semantic content (which token is what). Shouldn't we subtract PE first to get a 'clean' semantic representation?"</em>
+</blockquote>
+
+<p>The answer is no — and unpacking why teaches you something important about how deep networks process information.</p>
+
+<h4>Reason 1: After 6 layers, there's no "PE part" to subtract</h4>
+
+<p>PE was added at the very bottom: $X_0 = E[\text{tokens}] \cdot \sqrt{d_{\text{model}}} + \text{PE}$.</p>
+
+<p>But then $X_0$ went through 6 layers of:</p>
+<ul>
+  <li>Self-attention (a nonlinear, content-dependent mixing across positions)</li>
+  <li>Residual + LayerNorm</li>
+  <li>FFN (two linear layers with ReLU in between)</li>
+  <li>Residual + LayerNorm</li>
+</ul>
+
+<p>By the time we reach $X_6$ (the decoder output), the PE is not a clean additive term anymore. It's been thoroughly transformed and entangled with token content. There is no "PE component" lurking inside $X_6$ that you could surgically extract.</p>
+
+<p>Subtracting $\text{PE}(\text{pos})$ from $X_6$ would be like trying to <em>"un-blend"</em> a smoothie by pouring banana extract on it. It doesn't undo anything.</p>
+
+<h4>Reason 2: PE's job is done — it's consumed, not persisted</h4>
+
+<p>The purpose of PE is to <strong>break attention's order-blindness</strong>. PE feeds attention layers position information so they can compute "who's near whom." Once attention has used that info to compute its weights, the PE has done its job. It's not <em>meant</em> to ride along all the way to the output.</p>
+
+<p>Think of PE as a <strong>signal for early layers</strong>. It doesn't need to be preserved or removed at the end — its useful work happened at the beginning, when attention was figuring out positional relationships.</p>
+
+<h4>Reason 3: The network learns to handle this — that's its job</h4>
+
+<p>The output projection ($E^T$) is <strong>learnable</strong>. Through training, $E$ adapts so that "decoder output at position $i$" produces good logits, <strong>whatever shape it happens to take</strong>.</p>
+
+<p>The model doesn't need a clean "semantic-only" representation to project from. It just needs <em>some</em> representation that, when dot-producted with $E$, gives the right answer. End-to-end gradient descent figures out the rest.</p>
+
+<p>If lingering position information helps the model (e.g., predicting <code>&lt;end&gt;</code> token at position $n$), it'll use it. If it hurts, training will push the decoder to suppress it. Either way: <em>not our problem to engineer.</em></p>
+
+<h4>Reason 4: Subtracting PE could actually hurt</h4>
+
+<p>Imagine subtracting PE(pos) from the decoder output, then projecting. What you're doing is:</p>
+<ol>
+  <li>Assuming PE remained additively present (it didn't, see Reason 1).</li>
+  <li>Forcibly removing position-aware signal that the model may legitimately use (e.g., the model might want to predict end-of-sentence at higher positions).</li>
+  <li>Adding an arbitrary engineering choice that the architect (you) decided was useful — even though the network could do better by learning what to do with position info itself.</li>
+</ol>
+
+<p>You'd be imposing a prior that doesn't match how the network actually uses information. The clean abstraction — <em>"add PE at input, let the network figure out the rest"</em> — is more powerful precisely because it doesn't make assumptions about what happens downstream.</p>
+
+<h4>An analogy</h4>
+
+<blockquote>
+  Adding PE is like adding spices to a stew. After hours of simmering, the spices have permeated everything — they're not floating as identifiable specks anymore. If you tried to "remove the spice" before serving, you'd actually be removing the flavor the cooking process built. The spices were meant to <em>shape the dish</em>, not be filtered out at the end.
+</blockquote>
+
+<h4>The deeper principle</h4>
+
+<p>In deep learning, we generally <strong>avoid imposing mid-network transformations</strong> that are "obviously correct" by human intuition. Instead, we set up the architecture, define the loss, and let gradients shape the representations.</p>
+
+<p>The Transformer paper is full of "minimal-intervention" choices:</p>
+<ul>
+  <li>Add (don't concat) PE — let the network learn to use it.</li>
+  <li>Identity residual (no transformation on skip) — let gradients flow freely.</li>
+  <li>Same FFN at every position — let the FFN learn position-agnostic features.</li>
+  <li>No explicit "language" tokens — let the model learn language from embeddings.</li>
+</ul>
+
+<p>The general philosophy: <strong>do the minimum needed, then trust SGD to handle the rest.</strong> Subtracting PE before the output would be doing extra work the network would actually prefer to do itself.</p>
+
+<hr>
+
+<!-- ============ PART 10 ============ -->
+<h2 id="part10">Part 10 — Section 4: Why Self-Attention? <span class="badge new">NEW</span></h2>
+
+<p>Now that the architecture is laid out, the paper asks a fair question: <strong>why use self-attention at all?</strong> What's wrong with RNNs and CNNs?</p>
+
+<p>The paper compares the three options (self-attention, recurrent, convolutional) on three criteria, summarized in a single table — let's go through each.</p>
+
+<h3>The three criteria</h3>
+
+<ol>
+  <li><strong>Total computational complexity per layer</strong> — how much arithmetic work?</li>
+  <li><strong>Sequential operations</strong> — how much can be parallelized? (Lower = more parallel = faster on GPUs)</li>
+  <li><strong>Maximum path length</strong> — how many steps does info need to travel between two distant positions? (Lower = easier to learn long-range dependencies)</li>
+</ol>
+
+<h3>The comparison table</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Layer type</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Complexity per layer</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Sequential ops</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Max path length</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>Self-Attention</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(n^2 \cdot d)$</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(1)$</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(1)$ ✅</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>Recurrent</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(n \cdot d^2)$</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(n)$ ❌</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(n)$ ❌</td>
+    </tr>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>Convolutional</strong> (kernel $k$)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(k \cdot n \cdot d^2)$</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(1)$ ✅</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(\log_k n)$</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>Self-Attn (restricted, window $r$)</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(r \cdot n \cdot d)$</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(1)$ ✅</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">$O(n/r)$</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Where:</p>
+<ul>
+  <li>$n$ = sequence length (typically ~30-100 tokens for translation)</li>
+  <li>$d$ = representation dimension (512 in the paper)</li>
+  <li>$k$ = convolution kernel size</li>
+  <li>$r$ = neighborhood size for restricted self-attention</li>
+</ul>
+
+<h3>Criterion 1: Computational complexity per layer</h3>
+
+<p><strong>Self-attention: $O(n^2 d)$.</strong> The dominant cost is computing $QK^T$, which is $n \times n$ scores, each requiring a $d$-dim dot product → $n \cdot n \cdot d$ operations.</p>
+
+<p><strong>RNN: $O(n \cdot d^2)$.</strong> Each timestep computes $W \cdot h_{t-1}$, where $W$ is $d \times d$ → $d^2$ operations per step, times $n$ steps.</p>
+
+<h4>The crucial comparison: $n^2 d$ vs $n d^2$</h4>
+
+<p>Which is bigger? Divide both by $n d$:</p>
+<ul>
+  <li>Self-attention: $n$</li>
+  <li>RNN: $d$</li>
+</ul>
+
+<p>So self-attention is <strong>faster than RNN when $n < d$</strong>.</p>
+
+<p>For typical translation tasks: $n \approx 50$ (sentence length), $d = 512$ (model dim). Since $50 < 512$, self-attention wins on compute. ✅</p>
+
+<p>(For very long sequences — say, $n = 10000$ — RNNs would actually be cheaper. This is one motivation behind "restricted self-attention" with a local window, used by sparse-attention variants.)</p>
+
+<h3>Criterion 2: Sequential operations (parallelizability)</h3>
+
+<p>This is the killer argument for self-attention.</p>
+
+<p><strong>RNN: $O(n)$ sequential operations.</strong> To compute $h_t$, you need $h_{t-1}$, which needs $h_{t-2}$, etc. You cannot start computing position 50 until position 49 is done. <strong>No parallelism within a sequence.</strong> On a GPU, this wastes massive amounts of compute.</p>
+
+<p><strong>Self-attention: $O(1)$ sequential operations.</strong> Once you have $Q, K, V$, you compute the full $n \times n$ score matrix in one parallel matrix multiplication. Every position is processed simultaneously.</p>
+
+<div class="ascii-diagram">RNN compute pattern (n = 5):
+  step 1: h_1 ←─ h_0
+  step 2: h_2 ←─ h_1    ← can only start after step 1
+  step 3: h_3 ←─ h_2
+  step 4: h_4 ←─ h_3
+  step 5: h_5 ←─ h_4
+  TOTAL: 5 sequential steps. GPU mostly idle.
+
+Self-attention compute pattern (n = 5):
+  step 1: compute Q, K, V for all 5 positions  (parallel)
+  step 2: compute QK^T (one big matmul)         (parallel)
+  step 3: softmax, multiply by V                (parallel)
+  TOTAL: ~3 sequential steps, all heavily parallel matmuls. GPU saturated.</div>
+
+<p>This is <em>the</em> reason Transformers train so much faster than RNNs of comparable accuracy. Even though self-attention has higher per-step complexity ($O(n^2 d)$ vs $O(n d^2)$), the work parallelizes onto GPU hardware, while RNNs are stuck doing one step at a time.</p>
+
+<h3>Criterion 3: Maximum path length (long-range dependencies)</h3>
+
+<p>This is about learning, not just compute. <strong>Path length</strong> is the number of network operations a signal must traverse to flow from one input position to another.</p>
+
+<p><strong>Why path length matters:</strong> gradients are multiplied along the path (chain rule). Long paths → gradients shrink (vanish) or explode → distant positions struggle to learn how they relate. Long-range dependencies become invisible to the optimizer.</p>
+
+<h4>The numbers</h4>
+
+<ul>
+  <li><strong>Self-attention: $O(1)$.</strong> Position 1 can directly attend to position 100 in a single attention step. Information flow: one hop.</li>
+  <li><strong>RNN: $O(n)$.</strong> Position 1's info reaches position 100 only by being passed through 99 intermediate hidden states. Each hop dilutes/transforms the signal.</li>
+  <li><strong>CNN: $O(\log_k n)$.</strong> A single conv layer connects positions within a kernel window. To connect positions $n$ apart, you stack $\log_k n$ layers (each conv doubles the receptive field if $k = 2$).</li>
+</ul>
+
+<div class="ascii-diagram">Path from position 1 to position 100:
+
+  Self-Attention:       pos1 ─── attention ─── pos100
+                            (single hop, O(1))
+
+  RNN:                  pos1 → h_2 → h_3 → ... → h_100
+                            (99 hops, O(n))
+
+  CNN (k=3):            pos1 ─ conv ─ region1 ─ conv ─ region2 ─ ... ─ pos100
+                            (log_3(100) ≈ 5 hops, O(log n))</div>
+
+<p>Short paths = easy to learn dependencies between distant positions. This is the <strong>core architectural advantage of attention</strong>: every pair of positions has a direct path.</p>
+
+<h3>The big picture: why self-attention wins</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Property</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Self-Attention</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">RNN</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">CNN</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Compute per layer</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Lower (when $n < d$)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Comparable</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Higher (factor of $k$)</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);">Parallelism</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">✅ Full</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">❌ None</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">✅ Full</td>
+    </tr>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Long-range info flow</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">✅ Direct ($O(1)$)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">❌ Many hops ($O(n)$)</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">⚠ Log hops</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Self-attention wins on all three when sequences aren't too long.</p>
+
+<h3>Bonus argument: interpretability</h3>
+
+<p>The paper also notes that attention has a side benefit: <strong>you can visualize the attention weights</strong>.</p>
+
+<p>After training, you can pull out the softmax weights for any input and see exactly which positions each head was focusing on. Visualizations of trained Transformers reveal heads that have learned grammatical structures (subject-verb agreement, coreference), syntactic dependencies, and so on.</p>
+
+<p>RNNs and CNNs are much more opaque — their hidden states are dense soup. Attention provides a "natural" interpretability lens.</p>
+
+<h3>Caveat: the quadratic memory problem</h3>
+
+<p>The $n^2$ in $O(n^2 d)$ is also <strong>memory</strong>: you store the $n \times n$ attention matrix. For long sequences (e.g., $n = 10000$), this becomes prohibitive. Modern variants — <strong>sparse attention</strong>, <strong>linear attention</strong>, <strong>FlashAttention</strong>, <strong>state-space models</strong> like Mamba — try to address this. But for the sequence lengths the paper deals with (translation: tens to low hundreds of tokens), $n^2$ is fine.</p>
+
+<h3>Mental model</h3>
+
+<blockquote>
+  Self-attention wins three battles at once:
+  <strong>cheaper</strong> (when sequences are short relative to model dim),
+  <strong>fully parallel</strong> (matches modern GPU hardware perfectly),
+  <strong>direct long-range connections</strong> (gradients don't have to crawl through dozens of intermediate states).
+  <br><br>
+  RNNs lose on parallelism and path length. CNNs lose on path length. Self-attention takes the crown.
+</blockquote>
+
+<hr>
+
+<!-- ============ PART 11 ============ -->
+<h2 id="part11">Part 11 — Section 5.1: Training Data and Batching <span class="badge new">NEW</span></h2>
+
+<p>Section 5 of the paper covers <em>training details</em> — data, hardware, optimizer, regularization. These are mostly engineering choices, but a few are worth understanding because they reveal practical Transformer tricks.</p>
+
+<p>Let's start with <strong>5.1: how the data was prepared and batched</strong>.</p>
+
+<h3>1. The datasets</h3>
+
+<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+  <thead style="background:#eef5ff;">
+    <tr>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Dataset</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Size</th>
+      <th style="padding:0.5rem; border:1px solid var(--border); text-align:left;">Tokenization</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>WMT 2014 English-German</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">~4.5M sentence pairs</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Byte-pair encoding (BPE), shared source-target vocab of ~37k tokens</td>
+    </tr>
+    <tr style="background:#fafaf7;">
+      <td style="padding:0.5rem; border:1px solid var(--border);"><strong>WMT 2014 English-French</strong></td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">~36M sentence pairs</td>
+      <td style="padding:0.5rem; border:1px solid var(--border);">Word-piece encoding, 32k token vocab</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>These are standard machine-translation benchmark datasets. WMT = "Workshop on Machine Translation" — a yearly competition with curated parallel text.</p>
+
+<h3>2. What is Byte-Pair Encoding (BPE)?</h3>
+
+<p>You can't just use whole words as your vocabulary — the model would never see rare words during training, and the vocab would be huge (millions of words). You also can't use raw characters — the sequences become too long.</p>
+
+<p><strong>BPE is a middle ground.</strong> It builds a vocabulary of <em>subwords</em>:</p>
+
+<ol>
+  <li>Start with all single characters as your vocabulary.</li>
+  <li>Find the most frequent adjacent pair of tokens in the training data.</li>
+  <li>Merge that pair into a new token, add it to the vocabulary.</li>
+  <li>Repeat until you have, say, 37k tokens.</li>
+</ol>
+
+<p>Result: common words become single tokens; rare words get broken into recognizable pieces.</p>
+
+<div class="ascii-diagram">  Word           BPE tokens
+  ─────────────  ──────────────────
+  "the"          ["the"]                 ← common, one token
+  "running"      ["run", "ning"]         ← decomposed into pieces
+  "antidisestab- ["anti", "dis", "estab", "lish", "ment", "arian", "ism"]
+   lishmentariani-                       ← long rare word, many pieces
+   sm"</div>
+
+<p>Why this matters: an unknown word like "antidisestablishmentarianism" can still be processed because its pieces ("anti", "estab", etc.) are familiar.</p>
+
+<h3>3. Shared source-target vocabulary</h3>
+
+<p>For En-De, they use a <strong>single vocabulary</strong> for both source (English) and target (German). Why?</p>
+
+<ul>
+  <li>Many tokens are shared (numbers, proper nouns, punctuation, common subwords).</li>
+  <li>Lets them tie the input embedding, output embedding, and pre-softmax linear — all three using the <em>same</em> ~37k × 512 matrix.</li>
+  <li>If source/target had separate vocabs, you'd need separate embedding matrices, breaking the weight-tying trick from Section 3.4.</li>
+</ul>
+
+<p>This is the practical reason "shared embedding" works: when source and target are linguistically similar (both Indo-European, both using Latin alphabet, lots of shared symbols), one vocab handles both fine.</p>
+
+<h3>4. Batching by length</h3>
+
+<p>Here's a clever data-engineering detail:</p>
+
+<blockquote>
+  "Sentence pairs were batched together by approximate sequence length."
+</blockquote>
+
+<p>Why? Because of <strong>padding waste</strong>.</p>
+
+<h4>The padding problem</h4>
+
+<p>Transformers process fixed-size tensors. If a batch contains sentences of lengths $[5, 30, 50, 8]$, you must pad them all to length 50 (the longest in the batch). The padding tokens consume compute but contribute nothing to the loss.</p>
+
+<div class="ascii-diagram">  Bad batching (random sentences):
+  Sentence A (len 5):   [A1 A2 A3 A4 A5 _ _ _ ... _ ]   30 padding tokens
+  Sentence B (len 30):  [B1 ............... B30 _ ... _]  20 padding tokens
+  Sentence C (len 50):  [C1 ........................ C50]  0 padding tokens
+  Sentence D (len 8):   [D1 ......... D8 _ _ _ ...... _]   42 padding tokens
+                          ↑
+                      Tons of wasted compute.
+
+  Good batching (similar lengths together):
+  Batch 1 (lengths 5-8):     short sentences together, padding to ~10
+  Batch 2 (lengths 25-30):   medium sentences together, padding to ~30
+  Batch 3 (lengths 45-50):   long sentences together, padding to ~50
+
+  Each batch has minimal padding overhead. Much more efficient.</div>
+
+<p>Length-bucketed batching is a standard NLP trick — same training data, but ~2-5× less wasted compute.</p>
+
+<h3>5. Batch size: ~25,000 tokens per batch</h3>
+
+<p>The paper says:</p>
+
+<blockquote>"Each training batch contained a set of sentence pairs containing approximately 25,000 source tokens and 25,000 target tokens."</blockquote>
+
+<p>Note: <strong>batch size is measured in tokens, not sentences</strong>. If sentences average 30 tokens, that's ~833 sentence pairs per batch. If they average 50 tokens, ~500 pairs.</p>
+
+<p>Why measure in tokens? Because the compute per batch depends on total tokens (via $n^2$ attention), not on number of sentences. Using tokens gives consistent compute across batches with different sentence lengths.</p>
+
+<h3>Mental model</h3>
+
+<blockquote>
+  Training data prep boils down to three good engineering decisions: <strong>(1)</strong> use subword tokenization so rare words don't kill you, <strong>(2)</strong> share the vocabulary across source and target so weight tying works, <strong>(3)</strong> batch sentences of similar length together so you don't waste compute on padding.
+</blockquote>
+
+<hr>
+
+<!-- ============ PART 12 ============ -->
+<h2 id="part12">Part 12 — Sections 5.2 / 5.3 / 5.4: Hardware, Optimizer, Regularization <span class="badge new">NEW</span></h2>
+
+<h3>Section 5.2 — Hardware and Schedule</h3>
+
+<p>Quick numbers:</p>
+<ul>
+  <li><strong>Hardware:</strong> 8 NVIDIA P100 GPUs (high-end for 2017; ~21 TFLOPS per GPU)</li>
+  <li><strong>Base model:</strong> ~0.4 seconds per training step, trained for 100,000 steps → about <strong>12 hours total</strong>.</li>
+  <li><strong>Big model:</strong> ~1.0 seconds per step, trained for 300,000 steps → about <strong>3.5 days</strong>.</li>
+</ul>
+
+<p>For 2017, this was remarkably fast. Prior state-of-the-art neural translation models trained for weeks on more hardware. The combination of <strong>full parallelism within each batch</strong> (no RNN bottleneck) and <strong>good hardware utilization</strong> let Transformers train ~10-100× faster than comparable RNN models.</p>
+
+<p>The result: a state-of-the-art model trained overnight, not over weeks. This was a huge deal.</p>
+
+<hr>
+
+<h3>Section 5.3 — Optimizer</h3>
+
+<p>The paper uses <strong>Adam</strong>, a variant of SGD that adapts the learning rate per parameter using running averages of recent gradients.</p>
+
+<p>Hyperparameters:</p>
+<ul>
+  <li>$\beta_1 = 0.9$ — momentum (smoothing recent gradient direction)</li>
+  <li>$\beta_2 = 0.98$ — slightly higher than Adam's default 0.999 (longer averaging for the variance estimate)</li>
+  <li>$\epsilon = 10^{-9}$ — numerical stability</li>
+</ul>
+
+<p>(If you're not deeply familiar with Adam, the rough mental model is: "SGD that automatically picks a per-parameter learning rate based on how 'wiggly' each parameter's gradient has been recently.")</p>
+
+<h4>The learning rate schedule — this is the unusual part</h4>
+
+<p>The paper introduces a specific schedule:</p>
+
+<div class="formula">$$\text{lrate} = d_{\text{model}}^{-0.5} \cdot \min\!\left(\text{step}^{-0.5},\; \text{step} \cdot \text{warmup}^{-1.5}\right)$$</div>
+
+<p>With $\text{warmup} = 4000$. Let's decode what this does in two phases.</p>
+
+<h4>Phase 1 — Warmup (step &lt; 4000): linear increase</h4>
+
+<p>When step is small, $\text{step}^{-0.5}$ (which is large for small step) is bigger than $\text{step} \cdot \text{warmup}^{-1.5}$. So the $\min$ picks the second term:</p>
+
+<div class="formula">$$\text{lrate} = d_{\text{model}}^{-0.5} \cdot \text{step} \cdot \text{warmup}^{-1.5}$$</div>
+
+<p>This is <strong>linear in step</strong>: the lr grows from 0 to its peak value, reaching the max at step = warmup_steps.</p>
+
+<h4>Phase 2 — Decay (step &gt; 4000): inverse-square-root falloff</h4>
+
+<p>After warmup, $\text{step}^{-0.5}$ becomes the smaller term:</p>
+
+<div class="formula">$$\text{lrate} = d_{\text{model}}^{-0.5} \cdot \text{step}^{-0.5}$$</div>
+
+<p>The lr now decays as $1/\sqrt{\text{step}}$ — slow, gentle decrease over the rest of training.</p>
+
+<h4>Visualizing the schedule</h4>
+
+<div class="ascii-diagram">  lrate
+    ↑
+    │      ╱╲
+    │    ╱    ╲___
+    │  ╱          ╲___
+    │ ╱               ╲____
+    │╱                     ╲_____
+    │                            ╲________
+    │                                    ╲____
+    │
+    └────────────────────────────────────────────→  step
+       0    4000 (warmup)              100k
+
+       ←warmup→ ←──── inverse sqrt decay ────→</div>
+
+<h4>Why does Transformer training need warmup?</h4>
+
+<p>Empirically, Transformers trained from scratch with a high learning rate at step 0 often <strong>diverge</strong> — the loss blows up. Reasons:</p>
+
+<ul>
+  <li>LayerNorm and softmax interact awkwardly with large random initial weights. Until the model finds a stable region of the loss landscape, big updates can push it into a regime where gradients explode.</li>
+  <li>The attention softmax is particularly sensitive: bad initial attention patterns can produce huge gradients.</li>
+  <li>Adam's running estimates of gradient mean/variance are unreliable in the first few steps (they need data to stabilize).</li>
+</ul>
+
+<p>Warmup lets the model "settle in" — small steps initially, gradually ramping up as the model finds a workable region. This is now a standard practice for any Transformer training.</p>
+
+<hr>
+
+<h3>Section 5.4 — Regularization</h3>
+
+<p>The paper uses three regularization techniques.</p>
+
+<h4>(a) Dropout — $P_{\text{drop}} = 0.1$</h4>
+
+<p><strong>What it is:</strong> During training, randomly set some activations to 0 with probability $p$. At inference, use all activations (scaled appropriately).</p>
+
+<div class="ascii-diagram">  Before dropout:    [0.3,  0.8, -0.2,  0.5,  0.9, -0.4]
+                       ↓     ↓     ↓     ↓     ↓     ↓
+   random mask:       [1,    0,    1,    1,    0,    1]   ← 0 with prob 0.1
+                       ↓     ↓     ↓     ↓     ↓     ↓
+  After dropout:     [0.3,  0,   -0.2,  0.5,  0,   -0.4]
+                          ^                ^
+                  zeroed out          zeroed out</div>
+
+<p><strong>Intuition:</strong> the model can't rely on any single neuron — it has to learn redundant, robust features. This acts as a stochastic ensemble: each training step uses a different "sub-network" by dropping different neurons. Empirically, dropout reduces overfitting.</p>
+
+<p><strong>Where applied in the Transformer:</strong></p>
+<ul>
+  <li>To the output of each sub-layer, <em>before</em> it's added to the residual and normalized.</li>
+  <li>To the embedding + positional encoding sum, before feeding into the encoder/decoder.</li>
+</ul>
+
+<p>So at every sub-layer, after computing the sub-layer's output but before the "+residual" step, 10% of the activations get zeroed.</p>
+
+<h4>(b) Label Smoothing — $\epsilon_{\text{ls}} = 0.1$</h4>
+
+<p>This one is more subtle but has a big effect.</p>
+
+<p><strong>The problem:</strong> normal cross-entropy loss uses "hard" one-hot targets. For target token "cat" out of vocabulary V = 37,000:</p>
+
+<div class="formula">$$\text{target} = [0, 0, \dots, 1, \dots, 0]$$</div>
+
+<p>(One at the "cat" position, zeros elsewhere.) This trains the model to output probability $\to 1$ for "cat" and $\to 0$ for everything else.</p>
+
+<p>The model has to make its logit for "cat" enormously large compared to the rest. To do this, it pushes logits to extreme values — but extreme outputs:</p>
+<ol>
+  <li>Make the model <strong>overconfident</strong>, even when wrong.</li>
+  <li>Make training unstable (large logits → large gradients).</li>
+</ol>
+
+<p><strong>The fix:</strong> use "soft" targets. Replace the one-hot with a distribution that has $1 - \epsilon$ for the correct token and $\epsilon / (V - 1)$ smeared across the rest:</p>
+
+<div class="formula">$$\text{target}_{\text{smoothed}} = [\frac{0.1}{V-1}, \frac{0.1}{V-1}, \dots, 0.9, \dots, \frac{0.1}{V-1}]$$</div>
+
+<p>(For $\epsilon_{\text{ls}} = 0.1$: the correct token gets 0.9, every other token gets a tiny ~$0.0000027$.)</p>
+
+<h4>Why this works</h4>
+
+<ol>
+  <li><strong>Prevents overconfidence.</strong> The model never needs to push correct-token probability above 0.9 — there's no reward beyond that.</li>
+  <li><strong>Better generalization.</strong> A less-confident model handles uncertain cases more gracefully.</li>
+  <li><strong>Improves BLEU.</strong> The paper notes a counterintuitive result: label smoothing <em>hurts perplexity</em> (the model is technically less confident on the correct answer) but <em>improves accuracy and BLEU</em> (it makes fewer catastrophic mistakes).</li>
+</ol>
+
+<h4>(c) Implicit regularization (mentioned previously)</h4>
+
+<p>Weight tying ($W_{\text{out}} = E^T$, from Section 3.4) also acts as regularization. Sharing the matrix across input/output is a strong constraint that improves generalization.</p>
+
+<hr>
+
+<h3>Mental model for Section 5</h3>
+
+<blockquote>
+  The Transformer's training "recipe" is the same one most modern models still use:
+  <strong>Adam with warmup + inverse-sqrt decay</strong>,
+  <strong>dropout on sub-layer outputs</strong>, and
+  <strong>label smoothing on the targets</strong>.
+  Three ingredients. Warmup prevents early divergence; dropout prevents overfitting through neuron-level robustness; label smoothing prevents overconfidence and improves generalization.
+</blockquote>
+
+<hr>
+
+<!-- ============ LATEST ============ -->
+<div id="latest"></div>
+
+<div class="ratings">
+  <strong>📊 Your current ratings</strong>
+  <div class="rating">🧠 Depth of knowledge: <strong>9.5/10</strong> <em>(holding)</em></div>
+  <div class="rating">⚡ Learning speed: <strong>8.5/10</strong> <em>(holding)</em></div>
+</div>
+
+<div class="checkin">
+  <strong>🎯 Any doubts on Section 5?</strong>
+  <p>Possible doubts:</p>
+  <ul>
+    <li>"What's Adam exactly — how does it differ from plain SGD?"</li>
+    <li>"Why is the warmup formula structured that way — couldn't a simpler linear ramp work?"</li>
+    <li>"At inference, how does dropout 'use all activations scaled appropriately'?"</li>
+    <li>"What's BLEU score? Is it a good metric for translation quality?"</li>
+    <li>"How is the cross-entropy loss computed against the smoothed target — is it just $\sum -p \log q$?"</li>
+  </ul>
+  <p>Or say <strong>"move on"</strong> for <strong>Section 6 — Results</strong>.</p>
+</div>
+
+</body>
+</html>
