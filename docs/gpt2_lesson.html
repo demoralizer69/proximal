@@ -582,18 +582,118 @@ the residual stream has accumulated $N$ contributions. If each is initialized fr
 $\mathcal{N}(0, \sigma^2)$, the variance of the residual stream grows as $N \sigma^2$, which
 blows up at depth.</p>
 
-<p>GPT-2's fix: scale the initialization of the output projection of each residual block by
-$1/\sqrt{N}$, where $N$ is the number of residual layers. Now each block contributes variance
-$\sigma^2 / N$, and the sum across $N$ layers has total variance $\sigma^2$ — independent of
-depth.</p>
+<h4>Where exactly does the $1/\sqrt{N}$ go?</h4>
 
-<div class="formula">
-$\text{Var}\left[\sum_{\ell=1}^{N} f_\ell(h_\ell)\right] \;\approx\; N \cdot \frac{\sigma^2}{N} \;=\; \sigma^2.$
+<p>This is the part the paper is terse about. Each Transformer block has <em>two</em>
+sub-layers, each ending with a projection that <strong>writes back to the residual stream</strong>:</p>
+
+<ul>
+  <li>In the <strong>attention sub-layer</strong>: the output projection
+    $W_O \in \mathbb{R}^{d \times d}$ that mixes the per-head outputs back to $d_{\text{model}}$.</li>
+  <li>In the <strong>FFN sub-layer</strong>: the second linear $W_2 \in \mathbb{R}^{4d \times d}$
+    that projects from the $4d$ hidden back down to $d_{\text{model}}$.</li>
+</ul>
+
+<p>These are the two "exit" weights — the very last linear ops before the value gets added
+into the residual stream. <strong>Those</strong> are the matrices whose initialization gets
+divided by $\sqrt{N}$. Every other weight in the block ($W_Q, W_K, W_V$, the FFN up-projection
+$W_1$, embeddings) keeps its standard init.</p>
+
+<div class="ascii-diagram">
+   One Transformer block — pre-LN with $1/\sqrt{N}$ exit scaling
+   (red ▼ marks the points that get the 1/√N initialization)
+
+      residual stream h ──────────────────────────────────────┬───►
+              │                                               │
+              ▼                                               │
+        ┌──────────┐                                          │
+        │ LayerNorm│                                          │
+        └──────────┘                                          │
+              │                                               │
+              ▼                                               │
+        ┌──────────────────────────────────────┐              │
+        │ MultiHeadAttention                   │              │
+        │   Q = · W_Q       (standard init)    │              │
+        │   K = · W_K       (standard init)    │              │
+        │   V = · W_V       (standard init)    │              │
+        │   attn = softmax(QK^T / √d_k) · V    │              │
+        │   out  = attn · W_O    ▼ INIT × 1/√N │              │
+        └──────────────────────────────────────┘              │
+              │                                               │
+              └─────────► (+) ◄──────────────────────────────►│
+                           │                                  │
+              ┌────────────┘                                  │
+              ▼                                               │
+        ┌──────────┐                                          │
+        │ LayerNorm│                                          │
+        └──────────┘                                          │
+              │                                               │
+              ▼                                               │
+        ┌──────────────────────────────────────┐              │
+        │ FFN                                  │              │
+        │   h1 = GELU(· W_1)  (standard init)  │              │
+        │   out = h1 · W_2    ▼ INIT × 1/√N    │              │
+        └──────────────────────────────────────┘              │
+              │                                               │
+              └─────────► (+) ◄──────────────────────────────►│
+                           │                                  │
+                           ▼                                  ▼
+                  (to next block's residual stream)
 </div>
 
+<p>The intuition for <em>why these two weights specifically</em>: only the exit projection
+controls how much each sub-layer <em>contributes</em> to the residual stream. The query,
+key, value, and up-projection weights affect the <em>internal</em> computation of the
+sub-layer, but their effect on the residual stream is mediated through $W_O$ / $W_2$.
+Scaling those two matrices is the most direct lever on "how much does this block change
+$h$?"</p>
+
+<h4>The variance accumulation, made explicit</h4>
+
+<p>Let $f_\ell$ be the function the $\ell$-th block adds to the residual stream:
+$h_{\ell+1} = h_\ell + f_\ell(h_\ell)$. Unroll across all $N$ blocks:</p>
+
+<div class="formula">
+$h_N \;=\; h_0 \;+\; \sum_{\ell=1}^{N} f_\ell(h_\ell).$
+</div>
+
+<p>Each $f_\ell$ ends in either $W_O$ or $W_2$ (and the block has two of these summed in,
+but treat $N$ as counting all residual additions — so $N = 2 \times n_{\text{layers}}$ in
+the actual code). Now compare with vs without the scaling. Let "standard init" mean variance
+$\sigma^2$ per output element; assume $f_\ell$ outputs are approximately uncorrelated across
+$\ell$ at initialization.</p>
+
+<table>
+<tr><th>Setting</th><th>Per-block contribution variance</th><th>Total variance after $N$ blocks</th></tr>
+<tr><td><strong>Without scaling</strong></td><td>$\sigma^2$</td><td>$N \sigma^2 \;\to\;$ blows up with depth</td></tr>
+<tr><td><strong>With $W_O, W_2$ init × $1/\sqrt{N}$</strong></td><td>$\sigma^2 / N$ (variance scales as the squared init scale)</td><td>$N \cdot \sigma^2 / N \;=\; \sigma^2 \;\to\;$ <em>constant in $N$</em></td></tr>
+</table>
+
+<div class="formula">
+$\text{Var}\!\left[\sum_{\ell=1}^{N} f_\ell(h_\ell)\right] \;=\; \sum_{\ell=1}^{N} \text{Var}[f_\ell] \;\approx\; N \cdot \frac{\sigma^2}{N} \;=\; \sigma^2.$
+</div>
+
+<p>The first equality uses independence of the $f_\ell$ contributions at init (sums of
+independent variances). The second substitutes the scaled-init contribution variance.</p>
+
+<h4>Why dividing the <em>init</em> (not the activation directly) achieves this</h4>
+
+<p>A linear layer's output variance scales as $\|W\|^2$ times the input variance. If you
+initialize $W$ from $\mathcal{N}(0, \sigma_W^2 / N)$ instead of $\mathcal{N}(0, \sigma_W^2)$,
+the output variance shrinks by a factor of $N$ — equivalent to "the block contributes
+$1/N$ as much variance to the residual stream." That's why the $1/\sqrt{N}$ goes on the
+<em>standard deviation</em> of the init (square it for variance).</p>
+
+<blockquote>
+Mental model: pre-LN keeps the residual stream un-normalized between blocks, so its
+variance is free to grow. To stop it growing, GPT-2 just makes each block's exit
+projection start out small enough that the sum across all $N$ blocks lands at $\sigma^2$
+instead of $N \sigma^2$.
+</blockquote>
+
 <p>This is a small, principled change that combines with pre-LN to keep activations
-well-scaled at initialization regardless of depth. Without it, the larger models would either
-saturate or explode in the first few steps.</p>
+well-scaled at initialization regardless of depth. Without it, the larger models would
+either saturate or explode in the first few steps.</p>
 
 <h3>Change 3 — An extra LayerNorm after the final block</h3>
 
