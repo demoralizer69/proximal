@@ -831,7 +831,7 @@ the test corpus.</p>
 <p>Perplexity is the exponential of the per-token cross-entropy:</p>
 
 <div class="formula">
-$$\text{PPL} \;=\; \exp\!\left(-\frac{1}{N}\sum_{i=1}^{N}\log P(u_i \mid u_{<i})\right).$$
+$$\text{PPL} \;=\; \exp\!\left(-\frac{1}{N}\sum_{i=1}^{N}\log P(u_i \mid u_{\lt i})\right).$$
 </div>
 
 <p>Intuitively, perplexity is "the effective branching factor": a perplexity of 30 means the
@@ -842,7 +842,7 @@ choices. Lower is better.</p>
 instead of tokens (so it's directly comparable across tokenization schemes):</p>
 
 <div class="formula">
-$$\text{BPC} \;=\; \frac{1}{N_{\text{chars}}}\sum_{i=1}^{N}-\log_2 P(u_i \mid u_{<i}).$$
+$$\text{BPC} \;=\; \frac{1}{N_{\text{chars}}}\sum_{i=1}^{N}-\log_2 P(u_i \mid u_{\lt i}).$$
 </div>
 
 <p>For enwik8, GPT-2 achieves about <strong>0.93 BPC</strong>, beating the prior SOTA of
@@ -888,7 +888,7 @@ The bloom-filter analysis in Section 4 reinforces this by measuring n-gram overl
 candidate words. The task: pick the correct word.</p>
 
 <p>Prompting mechanism: for each candidate $c$, substitute it into the blank, then compute
-$P(\text{full passage with } c) = \prod_i P(u_i \mid u_{<i})$ under the LM. Pick the candidate
+$P(\text{full passage with } c) = \prod_i P(u_i \mid u_{\lt i})$ under the LM. Pick the candidate
 with highest probability.</p>
 
 <div class="ascii-diagram">

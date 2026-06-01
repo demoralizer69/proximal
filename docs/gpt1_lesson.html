@@ -1989,7 +1989,7 @@ just by using the language model itself in clever ways.</p>
 <h3>The setup: tasks via heuristics on the raw LM</h3>
 
 <p>For each task, design a procedure that uses <em>only</em> the pre-trained
-$P(u_i \mid u_{<i}; \Theta)$ to produce an answer. No classifier head $W_y$, no
+$P(u_i \mid u_{\lt i}; \Theta)$ to produce an answer. No classifier head $W_y$, no
 fine-tuning, no labeled data ever shown to the model.</p>
 
 <div class="card">
